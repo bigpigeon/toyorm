@@ -208,7 +208,7 @@ toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
 
 ### Model definition
 
-some model definition example
+**example**
 
 ```golang
 type Extra map[string]interface{}
@@ -283,18 +283,154 @@ autoincrement | void                    | same as auto_increment
 
 other custom TAG will append to end of CREATE TABLE field
 
-### bind models
+
+
+#### Bind models
 
 1. model kind must be a struct or a point with struct
 
 2. the model is what information that toyorm know about the table
 
 ```golang
-toy.Model(&User{})
+brick := toy.Model(&User{})
 // or
-toy.Model(User{})
+brick := toy.Model(User{})
 ```
 
+### Sql Operation
+
+---
+
+#### create table
+
+```golang
+var err error
+_, err = toy.Model(&User{}).Debug().CreateTable()
+// CREATE TABLE user (id BIGINT AUTO_INCREMENT,created_at TIMESTAMP NULL,updated_at TIMESTAMP NULL,deleted_at TIMESTAMP NULL,name VARCHAR(255),age BIGINT ,sex VARCHAR(255) , PRIMARY KEY(id))
+// CREATE INDEX idx_user_deletedat ON user(deleted_at)
+// CREATE UNIQUE INDEX udx_user_name ON user(name)
+_, err =toy.Model(&UserDetail{}).Debug().CreateTable()
+// CREATE TABLE user_detail (id BIGINT AUTO_INCREMENT,user_id BIGINT,main_page Text,extra VARCHAR(1024), PRIMARY KEY(id))
+// CREATE INDEX idx_user_detail_userid ON user_detail(user_id)
+_, err =toy.Model(&Blog{}).Debug().CreateTable()
+// CREATE TABLE blog (id BIGINT AUTO_INCREMENT,created_at TIMESTAMP NULL,updated_at TIMESTAMP NULL,deleted_at TIMESTAMP NULL,user_id BIGINT,title VARCHAR(255),content VARCHAR(255) , PRIMARY KEY(id))
+// CREATE INDEX idx_blog_deletedat ON blog(deleted_at)
+// CREATE INDEX idx_blog_userid ON blog(user_id)
+// CREATE INDEX idx_blog_title ON blog(title)
+```
+
+#### drop table
+
+```golang
+var err error
+_, err =toy.Model(&User{}).Debug().DropTable()
+// DROP TABLE user
+_, err =toy.Model(&UserDetail{}).Debug().DropTable()
+// DROP TABLE user_detail
+_, err =toy.Model(&Blog{}).Debug().DropTable()
+// DROP TABLE blog
+```
+
+#### insert/save data
+
+// insert with autoincrement will set id to source data
+
+```golang
+user := &User{
+    Name: "bigpigeon",
+    Age:  18,
+    Sex:  "male",
+}
+_, err = toy.Model(&User{}).Debug().Insert(&user)
+// INSERT INTO user(created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?) , args:[]interface {}{time.Time{wall:0xbe8df5112e7f07c8, ext:210013499, loc:(*time.Location)(0x141af80)}, time.Time{wall:0xbe8df5112e7f1768, ext:210017044, loc:(*time.Location)(0x141af80)}, "bigpigeon", 18, "male"}
+// print user format with json
+/* {
+  "ID": 1,
+  "CreatedAt": "2018-01-11T20:47:00.780077+08:00",
+  "UpdatedAt": "2018-01-11T20:47:00.780081+08:00",
+  "DeletedAt": null,
+  "Name": "bigpigeon",
+  "Age": 18,
+  "Sex": "male",
+  "Detail": null,
+  "Friends": null,
+  "Blog": null
+}*/
+```
+
+// save data use "REPLACE INTO" when primary key exist
+
+```golang
+user := &User{
+    ModelDefault: toyorm.ModelDefault{ID: 1},
+    Name: "bigpigeon",
+    Age:  18,
+    Sex:  "male",
+}
+_, err = toy.Model(&User{}).Debug().Save(&user)
+// SELECT id,created_at FROM user WHERE id IN (?), args:[]interface {}{0x1}
+// REPLACE INTO user(id,created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?,?) , args:[]interface {}{0x1, time.Time{wall:0x0, ext:63651271470, loc:(*time.Location)(nil)}, time.Time{wall:0xbe8df4eb81a130c8, ext:232012178, loc:(*time.Location)(0x141af80)}, "bigpigeon", 18, "male"}
+
+```
+
+#### update
+
+```golang
+brick.Model(&User{}).Debug().Update(&User{
+    Age: 4,
+})
+// UPDATE user SET updated_at=?,age=? WHERE deleted_at IS NULL, args:[]interface {}{time.Time{wall:0xbe8df4eb81b6c050, ext:233425327, loc:(*time.Location)(0x141af80)}, 4}
+```
+
+
+#### find
+
+find one
+
+```golang
+var user User
+_, err = toy.Model(&User{}).Debug().Find(&user}
+// SELECT id,created_at,updated_at,deleted_at,name,age,sex FROM user WHERE deleted_at IS NULL LIMIT 1, args:[]interface {}(nil)
+// print user format with json
+/* {
+  "ID": 1,
+  "CreatedAt": "2018-01-11T12:47:01Z",
+  "UpdatedAt": "2018-01-11T12:47:01Z",
+  "DeletedAt": null,
+  "Name": "bigpigeon",
+  "Age": 4,
+  "Sex": "male",
+  "Detail": null,
+  "Friends": null,
+  "Blog": null
+}*/
+```
+
+find multiple
+
+```golang
+var users []User
+_, err = brick.Debug().Find(&users)
+fmt.Printf("find users %s\n", JsonEncode(&users))
+
+// SELECT id,created_at,updated_at,deleted_at,name,age,sex FROM user WHERE deleted_at IS NULL, args:[]interface {}(nil)
+```
+
+#### delete
+
+delete with primary key
+
+```golang
+_, err = brick.Debug().Delete(&user)
+// UPDATE user SET deleted_at=? WHERE id IN (?), args:[]interface {}{(*time.Time)(0xc4200f0520), 0x1}
+```
+
+delete with condition
+
+```golang
+_, err = brick.Debug().Where(toyorm.ExprEqual, Offsetof(User{}.Name), "bigpigeon").DeleteWithConditions()
+// UPDATE user SET deleted_at=? WHERE name = ?, args:[]interface {}{(*time.Time)(0xc4200dbfa0), "bigpigeon"}
+```
 
 ### ToyBrick
 
@@ -304,7 +440,11 @@ use **toy.Model** will create a ToyBrick, you need use it to build grammar and o
 
 #### Where condition
 
-where will clean old conditions and make new condition
+affective update/find/delete operation
+
+**usage**
+
+where will clean old conditions and make new one
 
     brick.Where(<expr>, <Key>, [value])
 
@@ -343,7 +483,7 @@ ExprNotLike       | NOT LIKE     | brick.Where(ExprNotLike, OffsetOf(Product{}.N
 ExprNull          | IS NULL      | brick.Where(ExprNull, OffsetOf(Product{}.DeletedAt)) // WHERE DeletedAt IS NULL
 ExprNotNull       | IS NOT NULL  | brick.Where(ExprNotNull, OffsetOf(Product{}.DeletedAt)) // WHERE DeletedAt IS NOT NULL
 
-**some example**
+**example**
 
 single condition
 
@@ -371,6 +511,18 @@ brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
 // WHERE price > 3 and (count = 2 or count = 1)
 ```
 
+
+```golang
+brick.Conditions(
+    brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
+        Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
+).And().Conditions(
+    brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Price), 3).Or().
+        Condition(toyorm.ExprEqual, Offsetof(Product{}.Price), 4).Search,
+)
+// WHERE (count = ? OR count = ?) AND (price = ? OR price = ?)
+```
+
 limit & offset
 
 ```golang
@@ -386,85 +538,77 @@ brick = brick.OrderBy(Offsetof(Product{}.Name))
 ```
 
 
+#### Transaction
+
+start a transaction
+
+```golang
+brick = brick.Begin()
+```
+
+rollback all sql action
+
+```golang
+err = brick.Rollback()
+```
+
+commit all sql action
+
+```golang
+err = brick.Commit()
+```
+
+#### Debug
+
+if Set debug all sql action will have log
+
+```golang
+brick = brick.Debug()
+```
+
+
+#### IgnoreMode
+
+when I Update/Replace or Search with struct that have some zero value, did I update it ?
+
+
+use IgnoreMode to differentiate what zero value should update
+
+```golang
+brick = brick.IgnoreMode(toyorm.IgnoreZero ^ toyorm.IgnoreZeroLen)
+// ignore all zeor value but excloud zero len slice
+// now value = []int(nil) will ignore
+// but value = []int{} will update
+```
+
+---
+
+mode              |  effective
+------------------|---------------
+IgnoreFalse       | ignore field type is bool and value is false
+IgnoreZeroInt     | ignore field type is int/uint/uintptr(incloud their 16,32,64 bit type) and value is 0
+IgnoreZeroFloat   | ignore field type is float32/float64 and value is 0.0
+IgnoreZeroComplex | ignore field type is float32/float64 and value is 0.0
+IgnoreNilString   | ignore field type is string and value is ""
+IgnoreNilPoint    | ignore field type is point/map/slice and value is nil
+IgnoreZeroLen     | ignore field type is map/array/slice and len = 0
+IgnoreNullStruct  | ignore field type is struct and value is zero value struct e.g type A struct{A string,B int}, A{"", 0} will be ignore
+IgnoreNil         | ignore with IgnoreNilPoint and IgnoreZeroLen
+IgnoreZero        | ignore all of the above
+
+
+#### Scope
+
+// TODO
 
 #### Thread safe
 
 Thread safe if you comply with the following agreement
 
-1. all **ToyBrick** object is read only, if you want to change it please create a new one
+1. make sure **ToyBrick** object is read only, if you want to change it, create a new one
 
 2. do not use **append** to change ToyBrick's slice data,use **make** and **copy** to clone new slice
 
-
-#### Create table
-
-```golang
-var err error
-_, err = toy.Model(&User{}).Debug().CreateTable()
-// CREATE TABLE user (id BIGINT AUTO_INCREMENT,created_at TIMESTAMP NULL,updated_at TIMESTAMP NULL,deleted_at TIMESTAMP NULL,name VARCHAR(255),age BIGINT ,sex VARCHAR(255) , PRIMARY KEY(id))
-// CREATE INDEX idx_user_deletedat ON user(deleted_at)
-// CREATE UNIQUE INDEX udx_user_name ON user(name)
-_, err =toy.Model(&UserDetail{}).Debug().CreateTable()
-// CREATE TABLE user_detail (id BIGINT AUTO_INCREMENT,user_id BIGINT,main_page Text,extra VARCHAR(1024), PRIMARY KEY(id))
-// CREATE INDEX idx_user_detail_userid ON user_detail(user_id)
-_, err =toy.Model(&Blog{}).Debug().CreateTable()
-// CREATE TABLE blog (id BIGINT AUTO_INCREMENT,created_at TIMESTAMP NULL,updated_at TIMESTAMP NULL,deleted_at TIMESTAMP NULL,user_id BIGINT,title VARCHAR(255),content VARCHAR(255) , PRIMARY KEY(id))
-// CREATE INDEX idx_blog_deletedat ON blog(deleted_at)
-// CREATE INDEX idx_blog_userid ON blog(user_id)
-// CREATE INDEX idx_blog_title ON blog(title)
-```
-
-### Drop Table
-
-```golang
-var err error
-_, err =toy.Model(&User{}).Debug().DropTable()
-// DROP TABLE user
-_, err =toy.Model(&UserDetail{}).Debug().DropTable()
-// DROP TABLE user_detail
-_, err =toy.Model(&Blog{}).Debug().DropTable()
-// DROP TABLE blog
-```
-
-### Insert/Save Data
-
-// insert with autoincrement will set id to source data
-
-```golang
-user := &User{
-    Name: "bigpigeon",
-    Age:  18,
-    Sex:  "male",
-}
-_, err = toy.Model(&User{}).Debug().Insert(&user)
-// INSERT INTO user(created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?) , args:[]interface {}{time.Time{wall:0xbe8d7d8a2b9dbdb0, ext:284219817, loc:(*time.Location)(0x141cf80)}, time.Time{wall:0xbe8d7d8a2b9dd138, ext:284224274, loc:(*time.Location)(0x141cf80)}, "fatpigeon", 18, "male"}
-// print user format with json
-/* user {
-    "ID": 1,
-    "CreatedAt": "2018-01-10T10:47:04.722534+08:00",
-    "UpdatedAt": "2018-01-10T10:47:04.722543+08:00",
-    "DeletedAt": null,
-    "Name": "bigpigeon",
-    "Age": 18,
-    "Sex": "male",
-    ...
-}*/
-```
-
-// save data use "REPLACE INTO" when primary key exist
-
-```golang
-user := &User{
-    ModelDefault: toyorm.ModelDefault{ID: 1},
-    Name: "bigpigeon",
-    Age:  18,
-    Sex:  "male",
-}
-_, err =toy.Model(&User{}).Debug().Save(&user)
-// SELECT id,created_at FROM user WHERE id IN (?), args:[]interface {}{0x1}
-// REPLACE INTO user(id,created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?,?) , args:[]interface {}{0x1, time.Time{wall:0xbe8d861c14f91460, ext:329878361, loc:(*time.Location)(0x141cf80)}, time.Time{wall:0xbe8d861c150009a0, ext:330334354, loc:(*time.Location)(0x141cf80)}, "bigpigeon", 18, "male"}
-
-```
 
 ### Full Feature Example
 

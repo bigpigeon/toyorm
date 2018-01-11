@@ -270,8 +270,14 @@ func (t *ToyBrick) Where(expr SearchExpr, v ...interface{}) *ToyBrick {
 
 func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
+
+		newSearch := make(SearchList, len(search), len(search)+1)
+		copy(newSearch, search)
+		// to protect search priority
+		newSearch = append(newSearch, NewSearchBranch(ExprIgnore))
+
 		newt := *t
-		newt.Search = search
+		newt.Search = newSearch
 		return &newt
 	})
 }

@@ -14,8 +14,8 @@ func (t ToyBrickAnd) Conditions(search SearchList) *ToyBrick {
 		if len(search) == 0 {
 			return t
 		}
-		newSearch := make(SearchList, 0, len(t.Search)+len(search))
-		newSearch = append(newSearch, t.Search...)
+		newSearch := make(SearchList, len(t.Search), len(t.Search)+len(search))
+		copy(newSearch, t.Search)
 		if len(t.Search) != 0 {
 			// AND have high priority
 			if newSearch[len(newSearch)-1].Type == ExprOr {
@@ -50,8 +50,8 @@ func (t ToyBrickOr) Conditions(search SearchList) *ToyBrick {
 		if len(search) == 0 {
 			return t
 		}
-		newSearch := make(SearchList, 0, len(t.Search)+len(search))
-		newSearch = append(newSearch, t.Search...)
+		newSearch := make(SearchList, len(t.Search), len(t.Search)+len(search))
+		copy(newSearch, t.Search)
 		if len(newSearch) != 0 {
 			newSearch = append(newSearch, search...)
 			newSearch = append(newSearch, NewSearchBranch(ExprOr))

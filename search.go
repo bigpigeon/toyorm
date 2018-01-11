@@ -9,7 +9,8 @@ import (
 type SearchExpr int
 
 const (
-	ExprAnd = SearchExpr(iota)
+	ExprIgnore = SearchExpr(iota)
+	ExprAnd
 	ExprOr
 	ExprNot
 	ExprEqual
@@ -29,7 +30,7 @@ const (
 )
 
 func (op SearchExpr) IsBranch() bool {
-	return op == ExprAnd || op == ExprOr || op == ExprNot
+	return op == ExprAnd || op == ExprOr || op == ExprNot || op == ExprIgnore
 }
 
 type SearchObjVal struct {
@@ -140,6 +141,8 @@ func (s SearchList) ToExecValue() ExecValue {
 				stack = stack[:len(stack)-1]
 				exec.Query = fmt.Sprintf("NOT(%s)", last.Query)
 				exec.Args = append(exec.Args, last.Args...)
+			case ExprIgnore:
+				continue
 			default:
 				panic(ErrInvalidType)
 			}
