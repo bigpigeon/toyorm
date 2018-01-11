@@ -621,7 +621,6 @@ func (t *ToyBrick) FindExec(records ModelRecords) (exec ExecValue) {
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
-
 	return
 }
 
@@ -748,4 +747,12 @@ func (t *ToyBrick) getConditionFields(records ModelRecordFieldTypes) []*ModelFie
 		fields = t.Fields
 	}
 	return getFieldsWithRecords(fields, records)
+}
+
+// use for order by
+func (t *ToyBrick) ToDesc(v interface{}) *ModelField {
+	field := t.fieldSelect(v)
+	newField := *field
+	newField.Name = field.Name + " DESC"
+	return &newField
 }

@@ -123,14 +123,6 @@ func IsZero(v reflect.Value) bool {
 	return v.Interface() == reflect.Zero(v.Type()).Interface()
 }
 
-func IsZeroLenMap(v reflect.Value) bool {
-	return v.Interface() == reflect.MakeMap(v.Type()).Interface()
-}
-
-func IsZeroLenSlice(v reflect.Value) bool {
-	return v.Interface() == reflect.MakeSlice(v.Type(), 0, 0).Interface()
-}
-
 func SafeMapSet(m, k, x reflect.Value) {
 	eType, xType := m.Type().Elem(), x.Type()
 	if eType != xType {

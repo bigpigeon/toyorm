@@ -361,15 +361,23 @@ _, err = toy.Model(&User{}).Debug().Insert(&user)
 // save data use "REPLACE INTO" when primary key exist
 
 ```golang
-user := &User{
-    ModelDefault: toyorm.ModelDefault{ID: 1},
-    Name: "bigpigeon",
-    Age:  18,
-    Sex:  "male",
+users := []User{
+    {
+        ModelDefault: toyorm.ModelDefault{ID: 1},
+        Name:         "bigpigeon",
+        Age:          18,
+        Sex:          "male",
+    },
+    {
+        Name: "fatpigeon",
+        Age:  27,
+        Sex:  "male",
+    },
 }
 _, err = toy.Model(&User{}).Debug().Save(&user)
 // SELECT id,created_at FROM user WHERE id IN (?), args:[]interface {}{0x1}
-// REPLACE INTO user(id,created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?,?) , args:[]interface {}{0x1, time.Time{wall:0x0, ext:63651271470, loc:(*time.Location)(nil)}, time.Time{wall:0xbe8df4eb81a130c8, ext:232012178, loc:(*time.Location)(0x141af80)}, "bigpigeon", 18, "male"}
+// REPLACE INTO user(id,created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?,?) , args:[]interface {}{0x1, time.Time{wall:0x0, ext:63651278036, loc:(*time.Location)(nil)}, time.Time{wall:0xbe8dfb5511465918, ext:302600558, loc:(*time.Location)(0x141af80)}, "bigpigeon", 18, "male"}
+// INSERT INTO user(created_at,updated_at,name,age,sex) VALUES(?,?,?,?,?) , args:[]interface {}{time.Time{wall:0xbe8dfb551131b7d8, ext:301251230, loc:(*time.Location)(0x141af80)}, time.Time{wall:0xbe8dfb5511465918, ext:302600558, loc:(*time.Location)(0x141af80)}, "fatpigeon", 27, "male"}
 
 ```
 
@@ -537,6 +545,13 @@ brick = brick.OrderBy(Offsetof(Product{}.Name))
 // ORDER BY name
 ```
 
+order by desc
+
+```golang
+brick = brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name)))
+// ORDER BY name DESC
+```
+
 
 #### Transaction
 
@@ -588,7 +603,7 @@ mode              |  effective
 IgnoreFalse       | ignore field type is bool and value is false
 IgnoreZeroInt     | ignore field type is int/uint/uintptr(incloud their 16,32,64 bit type) and value is 0
 IgnoreZeroFloat   | ignore field type is float32/float64 and value is 0.0
-IgnoreZeroComplex | ignore field type is float32/float64 and value is 0.0
+IgnoreZeroComplex | ignore field type is complex64/complex128 and value is 0 + 0i
 IgnoreNilString   | ignore field type is string and value is ""
 IgnoreNilPoint    | ignore field type is point/map/slice and value is nil
 IgnoreZeroLen     | ignore field type is map/array/slice and len = 0
@@ -599,7 +614,15 @@ IgnoreZero        | ignore all of the above
 
 #### Scope
 
-// TODO
+use scope to do sth custom operation with toybrick
+
+
+```golang
+brick.Scope(func(t *ToyBrick) *ToyBrick{
+    newt := *t
+
+})
+```
 
 #### Thread safe
 

@@ -413,15 +413,14 @@ func HandlerSaveTimeProcess(ctx *Context) error {
 	if ctx.Result.Records.Len() > 0 && createField != nil {
 		primaryField := ctx.Brick.model.GetOnePrimary()
 		brick := ctx.Brick.BindFields(primaryField, createField)
-		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.Field.Type), ctx.Result.Records.Len(), ctx.Result.Records.Len())
+		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.Field.Type), 0, ctx.Result.Records.Len())
 		action := QueryAction{}
 		var tryFindTimeIndex []int
 
 		for i, record := range ctx.Result.Records.GetRecords() {
 			pri := record.Field(primaryField)
 			if pri.IsValid() && IsZero(pri) == false {
-				primaryKeys.Index(i).Set(pri)
-				//primaryKeysMap[pri.Interface()] = record
+				primaryKeys = reflect.Append(primaryKeys, pri)
 			}
 			tryFindTimeIndex = append(tryFindTimeIndex, i)
 		}
