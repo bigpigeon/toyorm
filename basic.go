@@ -241,3 +241,48 @@ func getFieldsWithRecords(fields []*ModelField, records ModelRecordFieldTypes) [
 	}
 	return selectFields
 }
+
+// use for insert/update/
+func getModelFieldAndValues(ignoreMode IgnoreMode, record ModelRecord, currentFields, defaultFields, sqlFields []*ModelField) []struct {
+	Field *ModelField
+	Value reflect.Value
+} {
+	var fields []*ModelField
+	if len(currentFields) > 0 {
+		fields = defaultFields
+	} else if len(defaultFields) > 0 {
+		fields = defaultFields
+	}
+
+	var useIgnoreMode bool
+	if len(fields) == 0 {
+		fields = sqlFields
+		useIgnoreMode = record.IsVariableContainer() == false
+	}
+	var pairs []struct {
+		Field *ModelField
+		Value reflect.Value
+	}
+	if useIgnoreMode {
+		for _, mField := range fields {
+			if fieldValue := record.Field(mField); fieldValue.IsValid() {
+				if ignoreMode.Ignore(fieldValue) == false {
+					pairs = append(pairs, struct {
+						Field *ModelField
+						Value reflect.Value
+					}{mField, fieldValue})
+				}
+			}
+		}
+	} else {
+		for _, mField := range fields {
+			if fieldValue := record.Field(mField); fieldValue.IsValid() {
+				pairs = append(pairs, struct {
+					Field *ModelField
+					Value reflect.Value
+				}{mField, fieldValue})
+			}
+		}
+	}
+	return pairs
+}

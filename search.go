@@ -166,7 +166,7 @@ func (s SearchList) ToExecValue() ExecValue {
 				exec.Query = fmt.Sprintf("%s <= ?", s[i].Val.Field.Name)
 				exec.Args = append(exec.Args, s[i].Val.Val)
 			case ExprBetween:
-				exec.Query = fmt.Sprintf("%s NOT BETWEEN ? AND ?", s[i].Val.Field.Name)
+				exec.Query = fmt.Sprintf("%s BETWEEN ? AND ?", s[i].Val.Field.Name)
 				vv := reflect.ValueOf(s[i].Val.Val)
 				exec.Args = append(exec.Args, vv.Index(0).Interface(), vv.Index(1).Interface())
 			case ExprNotBetween:

@@ -44,6 +44,8 @@ type ToyBrick struct {
 	UpdateFields []*ModelField
 	// use for scan, if nil or len = 0, use Fields
 	ScanFields []*ModelField
+	// use for brick.Where(ExprAnd/ExprOr, data)
+	ConditionFields []*ModelField
 }
 
 func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
@@ -227,19 +229,9 @@ func (t *ToyBrick) condition(expr SearchExpr, v ...interface{}) SearchList {
 		switch vValue.Kind() {
 		case reflect.Struct:
 			record := NewStructRecord(t.model, vValue)
-
-			if vValue.Type() == t.model.ReflectType {
-				for _, mField := range t.model.SqlFields {
-					if elem := record.Field(mField); elem.IsValid() && elem.Interface() != reflect.Zero(elem.Type()).Interface() {
-						search = search.Condition(mField, elem.Interface(), ExprEqual, expr)
-					}
-				}
-			} else {
-				for _, mField := range t.model.SqlFields {
-					if elem := record.Field(mField); elem.IsValid() {
-						search = search.Condition(mField, elem.Interface(), ExprEqual, expr)
-					}
-				}
+			pairs := getModelFieldAndValues(t.ignoreMode, record, t.ConditionFields, t.Fields, t.model.SqlFields)
+			for _, pair := range pairs {
+				search = search.Condition(pair.Field, pair.Value.Interface(), ExprEqual, expr)
 			}
 		default:
 			if m, ok := vValue.Interface().(map[string]interface{}); ok {
@@ -597,11 +589,11 @@ func (s *ToyBrick) ConditionExec() (exec ExecValue) {
 		exec.Query += "WHERE " + searchExec.Query
 		exec.Args = append(exec.Args, searchExec.Args...)
 	}
-	if s.offset != 0 {
-		exec.Query += fmt.Sprintf(" OFFSET %d", s.offset)
-	}
 	if s.limit != 0 {
 		exec.Query += fmt.Sprintf(" LIMIT %d", s.limit)
+	}
+	if s.offset != 0 {
+		exec.Query += fmt.Sprintf(" OFFSET %d", s.offset)
 	}
 	if len(s.orderBy) > 0 {
 		exec.Query += fmt.Sprintf(" ORDER BY ")
@@ -629,30 +621,11 @@ func (t *ToyBrick) FindExec(records ModelRecords) (exec ExecValue) {
 
 func (t *ToyBrick) UpdateExec(record ModelRecord) (exec ExecValue) {
 	var recordList []string
-	fields := t.getUpdateFields(record)
-	var useIgnoreMode bool
-	if len(fields) == 0 {
-		fields = t.model.SqlFields
-		useIgnoreMode = record.IsVariableContainer() == false
+	pairs := getModelFieldAndValues(t.ignoreMode, record, t.InsertField, t.Fields, t.model.SqlFields)
+	for _, pair := range pairs {
+		recordList = append(recordList, pair.Field.Name+"=?")
+		exec.Args = append(exec.Args, pair.Value.Interface())
 	}
-	if useIgnoreMode {
-		for _, mField := range fields {
-			if fieldValue := record.Field(mField); fieldValue.IsValid() {
-				if t.ignoreMode.Ignore(fieldValue) == false {
-					recordList = append(recordList, mField.Name+"=?")
-					exec.Args = append(exec.Args, fieldValue.Interface())
-				}
-			}
-		}
-	} else {
-		for _, mField := range fields {
-			if fieldValue := record.Field(mField); fieldValue.IsValid() {
-				recordList = append(recordList, mField.Name+"=?")
-				exec.Args = append(exec.Args, fieldValue.Interface())
-			}
-		}
-	}
-
 	exec.Query = fmt.Sprintf("UPDATE %s SET %s", t.model.Name, strings.Join(recordList, ","))
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
@@ -677,30 +650,11 @@ func (t *ToyBrick) InsertExec(record ModelRecord) (exec ExecValue) {
 		__list := []string{}
 		__qlist := []string{}
 
-		fields := t.getInsertFields(record)
-		var useIgnoreMode bool
-		if len(fields) == 0 {
-			fields = t.model.SqlFields
-			useIgnoreMode = record.IsVariableContainer() == false
-		}
-		if useIgnoreMode {
-			for _, mField := range fields {
-				if fieldValue := record.Field(mField); fieldValue.IsValid() {
-					if t.ignoreMode.Ignore(fieldValue) == false {
-						__list = append(__list, mField.Name)
-						__qlist = append(__qlist, "?")
-						exec.Args = append(exec.Args, fieldValue.Interface())
-					}
-				}
-			}
-		} else {
-			for _, mField := range fields {
-				if fieldValue := record.Field(mField); fieldValue.IsValid() {
-					__list = append(__list, mField.Name)
-					__qlist = append(__qlist, "?")
-					exec.Args = append(exec.Args, fieldValue.Interface())
-				}
-			}
+		pairs := getModelFieldAndValues(t.ignoreMode, record, t.InsertField, t.Fields, t.model.SqlFields)
+		for _, pair := range pairs {
+			__list = append(__list, pair.Field.Name)
+			__qlist = append(__qlist, "?")
+			exec.Args = append(exec.Args, pair.Value.Interface())
 		}
 		fieldStr += strings.Join(__list, ",")
 		qStr += strings.Join(__qlist, ",")
@@ -720,30 +674,11 @@ func (t *ToyBrick) ReplaceExec(record ModelRecord) (exec ExecValue) {
 		__list := []string{}
 		__qlist := []string{}
 
-		fields := t.getInsertFields(record)
-		var useIgnoreMode bool
-		if len(fields) == 0 {
-			fields = t.model.SqlFields
-			useIgnoreMode = record.IsVariableContainer() == false
-		}
-		if useIgnoreMode {
-			for _, mField := range fields {
-				if fieldValue := record.Field(mField); fieldValue.IsValid() {
-					if t.ignoreMode.Ignore(fieldValue) == false {
-						__list = append(__list, mField.Name)
-						__qlist = append(__qlist, "?")
-						exec.Args = append(exec.Args, fieldValue.Interface())
-					}
-				}
-			}
-		} else {
-			for _, mField := range fields {
-				if fieldValue := record.Field(mField); fieldValue.IsValid() {
-					__list = append(__list, mField.Name)
-					__qlist = append(__qlist, "?")
-					exec.Args = append(exec.Args, fieldValue.Interface())
-				}
-			}
+		pairs := getModelFieldAndValues(t.ignoreMode, record, t.InsertField, t.Fields, t.model.SqlFields)
+		for _, pair := range pairs {
+			__list = append(__list, pair.Field.Name)
+			__qlist = append(__qlist, "?")
+			exec.Args = append(exec.Args, pair.Value.Interface())
 		}
 		fieldStr += strings.Join(__list, ",")
 		qStr += strings.Join(__qlist, ",")
@@ -795,6 +730,16 @@ func (t *ToyBrick) getScanFields(records ModelRecordFieldTypes) []*ModelField {
 		fields = t.Fields
 	} else {
 		fields = t.model.SqlFields
+	}
+	return getFieldsWithRecords(fields, records)
+}
+
+func (t *ToyBrick) getConditionFields(records ModelRecordFieldTypes) []*ModelField {
+	var fields []*ModelField
+	if len(t.ConditionFields) > 0 {
+		fields = t.UpdateFields
+	} else if len(t.Fields) > 0 {
+		fields = t.Fields
 	}
 	return getFieldsWithRecords(fields, records)
 }

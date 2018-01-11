@@ -5,45 +5,33 @@ type ToyBrickAnd struct {
 }
 
 func (t ToyBrickAnd) Condition(expr SearchExpr, v ...interface{}) *ToyBrick {
-	return t.Brick.Scope(func(t *ToyBrick) *ToyBrick {
-		*t = *t
-		search := t.condition(expr, v...)
-		if len(t.Search) != 0 {
-			// make and have high priority
-			if t.Search[len(t.Search)-1].Type == ExprOr {
-				t.Search = t.Search[:len(t.Search)-1]
-				t.Search = append(t.Search, search...)
-				t.Search = append(t.Search, NewSearchBranch(ExprAnd), NewSearchBranch(ExprOr))
-			} else {
-				t.Search = append(t.Search, search...)
-				t.Search = append(t.Search, NewSearchBranch(ExprAnd))
-			}
-		} else {
-			t.Search = append(t.Search, search...)
-		}
-		return t
-	})
+	search := t.Brick.condition(expr, v...)
+	return t.Conditions(search)
 }
 
 func (t ToyBrickAnd) Conditions(search SearchList) *ToyBrick {
 	return t.Brick.Scope(func(t *ToyBrick) *ToyBrick {
-		*t = *t
 		if len(search) == 0 {
 			return t
-		} else if len(t.Search) != 0 {
-			// make and have high priority
-			if t.Search[len(t.Search)-1].Type == ExprOr {
-				t.Search = t.Search[:len(t.Search)-1]
-				t.Search = append(t.Search, search...)
-				t.Search = append(t.Search, NewSearchBranch(ExprAnd), NewSearchBranch(ExprOr))
+		}
+		newSearch := make(SearchList, 0, len(t.Search)+len(search))
+		newSearch = append(newSearch, t.Search...)
+		if len(t.Search) != 0 {
+			// AND have high priority
+			if newSearch[len(newSearch)-1].Type == ExprOr {
+				newSearch = newSearch[:len(newSearch)-1]
+				newSearch = append(newSearch, search...)
+				newSearch = append(newSearch, NewSearchBranch(ExprAnd), NewSearchBranch(ExprOr))
 			} else {
-				t.Search = append(t.Search, search...)
-				t.Search = append(t.Search, NewSearchBranch(ExprAnd))
+				newSearch = append(newSearch, search...)
+				newSearch = append(newSearch, NewSearchBranch(ExprAnd))
 			}
 		} else {
-			t.Search = append(t.Search, search...)
+			newSearch = append(newSearch, search...)
 		}
-		return t
+		newt := *t
+		newt.Search = newSearch
+		return &newt
 	})
 
 }
@@ -53,30 +41,25 @@ type ToyBrickOr struct {
 }
 
 func (t ToyBrickOr) Condition(expr SearchExpr, v ...interface{}) *ToyBrick {
-	return t.Brick.Scope(func(t *ToyBrick) *ToyBrick {
-		*t = *t
-		search := t.condition(expr, v...)
-		if len(t.Search) != 0 {
-			t.Search = append(t.Search, search...)
-			t.Search = append(t.Search, NewSearchBranch(ExprOr))
-		} else {
-			t.Search = append(t.Search, search...)
-		}
-		return t
-	})
+	search := t.Brick.condition(expr, v...)
+	return t.Conditions(search)
 }
 
 func (t ToyBrickOr) Conditions(search SearchList) *ToyBrick {
 	return t.Brick.Scope(func(t *ToyBrick) *ToyBrick {
-		*t = *t
 		if len(search) == 0 {
 			return t
-		} else if len(t.Search) != 0 {
-			t.Search = append(t.Search, search...)
-			t.Search = append(t.Search, NewSearchBranch(ExprOr))
-		} else {
-			t.Search = append(t.Search, search...)
 		}
-		return t
+		newSearch := make(SearchList, 0, len(t.Search)+len(search))
+		newSearch = append(newSearch, t.Search...)
+		if len(newSearch) != 0 {
+			newSearch = append(newSearch, search...)
+			newSearch = append(newSearch, NewSearchBranch(ExprOr))
+		} else {
+			newSearch = append(newSearch, search...)
+		}
+		newt := *t
+		newt.Search = newSearch
+		return &newt
 	})
 }

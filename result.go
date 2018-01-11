@@ -5,16 +5,6 @@ import (
 	"fmt"
 )
 
-//const (
-//	FindResult        = ResultType("Find")
-//	InsertResult      = ResultType("Insert")
-//	UpdateResult      = ResultType("Update")
-//	ReplaceResult     = ResultType("Replace")
-//	DropResult        = ResultType("Drop")
-//	CreateTableResult = ResultType("CreateTable")
-//	DropTableResult   = ResultType("DropTable")
-//)
-
 type Result struct {
 	Records        ModelRecords
 	ActionFlow     []SqlAction
