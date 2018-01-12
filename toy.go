@@ -87,6 +87,7 @@ func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
 	return NewToyBrick(t, middleModel)
 }
 
+// TODO testing thread safe? if not add lock
 func (t *Toy) GetModel(_type reflect.Type) *Model {
 	if model, ok := t.CacheModels[_type]; ok == false {
 		model = NewModel(_type, t.Dialect)
@@ -114,32 +115,14 @@ func (t *Toy) OneToOnePreload(model *Model, field *ModelField) *OneToOnePreload 
 	}
 	if subModel := t.CacheModels[_type]; subModel != nil {
 		if relationField, ok := subModel.LowerNameFields[strings.ToLower(GetRelationFieldName(model))]; ok {
-			if v := t.oneToOnePreload[model]; v == nil {
-				t.oneToOnePreload[model] = map[*ModelField]*OneToOnePreload{}
-			}
-			t.oneToOnePreload[model][field] = &OneToOnePreload{
-				IsBelongTo:     false,
-				Model:          model,
-				SubModel:       subModel,
-				RelationField:  relationField,
-				ContainerField: field,
-			}
+			return t.OneToOneBind(model, subModel, field, relationField, false)
 
 		} else if relationField, ok := model.LowerNameFields[strings.ToLower(GetBelongsIDFieldName(subModel, field))]; ok {
-
-			if v := t.oneToOnePreload[model]; v == nil {
-				t.oneToOnePreload[model] = map[*ModelField]*OneToOnePreload{}
-			}
-			t.oneToOnePreload[model][field] = &OneToOnePreload{
-				IsBelongTo:     true,
-				Model:          model,
-				SubModel:       subModel,
-				RelationField:  relationField,
-				ContainerField: field,
-			}
+			return t.OneToOneBind(model, subModel, field, relationField, true)
 		}
 	}
-	return t.oneToOnePreload[model][field]
+
+	return nil
 }
 
 func (t *Toy) OneToManyPreload(model *Model, field *ModelField) *OneToManyPreload {
@@ -153,19 +136,11 @@ func (t *Toy) OneToManyPreload(model *Model, field *ModelField) *OneToManyPreloa
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
 			if relationField, ok := subModel.LowerNameFields[strings.ToLower(GetRelationFieldName(model))]; ok {
-				if v := t.oneToManyPreload[model]; v == nil {
-					t.oneToManyPreload[model] = map[*ModelField]*OneToManyPreload{}
-				}
-				t.oneToManyPreload[model][field] = &OneToManyPreload{
-					Model:          model,
-					SubModel:       subModel,
-					RelationField:  relationField,
-					ContainerField: field,
-				}
+				return t.OneToManyBind(model, subModel, field, relationField)
 			}
 		}
 	}
-	return t.oneToManyPreload[model][field]
+	return nil
 }
 
 func (t *Toy) ManyToManyPreload(model *Model, field *ModelField) *ManyToManyPreload {
@@ -181,48 +156,51 @@ func (t *Toy) ManyToManyPreload(model *Model, field *ModelField) *ManyToManyPrel
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
-			middleModel := NewMiddleModel(model, subModel, t.Dialect)
-			t.CacheMiddleModels[middleModel.ReflectType] = middleModel
-			t.manyToManyPreload[model][field] = &ManyToManyPreload{
-				MiddleModel:    middleModel,
-				Model:          model,
-				SubModel:       subModel,
-				ContainerField: field,
-			}
+			return t.ManyToManyPreloadBind(model, subModel, field)
 		}
 	}
-	return t.manyToManyPreload[model][field]
+	return nil
 }
 
-func (t *Toy) OneToOnePreloadBind(model, subTable *Model, relationField, containerField *ModelField, isOwn bool) {
-	preload := OneToOnePreload{
-		Model:          model,
-		SubModel:       subTable,
-		RelationField:  relationField,
-		ContainerField: containerField,
-		IsBelongTo:     isOwn,
+func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField *ModelField, isBelongTo bool) *OneToOnePreload {
+	if v := t.oneToOnePreload[model]; v == nil {
+		t.oneToOnePreload[model] = map[*ModelField]*OneToOnePreload{}
 	}
-	t.oneToOnePreload[model][containerField] = &preload
-}
-
-func (t *Toy) OneToManyPreloadBind(model, subTable *Model, relationField, containerField *ModelField) {
-	preload := OneToManyPreload{
+	t.oneToOnePreload[model][containerField] = &OneToOnePreload{
+		IsBelongTo:     isBelongTo,
 		Model:          model,
-		SubModel:       subTable,
+		SubModel:       subModel,
 		RelationField:  relationField,
 		ContainerField: containerField,
 	}
-	t.oneToManyPreload[model][containerField] = &preload
+	return t.oneToOnePreload[model][containerField]
 }
-
-func (t *Toy) ManyToManyPreloadBind(model, subTable, middleTable *Model, containerField *ModelField) {
-	preload := ManyToManyPreload{
+func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField *ModelField) *OneToManyPreload {
+	if v := t.oneToManyPreload[model]; v == nil {
+		t.oneToManyPreload[model] = map[*ModelField]*OneToManyPreload{}
+	}
+	t.oneToManyPreload[model][containerField] = &OneToManyPreload{
 		Model:          model,
-		SubModel:       subTable,
-		MiddleModel:    middleTable,
+		SubModel:       subModel,
+		RelationField:  relationField,
 		ContainerField: containerField,
 	}
-	t.manyToManyPreload[model][containerField] = &preload
+	return t.oneToManyPreload[model][containerField]
+}
+
+func (t *Toy) ManyToManyPreloadBind(model, subModel *Model, containerField *ModelField) *ManyToManyPreload {
+	if v := t.manyToManyPreload[model]; v == nil {
+		t.manyToManyPreload[model] = map[*ModelField]*ManyToManyPreload{}
+	}
+	middleModel := NewMiddleModel(model, subModel, t.Dialect)
+	t.CacheMiddleModels[middleModel.ReflectType] = middleModel
+	t.manyToManyPreload[model][containerField] = &ManyToManyPreload{
+		Model:          model,
+		SubModel:       subModel,
+		MiddleModel:    middleModel,
+		ContainerField: containerField,
+	}
+	return t.manyToManyPreload[model][containerField]
 }
 
 func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {

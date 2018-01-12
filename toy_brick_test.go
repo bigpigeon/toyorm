@@ -17,10 +17,12 @@ func TestCreateTable(t *testing.T) {
 		hastable, err = brick.HasTable()
 		assert.Nil(t, err)
 		t.Logf("table %s exist:%v\n", brick.model.Name, hastable)
-		_, err = brick.DropTableIfExist()
+		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
-		_, err = brick.CreateTable()
+		assert.Len(t, result.AllErrors(), 0)
+		result, err = brick.CreateTable()
 		assert.Nil(t, err)
+		assert.Len(t, result.AllErrors(), 0)
 		err = brick.Commit()
 		assert.Nil(t, err)
 	}
@@ -365,6 +367,19 @@ func TestDelete(t *testing.T) {
 	_, err = brick.Find(&hardDeleteData)
 	assert.Nil(t, err)
 	_, err = brick.Delete(&hardDeleteData)
+	assert.Nil(t, err)
+}
+
+func TestCustomPreload(t *testing.T) {
+	table := TestCustomPreloadTable{}
+	tableOne := TestCustomPreloadOneToOne{}
+	tableThree := TestCustomPreloadOneToMany{}
+	brick := TestDB.Model(&table).Debug().
+		CustomOneToOnePreload(Offsetof(table.ChildOne), Offsetof(tableOne.ParentID)).Enter().
+		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
+		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
+		CustomManyToManyPreload(Offsetof(table.OtherChildren)).Enter()
+	_, err := brick.CreateTable()
 	assert.Nil(t, err)
 }
 

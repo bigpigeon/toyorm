@@ -259,6 +259,21 @@ func newModel(_type reflect.Type, dia Dialect, modelName string) *Model {
 	return model
 }
 
+func (m *Model) fieldSelect(v interface{}) *ModelField {
+	switch v := v.(type) {
+	case int:
+		return m.SqlFields[v]
+	case uintptr:
+		return m.OffsetFields[v]
+	case string:
+		return m.NameFields[v]
+	case *ModelField:
+		return v
+	default:
+		panic("invalid field value")
+	}
+}
+
 type ModelDefault struct {
 	ID        uint       `toyorm:"primary key;auto_increment"`
 	CreatedAt time.Time  `toyorm:"NULL"`

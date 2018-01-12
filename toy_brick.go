@@ -80,21 +80,6 @@ func (t *ToyBrick) Scope(fn func(*ToyBrick) *ToyBrick) *ToyBrick {
 	return ret
 }
 
-func (t *ToyBrick) fieldSelect(v interface{}) *ModelField {
-	switch v := v.(type) {
-	case int:
-		return t.model.SqlFields[v]
-	case uintptr:
-		return t.model.OffsetFields[v]
-	case string:
-		return t.model.NameFields[v]
-	case *ModelField:
-		return v
-	default:
-		panic("invalid field value")
-	}
-}
-
 func (t *ToyBrick) CopyStatus(statusBrick *ToyBrick) *ToyBrick {
 	newt := *t
 	newt.tx = statusBrick.tx
@@ -129,7 +114,7 @@ func (t *ToyBrick) Enter() *ToyBrick {
 // if you want to get preload with main model middle field name == R_UserID use RightValuePreload
 func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		field := t.fieldSelect(fv)
+		field := t.model.fieldSelect(fv)
 		if subBrick, ok := t.MapPreloadBrick[field]; ok {
 			if preload := t.ManyToManyPreload[field]; preload == nil || preload.IsRight {
 				panic(fmt.Sprintf("invalid preload field '%s'", field.Field.Name))
@@ -168,48 +153,166 @@ func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 // return
 func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		field := t.fieldSelect(fv)
+		field := t.model.fieldSelect(fv)
 		if subBrick, ok := t.MapPreloadBrick[field]; ok {
 			return subBrick
 		}
 		fType := LoopTypeIndirectSliceAndPtr(field.Field.Type)
 
-		model := t.Toy.GetModel(fType)
-		newSubt := NewToyBrick(t.Toy, model).CopyStatus(t)
-		// copy MapPreloadBrick
+		subModel := t.Toy.GetModel(fType)
+		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+
 		newt := *t
-		newt.MapPreloadBrick = map[*ModelField]*ToyBrick{}
-		for k, v := range t.MapPreloadBrick {
-			newt.MapPreloadBrick[k] = v
-		}
-		newSubt.relationship.Parent = &newt
-		newSubt.relationship.Field = field
+		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+		newt.MapPreloadBrick[field] = newSubt
+		newSubt.relationship = ToyBrickRelationship{&newt, field}
 		if preload := newt.Toy.OneToOnePreload(newt.model, field); preload != nil {
-			newt.MapPreloadBrick[field] = newSubt
-			newt.OneToOnePreload = map[*ModelField]*OneToOnePreload{}
-			for k, v := range t.OneToOnePreload {
-				newt.OneToOnePreload[k] = v
-			}
+			newt.OneToOnePreload = t.CopyOneToOnePreload()
 			newt.OneToOnePreload[field] = preload
 		} else if preload := newt.Toy.OneToManyPreload(newt.model, field); preload != nil {
-			newt.MapPreloadBrick[field] = newSubt
-			newt.OneToManyPreload = map[*ModelField]*OneToManyPreload{}
+			newt.OneToManyPreload = t.CopyOneToManyPreload()
 			for k, v := range t.OneToManyPreload {
 				newt.OneToManyPreload[k] = v
 			}
 			newt.OneToManyPreload[field] = preload
 		} else if preload := newt.Toy.ManyToManyPreload(newt.model, field); preload != nil {
-			newt.MapPreloadBrick[field] = newSubt
-			newt.ManyToManyPreload = map[*ModelField]*ManyToManyPreload{}
-			for k, v := range t.ManyToManyPreload {
-				newt.ManyToManyPreload[k] = v
-			}
+			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field] = preload
 		} else {
 			panic(fmt.Sprintf("invalid preload field '%s'", field.Field.Name))
 		}
 		return newSubt
 	})
+}
+
+func (t *ToyBrick) CopyMapPreloadBrick() map[*ModelField]*ToyBrick {
+	preloadBrick := map[*ModelField]*ToyBrick{}
+	for k, v := range t.MapPreloadBrick {
+		preloadBrick[k] = v
+	}
+	return preloadBrick
+}
+
+func (t *ToyBrick) CopyOneToOnePreload() map[*ModelField]*OneToOnePreload {
+	preloadMap := map[*ModelField]*OneToOnePreload{}
+	for k, v := range t.OneToOnePreload {
+		preloadMap[k] = v
+	}
+	return preloadMap
+}
+
+func (t *ToyBrick) CopyOneToManyPreload() map[*ModelField]*OneToManyPreload {
+	preloadMap := map[*ModelField]*OneToManyPreload{}
+	for k, v := range t.OneToManyPreload {
+		preloadMap[k] = v
+	}
+	return preloadMap
+}
+
+func (t *ToyBrick) CopyManyToManyPreload() map[*ModelField]*ManyToManyPreload {
+	preloadMap := map[*ModelField]*ManyToManyPreload{}
+	for k, v := range t.ManyToManyPreload {
+		preloadMap[k] = v
+	}
+	return preloadMap
+}
+
+func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
+	containerField := t.model.fieldSelect(container)
+	var subModel *Model
+	if len(args) > 0 {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+	} else {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.Field.Type))
+	}
+	relationshipField := subModel.fieldSelect(relationship)
+	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, false)
+	if preload == nil {
+		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+	}
+
+	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+	newt := *t
+	newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+	newt.MapPreloadBrick[containerField] = newSubt
+	newSubt.relationship = ToyBrickRelationship{&newt, containerField}
+
+	newt.OneToOnePreload = t.CopyOneToOnePreload()
+	newt.OneToOnePreload[containerField] = preload
+	return newSubt
+}
+
+func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
+	containerField, relationshipField := t.model.fieldSelect(container), t.model.fieldSelect(relationship)
+	var subModel *Model
+	if len(args) > 0 {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+	} else {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.Field.Type))
+	}
+	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, false)
+	if preload == nil {
+		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+	}
+
+	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+	newt := *t
+	newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+	newt.MapPreloadBrick[containerField] = newSubt
+	newSubt.relationship = ToyBrickRelationship{&newt, containerField}
+
+	newt.OneToOnePreload = t.CopyOneToOnePreload()
+	newt.OneToOnePreload[containerField] = preload
+	return newSubt
+}
+
+func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
+	containerField := t.model.fieldSelect(container)
+	var subModel *Model
+	if len(args) > 0 {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+	} else {
+		subModel = t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(containerField.Field.Type))
+	}
+	relationshipField := subModel.fieldSelect(relationship)
+	preload := t.Toy.OneToManyBind(t.model, subModel, containerField, relationshipField)
+	if preload == nil {
+		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+	}
+
+	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+	newt := *t
+	newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+	newt.MapPreloadBrick[containerField] = newSubt
+	newSubt.relationship = ToyBrickRelationship{&newt, containerField}
+
+	newt.OneToManyPreload = t.CopyOneToManyPreload()
+	newt.OneToManyPreload[containerField] = preload
+	return newSubt
+}
+
+func (t *ToyBrick) CustomManyToManyPreload(container interface{}, args ...interface{}) *ToyBrick {
+	containerField := t.model.fieldSelect(container)
+	var subModel *Model
+	if len(args) > 0 {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+	} else {
+		subModel = t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(containerField.Field.Type))
+	}
+	preload := t.Toy.ManyToManyPreloadBind(t.model, subModel, containerField)
+	if preload == nil {
+		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+	}
+
+	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+	newt := *t
+	newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+	newt.MapPreloadBrick[containerField] = newSubt
+	newSubt.relationship = ToyBrickRelationship{&newt, containerField}
+
+	newt.ManyToManyPreload = t.CopyManyToManyPreload()
+	newt.ManyToManyPreload[containerField] = preload
+	return newSubt
 }
 
 func (t *ToyBrick) BindFields(fields ...*ModelField) *ToyBrick {
@@ -253,7 +356,7 @@ func (t *ToyBrick) condition(expr SearchExpr, v ...interface{}) SearchList {
 		} else {
 			panic("error number args")
 		}
-		kidx := t.fieldSelect(key)
+		kidx := t.model.fieldSelect(key)
 		search = search.Condition(kidx, value, expr, ExprAnd)
 	}
 	return search
@@ -270,7 +373,11 @@ func (t *ToyBrick) Where(expr SearchExpr, v ...interface{}) *ToyBrick {
 
 func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-
+		if len(search) == 0 {
+			newt := *t
+			newt.Search = nil
+			return &newt
+		}
 		newSearch := make(SearchList, len(search), len(search)+1)
 		copy(newSearch, search)
 		// to protect search priority
@@ -303,7 +410,7 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 		newt := *t
 		newt.orderBy = nil
 		for _, v := range vList {
-			newt.orderBy = append(newt.orderBy, newt.fieldSelect(v))
+			newt.orderBy = append(newt.orderBy, newt.model.fieldSelect(v))
 		}
 		return &newt
 	})
@@ -751,7 +858,7 @@ func (t *ToyBrick) getConditionFields(records ModelRecordFieldTypes) []*ModelFie
 
 // use for order by
 func (t *ToyBrick) ToDesc(v interface{}) *ModelField {
-	field := t.fieldSelect(v)
+	field := t.model.fieldSelect(v)
 	newField := *field
 	newField.Name = field.Name + " DESC"
 	return &newField

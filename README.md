@@ -384,7 +384,7 @@ _, err = toy.Model(&User{}).Debug().Save(&user)
 #### update
 
 ```golang
-brick.Model(&User{}).Debug().Update(&User{
+toy.Model(&User{}).Debug().Update(&User{
     Age: 4,
 })
 // UPDATE user SET updated_at=?,age=? WHERE deleted_at IS NULL, args:[]interface {}{time.Time{wall:0xbe8df4eb81b6c050, ext:233425327, loc:(*time.Location)(0x141af80)}, 4}
@@ -614,13 +614,20 @@ IgnoreZero        | ignore all of the above
 
 #### Scope
 
-use scope to do sth custom operation with toybrick
+use scope to do some custom operation
 
 
 ```golang
+// desc all order by fields
 brick.Scope(func(t *ToyBrick) *ToyBrick{
-    newt := *t
 
+    newOrderBy := make([]*ModelFields, len(t.orderBy))
+    for i, f := range t.orderBy {
+        newOrderBy = append(newOrderBy, t.ToDesc(f))
+    }
+    newt := *t
+    newt.orderBy = newOrderBy
+    return &newt
 })
 ```
 
@@ -632,6 +639,132 @@ Thread safe if you comply with the following agreement
 
 2. do not use **append** to change ToyBrick's slice data,use **make** and **copy** to clone new slice
 
+
+#### Preload
+
+preload need have relation field and container field
+
+
+use relations field to link the main record and sub record
+
+
+use container field to save sub record
+
+**one to one**
+
+relation field at sub model
+
+
+relation field name must be main model type name + main model primary key name
+
+```golang
+type User struct {
+    toyorm.ModelDefault
+    // container field
+    Detail  *UserDetail
+}
+
+type UserDetail struct {
+	ID       int    `toyorm:"primary key;auto_increment"`
+	// relation field
+	UserID   uint   `toyorm:"index"`
+	MainPage string `toyorm:"type:Text"`
+}
+
+// load preload
+brick = toy.Model(&User{}).Debug().Preload(OffsetOf(User.Detail)).Enter()
+
+```
+
+**belong to**
+
+relation field at main model
+
+
+relation field name must be container field name + sub model primary key name
+
+```golang
+type User struct {
+    toyorm.ModelDefault
+    // container field
+    Detail   *UserDetail
+    // relation field
+    DetailID int `toyorm:"index"`
+}
+
+type UserDetail struct {
+	ID       int    `toyorm:"primary key;auto_increment"`
+	MainPage string `toyorm:"type:Text"`
+}
+
+```
+
+**one to many**
+
+relation field at sub model
+
+
+
+relation field name must be main model type name + main model primary key name
+
+
+```golang
+type User struct {
+    toyorm.ModelDefault
+    // container field
+    Blog    []Blog
+}
+
+type Blog struct {
+	toyorm.ModelDefault
+	// relation field
+	UserID  uint   `toyorm:"index"`
+	Title   string `toyorm:"index"`
+	Content string
+}
+
+```
+
+**many to many**
+
+many to many have not relation ship,because relation field at middle model
+
+```
+type User struct {
+    toyorm.ModelDefault
+    // container field
+    Firends    []*User
+}
+```
+
+**load preload**
+
+when you finish model definition, it time to load preload
+
+```golang
+// create a main brick
+brick = toy.Model(&User{})
+// create a sub brick
+subBrick := brick.Preload(OffsetOf(User.Blog))
+// you can editing any attribute what you want, just like editing it on main model
+subBrick = subBrick.Where(ExprEqual, OffsetOf(Blog.Title), "my blog")
+// finished change ,use Enter() go back the main brick
+brick = subBrick.Enter()
+```
+
+
+if you not like relation field name rule,use custom module to create it
+
+```golang
+// one to one custom
+brick.CustomOneToOnePreload(<main container>, <sub relation>, [sub model object])
+// belong to custom
+brick.CustomBelongToPreload(<main container>, <main relation>, [sub model object])
+// one to many
+brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model object])
+// many to many
+brick.CustomManyToManyPreload(<main container>, [sub model object], [middle model object])
+```
 
 ### Full Feature Example
 

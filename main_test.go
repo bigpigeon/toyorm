@@ -92,6 +92,38 @@ type TestHardDeleteTable struct {
 	SoftManyToMany []TestSoftDeleteTableManyToMany
 }
 
+type TestCustomPreloadTable struct {
+	ID            uint `toyorm:"primary key;auto_increment"`
+	Data          string
+	BelongToID    uint `toyorm:"index"`
+	ChildOne      *TestCustomPreloadOneToOne
+	ChildTwo      *TestCustomPreloadBelongTo
+	Children      []TestCustomPreloadOneToMany
+	OtherChildren []TestCustomPreloadManyToMany
+}
+
+type TestCustomPreloadOneToOne struct {
+	ID       uint `toyorm:"primary key;auto_increment"`
+	Data     string
+	ParentID uint `toyorm:"index"`
+}
+
+type TestCustomPreloadBelongTo struct {
+	ID   uint `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
+type TestCustomPreloadOneToMany struct {
+	ID       uint `toyorm:"primary key;auto_increment"`
+	Data     string
+	ParentID uint `toyorm:"index"`
+}
+
+type TestCustomPreloadManyToMany struct {
+	ID   uint `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
 type TestHardDeleteTableBelongTo struct {
 	ID   uint `toyorm:"primary key;auto_increment"`
 	Data string

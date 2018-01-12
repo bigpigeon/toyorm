@@ -14,6 +14,27 @@ type Result struct {
 	MiddleModelPreload map[*ModelField]*Result
 }
 
+func (r *Result) AllErrors() []error {
+	var errs []error
+	for _, action := range r.ActionFlow {
+		switch t := action.sqlAction.(type) {
+		case QueryAction:
+			errs = append(errs, t.Error...)
+		case ExecAction:
+			if t.Error != nil {
+				errs = append(errs, t.Error)
+			}
+		}
+	}
+	for _, preload := range r.Preload {
+		errs = append(errs, preload.AllErrors()...)
+	}
+	for _, middlePreload := range r.MiddleModelPreload {
+		errs = append(errs, middlePreload.AllErrors()...)
+	}
+	return errs
+}
+
 func (r *Result) AddExecRecord(e ExecAction, index ...int) {
 	r.ActionFlow = append(r.ActionFlow, SqlAction{e})
 	for _, i := range index {
@@ -23,6 +44,7 @@ func (r *Result) AddExecRecord(e ExecAction, index ...int) {
 
 // TODO a report log
 func (r *Result) Report() string {
+
 	return ""
 }
 
