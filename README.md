@@ -10,176 +10,218 @@ copy following code to a main.go file and run
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/bigpigeon/toyorm"
-	. "unsafe"
+    "encoding/json"
+    "fmt"
+    "github.com/bigpigeon/toyorm"
+    . "unsafe"
 
-	// when database is mysql
-	_ "github.com/go-sql-driver/mysql"
-	// when database is sqlite3
-	//_ "github.com/mattn/go-sqlite3"
+    // when database is mysql
+    _ "github.com/go-sql-driver/mysql"
+    // when database is sqlite3
+    //_ "github.com/mattn/go-sqlite3"
 )
 
 func JsonEncode(v interface{}) string {
-	jsonData, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(jsonData)
+    jsonData, err := json.MarshalIndent(v, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    return string(jsonData)
 }
 
 type Product struct {
-	toyorm.ModelDefault
-	Name  string  `toyorm:"index"`
-	Price float64 `toyorm:"index"`
-	Count int
-	Tag   string `toyorm:"index"`
+    toyorm.ModelDefault
+    Name  string  `toyorm:"index"`
+    Price float64 `toyorm:"index"`
+    Count int
+    Tag   string `toyorm:"index"`
 }
 
 func main() {
-	var err error
-	var toy *toyorm.Toy
-	// when database is mysql, make sure your mysql have toyorm_example schema
-	toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
-	// when database is sqlite3
-	//toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
+    var err error
+    var toy *toyorm.Toy
+    // when database is mysql, make sure your mysql have toyorm_example schema
+    toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
+    // when database is sqlite3
+    //toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
 
-	brick := toy.Model(&Product{}).Debug()
-	_, err = brick.DropTableIfExist()
-	if err != nil {
-		panic(err)
-	}
-	_, err = brick.CreateTableIfNotExist()
-	if err != nil {
-		panic(err)
-	}
-	// Insert will set id to source data when primary key is auto_increment
-	brick.Insert(&[]Product{
-		{Name: "food one", Price: 1, Count: 4, Tag: "food"},
-		{Name: "food two", Price: 2, Count: 3, Tag: "food"},
-		{Name: "food three", Price: 3, Count: 2, Tag: "food"},
-		{Name: "food four", Price: 4, Count: 1, Tag: "food"},
-		{Name: "toolkit one", Price: 1, Count: 8, Tag: "toolkit"},
-		{Name: "toolkit two", Price: 2, Count: 6, Tag: "toolkit"},
-		{Name: "toolkit one", Price: 3, Count: 4, Tag: "toolkit"},
-		{Name: "toolkit two", Price: 4, Count: 2, Tag: "toolkit"},
-	})
-	// find the first food
-	{
-		var product Product
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("food %s\n", JsonEncode(product))
-	}
+    brick := toy.Model(&Product{}).Debug()
+    _, err = brick.DropTableIfExist()
+    if err != nil {
+        panic(err)
+    }
+    _, err = brick.CreateTableIfNotExist()
+    if err != nil {
+        panic(err)
+    }
+    // Insert will set id to source data when primary key is auto_increment
+    brick.Insert(&[]Product{
+        {Name: "food one", Price: 1, Count: 4, Tag: "food"},
+        {Name: "food two", Price: 2, Count: 3, Tag: "food"},
+        {Name: "food three", Price: 3, Count: 2, Tag: "food"},
+        {Name: "food four", Price: 4, Count: 1, Tag: "food"},
+        {Name: "toolkit one", Price: 1, Count: 8, Tag: "toolkit"},
+        {Name: "toolkit two", Price: 2, Count: 6, Tag: "toolkit"},
+        {Name: "toolkit one", Price: 3, Count: 4, Tag: "toolkit"},
+        {Name: "toolkit two", Price: 4, Count: 2, Tag: "toolkit"},
+    })
+    // find the first food
+    {
+        var product Product
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("food %s\n", JsonEncode(product))
+    }
 
-	// find all food
-	{
-		var products []Product
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("foods %s\n", JsonEncode(products))
-	}
+    // find all food
+    {
+        var products []Product
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("foods %s\n", JsonEncode(products))
+    }
 
-	// find count = 2
-	{
-		var products []Product
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Find(&products)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("count > 2 products %s\n", JsonEncode(products))
-	}
-	// find count = 2 and price > 3
-	{
-		var products []Product
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
-			Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Find(&products)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("count = 2 and price > 3 products %s\n", JsonEncode(products))
-	}
-	// find count = 2 and price > 3 or count = 4
-	{
-		var products []Product
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
-			Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Or().
-			Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 4).Find(&products)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("count = 2 and price > 3 or count = 4  products %s\n", JsonEncode(products))
-	}
-	// find price > 3 and (count = 2 or count = 1)
-	{
-		var products []Product
-		_, err := brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
-			brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
-				Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
-		).Find(&products)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("price > 3 and (count = 2 or count = 1)  products %s\n", JsonEncode(products))
-	}
-	// update to count = 4
-	{
-		_, err := brick.Update(&Product{
-			Count: 4,
-		})
-		if err != nil {
-			panic(err)
-		}
-		var Counters []struct {
-			Name  string
-			Count int
-		}
-		_, err = brick.Find(&Counters)
-		if err != nil {
-			panic(err)
-		}
-		for _, counter := range Counters {
-			fmt.Printf("product name %s, count %d\n", counter.Name, counter.Count)
-		}
-	}
-	// delete with element
-	{
-		// make a transaction, because I do not really delete a data
-		brick := brick.Begin()
-		var product Product
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
-		if err != nil {
-			panic(err)
-		}
+    // find count = 2
+    {
+        var products []Product
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("count > 2 products %s\n", JsonEncode(products))
+    }
+    // find count = 2 and price > 3
+    {
+        var products []Product
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
+            Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("count = 2 and price > 3 products %s\n", JsonEncode(products))
+    }
+    // find count = 2 and price > 3 or count = 4
+    {
+        var products []Product
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
+            Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Or().
+            Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 4).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("count = 2 and price > 3 or count = 4  products %s\n", JsonEncode(products))
+    }
+    // find price > 3 and (count = 2 or count = 1)
+    {
+        var products []Product
+        _, err := brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
+            brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
+                Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
+        ).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("price > 3 and (count = 2 or count = 1)  products %s\n", JsonEncode(products))
+    }
 
-		_, err = brick.Delete(&product)
-		if err != nil {
-			panic(err)
-		}
+    // find (count = 2 or count = 1) and (price = 3 or price = 4)
+    {
+        var products []Product
+        _, err := brick.Conditions(
+            brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
+                Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
+        ).And().Conditions(
+            brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Price), 3).Or().
+                Condition(toyorm.ExprEqual, Offsetof(Product{}.Price), 4).Search,
+        ).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("(count = 2 or count = 1) and (price = 3 or price = 4)  products %s\n", JsonEncode(products))
+    }
+    // find offset 2 limit 2
+    {
+        var products []Product
+        _, err := brick.Offset(2).Limit(2).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("offset 1 limit 2 products %s\n", JsonEncode(products))
+    }
+    // order by
+    {
+        var products []Product
+        _, err := brick.OrderBy(Offsetof(Product{}.Name)).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("order by name products %s\n", JsonEncode(products))
+    }
+    {
+        var products []Product
+        _, err := brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name))).Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        fmt.Printf("order by name desc products %s\n", JsonEncode(products))
+    }
+    // update to count = 4
+    {
+        _, err := brick.Update(&Product{
+            Count: 4,
+        })
+        if err != nil {
+            panic(err)
+        }
+        var Counters []struct {
+            Name  string
+            Count int
+        }
+        _, err = brick.Find(&Counters)
+        if err != nil {
+            panic(err)
+        }
+        for _, counter := range Counters {
+            fmt.Printf("product name %s, count %d\n", counter.Name, counter.Count)
+        }
+    }
+    // delete with element
+    {
+        // make a transaction, because I do not really delete a data
+        brick := brick.Begin()
+        var product Product
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
+        if err != nil {
+            panic(err)
+        }
 
-		var disappearProduct Product
-		_, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&disappearProduct)
-		fmt.Printf("when I delete name = food four product , I try to find it will have error(%s)\n", err)
-		brick.Rollback()
-	}
-	// delete with condition
-	{
-		// make a transaction, because I am not really delete a data
-		brick := brick.Begin()
-		_, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").DeleteWithConditions()
-		if err != nil {
-			panic(err)
-		}
-		var product Product
-		_, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
-		fmt.Printf("when I delete name = food four product , I try to find it will have error(%s)\n", err)
-		brick.Rollback()
-	}
+        _, err = brick.Delete(&product)
+        if err != nil {
+            panic(err)
+        }
+
+        var disappearProduct Product
+        _, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&disappearProduct)
+        fmt.Printf("error(%s)\n", err)
+        brick.Rollback()
+    }
+    // delete with condition
+    {
+        // make a transaction, because I am not really delete a data
+        brick := brick.Begin()
+        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").DeleteWithConditions()
+        if err != nil {
+            panic(err)
+        }
+        var product Product
+        _, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
+        fmt.Printf("error(%s)\n", err)
+        brick.Rollback()
+    }
 }
 ```
 
@@ -282,7 +324,6 @@ auto_increment| void                    | recommend, if your table primary key h
 autoincrement | void                    | same as auto_increment
 
 other custom TAG will append to end of CREATE TABLE field
-
 
 
 #### Bind models
@@ -665,10 +706,10 @@ type User struct {
 }
 
 type UserDetail struct {
-	ID       int    `toyorm:"primary key;auto_increment"`
-	// relation field
-	UserID   uint   `toyorm:"index"`
-	MainPage string `toyorm:"type:Text"`
+    ID       int    `toyorm:"primary key;auto_increment"`
+    // relation field
+    UserID   uint   `toyorm:"index"`
+    MainPage string `toyorm:"type:Text"`
 }
 
 // load preload
@@ -693,8 +734,8 @@ type User struct {
 }
 
 type UserDetail struct {
-	ID       int    `toyorm:"primary key;auto_increment"`
-	MainPage string `toyorm:"type:Text"`
+    ID       int    `toyorm:"primary key;auto_increment"`
+    MainPage string `toyorm:"type:Text"`
 }
 
 ```
@@ -716,11 +757,11 @@ type User struct {
 }
 
 type Blog struct {
-	toyorm.ModelDefault
-	// relation field
-	UserID  uint   `toyorm:"index"`
-	Title   string `toyorm:"index"`
-	Content string
+    toyorm.ModelDefault
+    // relation field
+    UserID  uint   `toyorm:"index"`
+    Title   string `toyorm:"index"`
+    Content string
 }
 
 ```
@@ -765,6 +806,7 @@ brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model struct
 // many to many
 brick.CustomManyToManyPreload(<main container>, <middle model struct>, <main relation field>, <sub relation field>, [sub model struct])
 ```
+
 
 ### Full Feature Example
 
