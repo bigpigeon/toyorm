@@ -29,9 +29,10 @@ type OneToManyPreload struct {
 // this is describe many to many relationship with table and its sub table
 // e.g select * from middle_table where table.id = table.id and sub_table.id = (table.RelationField).value
 type ManyToManyPreload struct {
-	MiddleModel    *Model
-	Model          *Model
-	SubModel       *Model
-	ContainerField *ModelField
-	IsRight        bool
+	MiddleModel      *Model
+	Model            *Model
+	SubModel         *Model
+	ContainerField   *ModelField
+	RelationField    *ModelField
+	SubRelationField *ModelField
 }

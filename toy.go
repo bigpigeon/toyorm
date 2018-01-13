@@ -143,7 +143,7 @@ func (t *Toy) OneToManyPreload(model *Model, field *ModelField) *OneToManyPreloa
 	return nil
 }
 
-func (t *Toy) ManyToManyPreload(model *Model, field *ModelField) *ManyToManyPreload {
+func (t *Toy) ManyToManyPreload(model *Model, field *ModelField, isRight bool) *ManyToManyPreload {
 	// try to find cache data
 	if t.manyToManyPreload[model] != nil && t.manyToManyPreload[model][field] != nil {
 		return t.manyToManyPreload[model][field]
@@ -156,7 +156,10 @@ func (t *Toy) ManyToManyPreload(model *Model, field *ModelField) *ManyToManyPrel
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
-			return t.ManyToManyPreloadBind(model, subModel, field)
+			middleModel := NewMiddleModel(model, subModel, t.Dialect)
+			relationField := GetMiddleField(model, middleModel, isRight)
+			subRelationField := GetMiddleField(subModel, middleModel, !isRight)
+			return t.ManyToManyPreloadBind(model, subModel, middleModel, field, relationField, subRelationField)
 		}
 	}
 	return nil
@@ -188,17 +191,18 @@ func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationFiel
 	return t.oneToManyPreload[model][containerField]
 }
 
-func (t *Toy) ManyToManyPreloadBind(model, subModel *Model, containerField *ModelField) *ManyToManyPreload {
+func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField *ModelField) *ManyToManyPreload {
 	if v := t.manyToManyPreload[model]; v == nil {
 		t.manyToManyPreload[model] = map[*ModelField]*ManyToManyPreload{}
 	}
-	middleModel := NewMiddleModel(model, subModel, t.Dialect)
 	t.CacheMiddleModels[middleModel.ReflectType] = middleModel
 	t.manyToManyPreload[model][containerField] = &ManyToManyPreload{
-		Model:          model,
-		SubModel:       subModel,
-		MiddleModel:    middleModel,
-		ContainerField: containerField,
+		Model:            model,
+		SubModel:         subModel,
+		MiddleModel:      middleModel,
+		ContainerField:   containerField,
+		RelationField:    relationField,
+		SubRelationField: subRelationField,
 	}
 	return t.manyToManyPreload[model][containerField]
 }

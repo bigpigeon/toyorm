@@ -116,33 +116,18 @@ func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		field := t.model.fieldSelect(fv)
 		if subBrick, ok := t.MapPreloadBrick[field]; ok {
-			if preload := t.ManyToManyPreload[field]; preload == nil || preload.IsRight {
-				panic(fmt.Sprintf("invalid preload field '%s'", field.Field.Name))
-			}
 			return subBrick
 		}
-		fType := LoopTypeIndirectSliceAndPtr(field.Field.Type)
+		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.Field.Type))
+		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
 
-		model := t.Toy.GetModel(fType)
-		newSubt := NewToyBrick(t.Toy, model).CopyStatus(t)
-		// copy MapPreloadBrick
 		newt := *t
-		newt.MapPreloadBrick = map[*ModelField]*ToyBrick{}
-		for k, v := range t.MapPreloadBrick {
-			newt.MapPreloadBrick[k] = v
-		}
-		newSubt.relationship.Parent = &newt
-		newSubt.relationship.Field = field
-		if preload := newt.Toy.ManyToManyPreload(newt.model, field); preload != nil {
-			newt.MapPreloadBrick[field] = newSubt
-			newt.ManyToManyPreload = map[*ModelField]*ManyToManyPreload{}
-			for k, v := range t.ManyToManyPreload {
-				newt.ManyToManyPreload[k] = v
-			}
-			newPreload := *preload
-			newPreload.IsRight = true
-			newt.ManyToManyPreload[field] = &newPreload
-
+		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+		newt.MapPreloadBrick[field] = newSubt
+		newSubt.relationship = ToyBrickRelationship{&newt, field}
+		if preload := newt.Toy.ManyToManyPreload(newt.model, field, true); preload != nil {
+			newt.ManyToManyPreload = t.CopyManyToManyPreload()
+			newt.ManyToManyPreload[field] = preload
 		} else {
 			panic(fmt.Sprintf("invalid preload field '%s'", field.Field.Name))
 		}
@@ -157,9 +142,7 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 		if subBrick, ok := t.MapPreloadBrick[field]; ok {
 			return subBrick
 		}
-		fType := LoopTypeIndirectSliceAndPtr(field.Field.Type)
-
-		subModel := t.Toy.GetModel(fType)
+		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.Field.Type))
 		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
 
 		newt := *t
@@ -175,7 +158,7 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 				newt.OneToManyPreload[k] = v
 			}
 			newt.OneToManyPreload[field] = preload
-		} else if preload := newt.Toy.ManyToManyPreload(newt.model, field); preload != nil {
+		} else if preload := newt.Toy.ManyToManyPreload(newt.model, field, false); preload != nil {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field] = preload
 		} else {
@@ -291,7 +274,7 @@ func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, a
 	return newSubt
 }
 
-func (t *ToyBrick) CustomManyToManyPreload(container interface{}, args ...interface{}) *ToyBrick {
+func (t *ToyBrick) CustomManyToManyPreload(container, middleStruct, relation, subRelation interface{}, args ...interface{}) *ToyBrick {
 	containerField := t.model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
@@ -299,7 +282,9 @@ func (t *ToyBrick) CustomManyToManyPreload(container interface{}, args ...interf
 	} else {
 		subModel = t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(containerField.Field.Type))
 	}
-	preload := t.Toy.ManyToManyPreloadBind(t.model, subModel, containerField)
+	middleModel := t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(middleStruct)))
+	relationField, subRelationField := middleModel.fieldSelect(relation), middleModel.fieldSelect(subRelation)
+	preload := t.Toy.ManyToManyPreloadBind(t.model, subModel, middleModel, containerField, relationField, subRelationField)
 	if preload == nil {
 		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
 	}

@@ -645,10 +645,10 @@ Thread safe if you comply with the following agreement
 preload need have relation field and container field
 
 
-use relations field to link the main record and sub record
+relations field is used to link the main record and sub record
 
 
-use container field to save sub record
+container field is used to save sub record
 
 **one to one**
 
@@ -727,7 +727,7 @@ type Blog struct {
 
 **many to many**
 
-many to many have not relation ship,because relation field at middle model
+many to many not need to specified the relation ship,it relation field at middle model
 
 ```
 type User struct {
@@ -757,13 +757,13 @@ if you not like relation field name rule,use custom module to create it
 
 ```golang
 // one to one custom
-brick.CustomOneToOnePreload(<main container>, <sub relation>, [sub model object])
+brick.CustomOneToOnePreload(<main container>, <sub relation>, [sub model struct])
 // belong to custom
-brick.CustomBelongToPreload(<main container>, <main relation>, [sub model object])
+brick.CustomBelongToPreload(<main container>, <main relation>, [sub model struct])
 // one to many
-brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model object])
+brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model struct])
 // many to many
-brick.CustomManyToManyPreload(<main container>, [sub model object], [middle model object])
+brick.CustomManyToManyPreload(<main container>, <middle model struct>, <main relation field>, <sub relation field>, [sub model struct])
 ```
 
 ### Full Feature Example

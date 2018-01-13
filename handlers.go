@@ -87,9 +87,6 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 			middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
 
 			mainField, subField := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
-			middleMainField, middleSubField :=
-				GetMiddleField(preload.Model, preload.MiddleModel, preload.IsRight),
-				GetMiddleField(preload.SubModel, preload.MiddleModel, !preload.IsRight)
 			elemAddressType := reflect.PtrTo(LoopTypeIndirect(ctx.Result.Records.GetFieldType(mField)).Elem())
 			subRecords := MakeRecordsWithElem(preload.SubModel, elemAddressType)
 
@@ -122,8 +119,8 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 						return errors.New("some records have not primary")
 					}
 					middleValue := reflect.New(middleBrick.model.ReflectType).Elem()
-					middleValue.Field(middleBrick.model.FieldsPos[middleMainField]).Set(primary)
-					middleValue.Field(middleBrick.model.FieldsPos[middleSubField]).Set(subPrimary)
+					middleValue.Field(middleBrick.model.FieldsPos[preload.RelationField]).Set(primary)
+					middleValue.Field(middleBrick.model.FieldsPos[preload.SubRelationField]).Set(subPrimary)
 					middleRecords.Add(middleValue)
 				}
 				offset += rField.Len()
@@ -290,20 +287,17 @@ func HandlerPreloadFind(ctx *Context) error {
 	// many to many
 	for mField, preload := range ctx.Brick.ManyToManyPreload {
 		mainPrimary, subPrimary := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
-		middlePrimaryLeft, middlePrimaryRight :=
-			GetMiddleField(preload.Model, preload.MiddleModel, preload.IsRight),
-			GetMiddleField(preload.SubModel, preload.MiddleModel, !preload.IsRight)
 		middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
 
 		// primaryMap: map[model.id]->the model's ModelRecord
 		primaryMap := map[interface{}]ModelRecord{}
-		keys := reflect.New(reflect.SliceOf(middlePrimaryLeft.Field.Type)).Elem()
+		keys := reflect.New(reflect.SliceOf(preload.RelationField.Field.Type)).Elem()
 		for _, record := range records.GetRecords() {
 			keys = SafeAppend(keys, record.Field(mainPrimary))
 			primaryMap[record.Field(mainPrimary).Interface()] = record
 		}
 		// the relation condition should have lowest priority
-		middleBrick = middleBrick.Where(ExprIn, middlePrimaryLeft, keys.Interface()).And().Conditions(middleBrick.Search)
+		middleBrick = middleBrick.Where(ExprIn, preload.RelationField, keys.Interface()).And().Conditions(middleBrick.Search)
 		middleModelElemList := reflect.New(reflect.SliceOf(preload.MiddleModel.ReflectType)).Elem()
 		//var middleModelRecords ModelRecords
 		middleCtx, err := middleBrick.find(middleModelElemList)
@@ -319,10 +313,10 @@ func HandlerPreloadFind(ctx *Context) error {
 
 		// subPrimaryMap:  map[submodel.id]->[]the model's ModelRecord
 		subPrimaryMap := map[interface{}][]ModelRecord{}
-		middlePrimary2Keys := reflect.New(reflect.SliceOf(middlePrimaryRight.Field.Type)).Elem()
+		middlePrimary2Keys := reflect.New(reflect.SliceOf(preload.SubRelationField.Field.Type)).Elem()
 		for _, pRecord := range middleCtx.Result.Records.GetRecords() {
-			subPrimaryMapKey := LoopIndirect(pRecord.Field(middlePrimaryRight))
-			subPrimaryMapValue := LoopIndirect(pRecord.Field(middlePrimaryLeft))
+			subPrimaryMapKey := LoopIndirect(pRecord.Field(preload.SubRelationField))
+			subPrimaryMapValue := LoopIndirect(pRecord.Field(preload.RelationField))
 			subPrimaryMap[subPrimaryMapKey.Interface()] =
 				append(subPrimaryMap[subPrimaryMapKey.Interface()], primaryMap[subPrimaryMapValue.Interface()])
 		}
@@ -608,9 +602,6 @@ func HandlerPreloadDelete(ctx *Context) error {
 		subBrick := ctx.Brick.Preload(mField)
 		middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
 		mainField, subField := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
-		middleMainField, middleSubField :=
-			GetMiddleField(preload.Model, preload.MiddleModel, preload.IsRight),
-			GetMiddleField(preload.SubModel, preload.MiddleModel, !preload.IsRight)
 		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
 		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
 
@@ -641,8 +632,8 @@ func HandlerPreloadDelete(ctx *Context) error {
 					return errors.New("some records have not primary key")
 				}
 				middleValue := reflect.New(middleBrick.model.ReflectType).Elem()
-				middleValue.Field(middleBrick.model.FieldsPos[middleMainField]).Set(primary)
-				middleValue.Field(middleBrick.model.FieldsPos[middleSubField]).Set(subPrimary)
+				middleValue.Field(middleBrick.model.FieldsPos[preload.RelationField]).Set(primary)
+				middleValue.Field(middleBrick.model.FieldsPos[preload.SubRelationField]).Set(subPrimary)
 				middleRecords.Add(middleValue)
 			}
 			offset += rField.Len()

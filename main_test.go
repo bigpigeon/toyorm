@@ -119,6 +119,11 @@ type TestCustomPreloadOneToMany struct {
 	ParentID uint `toyorm:"index"`
 }
 
+type TestCustomPreloadManyToManyMiddle struct {
+	ParentID uint `toyorm:"primary key"`
+	ChildID  int  `toyorm:"primary key"`
+}
+
 type TestCustomPreloadManyToMany struct {
 	ID   uint `toyorm:"primary key;auto_increment"`
 	Data string

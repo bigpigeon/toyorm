@@ -374,12 +374,15 @@ func TestCustomPreload(t *testing.T) {
 	table := TestCustomPreloadTable{}
 	tableOne := TestCustomPreloadOneToOne{}
 	tableThree := TestCustomPreloadOneToMany{}
+	middleTable := TestCustomPreloadManyToManyMiddle{}
 	brick := TestDB.Model(&table).Debug().
 		CustomOneToOnePreload(Offsetof(table.ChildOne), Offsetof(tableOne.ParentID)).Enter().
 		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
 		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
-		CustomManyToManyPreload(Offsetof(table.OtherChildren)).Enter()
-	_, err := brick.CreateTable()
+		CustomManyToManyPreload(Offsetof(table.OtherChildren), middleTable, Offsetof(middleTable.ParentID), Offsetof(middleTable.ChildID)).Enter()
+	_, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	_, err = brick.CreateTable()
 	assert.Nil(t, err)
 }
 
