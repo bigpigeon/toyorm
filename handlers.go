@@ -137,16 +137,19 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 
 func HandlerInsertTimeGenerate(ctx *Context) error {
 	records := ctx.Result.Records
-	if field, ok := ctx.Brick.model.NameFields["CreatedAt"]; ok {
+	createModelField, hasCreatedAt := ctx.Brick.model.NameFields["CreatedAt"]
+	updateModelField, hasUpdatedAt := ctx.Brick.model.NameFields["UpdatedAt"]
+	if hasCreatedAt || hasUpdatedAt {
 		current := time.Now()
-		for _, record := range records.GetRecords() {
-			record.SetField(field, reflect.ValueOf(current))
+		if hasCreatedAt {
+			for _, record := range records.GetRecords() {
+				record.SetField(createModelField, reflect.ValueOf(current))
+			}
 		}
-	}
-	if mField, ok := ctx.Brick.model.NameFields["UpdatedAt"]; ok {
-		current := time.Now()
-		for _, record := range records.GetRecords() {
-			record.SetField(mField, reflect.ValueOf(current))
+		if hasUpdatedAt {
+			for _, record := range records.GetRecords() {
+				record.SetField(updateModelField, reflect.ValueOf(current))
+			}
 		}
 	}
 	return nil
@@ -158,7 +161,7 @@ func HandlerInsert(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{}
 		action.Exec = ctx.Brick.InsertExec(record)
-		action.Result, action.Error = ctx.Brick.Exec(action.Exec.Query, action.Exec.Args...)
+		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 		if action.Error == nil {
 			// set primary field value if model is autoincrement
 			if len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement == true {
@@ -178,7 +181,7 @@ func HandlerFind(ctx *Context) error {
 	action := QueryAction{
 		Exec: ctx.Brick.FindExec(ctx.Result.Records),
 	}
-	rows, err := ctx.Brick.Query(action.Exec.Query, action.Exec.Args...)
+	rows, err := ctx.Brick.Query(action.Exec)
 	if err != nil {
 		return err
 	}
@@ -357,7 +360,7 @@ func HandlerUpdateTimeGenerate(ctx *Context) error {
 func HandlerUpdate(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{Exec: ctx.Brick.UpdateExec(record)}
-		action.Result, action.Error = ctx.Brick.Exec(action.Exec.Query, action.Exec.Args...)
+		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 		ctx.Result.AddExecRecord(action, i)
 	}
 	return nil
@@ -380,7 +383,7 @@ func HandlerSave(ctx *Context) error {
 		if tryInsert {
 			action = ExecAction{}
 			action.Exec = ctx.Brick.InsertExec(record)
-			action.Result, action.Error = ctx.Brick.Exec(action.Exec.Query, action.Exec.Args...)
+			action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 			if action.Error == nil {
 				// set primary field value if model is autoincrement
 				if len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement == true {
@@ -394,19 +397,19 @@ func HandlerSave(ctx *Context) error {
 		} else {
 			action = ExecAction{}
 			action.Exec = ctx.Brick.ReplaceExec(record)
-			action.Result, action.Error = ctx.Brick.Exec(action.Exec.Query, action.Exec.Args...)
+			action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 		}
 		ctx.Result.AddExecRecord(action, i)
 	}
 	return nil
 }
 
-func HandlerSaveTimeProcess(ctx *Context) error {
+func HandlerSaveTimeGenerate(ctx *Context) error {
 	createField := ctx.Brick.model.NameFields["CreatedAt"]
 	now := reflect.ValueOf(time.Now())
 	if ctx.Result.Records.Len() > 0 && createField != nil {
 		primaryField := ctx.Brick.model.GetOnePrimary()
-		brick := ctx.Brick.BindFields(primaryField, createField)
+		brick := ctx.Brick.bindFields(ModeUpdate, primaryField, createField)
 		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.Field.Type), 0, ctx.Result.Records.Len())
 		action := QueryAction{}
 		var tryFindTimeIndex []int
@@ -418,36 +421,43 @@ func HandlerSaveTimeProcess(ctx *Context) error {
 			}
 			tryFindTimeIndex = append(tryFindTimeIndex, i)
 		}
+		if primaryKeys.Len() > 0 {
+			action.Exec = brick.Where(ExprIn, primaryField, primaryKeys.Interface()).FindExec(ctx.Result.Records)
 
-		action.Exec = brick.Where(ExprIn, primaryField, primaryKeys.Interface()).FindExec(ctx.Result.Records)
-
-		rows, err := brick.Query(action.Exec.Query, action.Exec.Args...)
-		if err != nil {
-			action.Error = append(action.Error, err)
-			ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
-			return nil
-		}
-		primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.Field.Type, createField.Field.Type))
-
-		// find all createtime
-		for rows.Next() {
-			id := reflect.New(primaryField.Field.Type)
-			createAt := reflect.New(createField.Field.Type)
-			err := rows.Scan(id.Interface(), createAt.Interface())
+			rows, err := brick.Query(action.Exec)
 			if err != nil {
 				action.Error = append(action.Error, err)
+				ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
+				return nil
 			}
-			primaryKeysMap.SetMapIndex(id.Elem(), createAt.Elem())
-		}
-		for _, record := range ctx.Result.Records.GetRecords() {
-			pri := record.Field(primaryField)
-			if createAt := primaryKeysMap.MapIndex(pri); createAt.IsValid() && IsZero(createAt) == false {
-				record.SetField(createField, createAt)
-			} else {
+			primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.Field.Type, createField.Field.Type))
+
+			// find all createtime
+			for rows.Next() {
+				id := reflect.New(primaryField.Field.Type)
+				createAt := reflect.New(createField.Field.Type)
+				err := rows.Scan(id.Interface(), createAt.Interface())
+				if err != nil {
+					action.Error = append(action.Error, err)
+				}
+				primaryKeysMap.SetMapIndex(id.Elem(), createAt.Elem())
+			}
+
+			ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
+			for _, record := range ctx.Result.Records.GetRecords() {
+				pri := record.Field(primaryField)
+				if createAt := primaryKeysMap.MapIndex(pri); createAt.IsValid() && IsZero(createAt) == false {
+					record.SetField(createField, createAt)
+				} else {
+					record.SetField(createField, now)
+				}
+				fmt.Printf("record %#v\n", record.Source())
+			}
+		} else {
+			for _, record := range ctx.Result.Records.GetRecords() {
 				record.SetField(createField, now)
 			}
 		}
-		ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
 	}
 	if mField, ok := ctx.Brick.model.NameFields["UpdatedAt"]; ok {
 		for _, record := range ctx.Result.Records.GetRecords() {
@@ -503,7 +513,7 @@ func HandlerCreateTable(ctx *Context) error {
 	execs := ctx.Brick.CreateTableExec(ctx.Brick.Toy.Dialect)
 	for _, exec := range execs {
 		action := ExecAction{Exec: exec}
-		action.Result, action.Error = ctx.Brick.Exec(exec.Query, exec.Args...)
+		action.Result, action.Error = ctx.Brick.Exec(exec)
 		ctx.Result.AddExecRecord(action)
 	}
 	return nil
@@ -513,7 +523,7 @@ func HandlerExistTableAbort(ctx *Context) error {
 	action := QueryAction{}
 	action.Exec = ctx.Brick.HasTableExec(ctx.Brick.Toy.Dialect)
 	var hasTable bool
-	err := ctx.Brick.QueryRow(action.Exec.Query, action.Exec.Args...).Scan(&hasTable)
+	err := ctx.Brick.QueryRow(action.Exec).Scan(&hasTable)
 	if err != nil {
 		action.Error = append(action.Error, err)
 	}
@@ -528,7 +538,7 @@ func HandlerExistTableAbort(ctx *Context) error {
 func HandlerDropTable(ctx *Context) (err error) {
 	exec := ctx.Brick.DropTableExec()
 	action := ExecAction{Exec: exec}
-	action.Result, action.Error = ctx.Brick.Exec(exec.Query, exec.Args...)
+	action.Result, action.Error = ctx.Brick.Exec(exec)
 	ctx.Result.AddExecRecord(action)
 	return nil
 }
@@ -537,7 +547,7 @@ func HandlerNotExistTableAbort(ctx *Context) error {
 	action := QueryAction{}
 	action.Exec = ctx.Brick.HasTableExec(ctx.Brick.Toy.Dialect)
 	var hasTable bool
-	err := ctx.Brick.QueryRow(action.Exec.Query, action.Exec.Args...).Scan(&hasTable)
+	err := ctx.Brick.QueryRow(action.Exec).Scan(&hasTable)
 	if err != nil {
 		action.Error = append(action.Error, err)
 	}
@@ -563,7 +573,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 			// if main model is hard delete need set relationship field set zero if sub model is soft delete
 			if mainSoftDelete == false && subSoftDelete == true {
 				deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
-				preloadBrick = preloadBrick.BindFields(preload.RelationField, deletedAtField)
+				preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
 			}
 			result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
 			ctx.Result.Preload[mField] = result
@@ -589,7 +599,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 		// model relationship field set zero
 		if mainSoftDelete == false && subSoftDelete == true {
 			deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
-			preloadBrick = preloadBrick.BindFields(preload.RelationField, deletedAtField)
+			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
 		}
 		result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
 		ctx.Result.Preload[mField] = result
@@ -693,7 +703,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 			subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
 			if mainSoftDelete == false && subSoftDelete == true {
 				deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
-				preloadBrick = preloadBrick.BindFields(preload.RelationField, deletedAtField)
+				preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
 			}
 
 			result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
@@ -709,7 +719,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 func HandlerHardDelete(ctx *Context) error {
 	action := ExecAction{}
 	action.Exec = ctx.Brick.DeleteExec()
-	action.Result, action.Error = ctx.Brick.Exec(action.Exec.Query, action.Exec.Args...)
+	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 	ctx.Result.AddExecRecord(action)
 	return nil
 }
@@ -731,7 +741,7 @@ func HandlerSoftDelete(ctx *Context) error {
 	record.SetField(ctx.Brick.model.GetFieldWithName("DeletedAt"), reflect.ValueOf(now))
 
 	action.Exec = ctx.Brick.UpdateExec(record)
-	action.Result, action.Error = ctx.Brick.Exec(action.Exec.Query, action.Exec.Args...)
+	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 	ctx.Result.AddExecRecord(action)
 	return nil
 }

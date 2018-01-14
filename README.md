@@ -40,19 +40,26 @@ type Product struct {
 func main() {
     var err error
     var toy *toyorm.Toy
+    var result *toyorm.Result
     // when database is mysql, make sure your mysql have toyorm_example schema
     toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
     // when database is sqlite3
     //toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
 
     brick := toy.Model(&Product{}).Debug()
-    _, err = brick.DropTableIfExist()
+    result, err = brick.DropTableIfExist()
     if err != nil {
         panic(err)
     }
-    _, err = brick.CreateTableIfNotExist()
+    if resultErr := result.Err(); resultErr != nil {
+        fmt.Print(resultErr)
+    }
+    result, err = brick.CreateTableIfNotExist()
     if err != nil {
         panic(err)
+    }
+    if resultErr := result.Err(); resultErr != nil {
+        fmt.Print(resultErr)
     }
     // Insert will set id to source data when primary key is auto_increment
     brick.Insert(&[]Product{
@@ -68,9 +75,12 @@ func main() {
     // find the first food
     {
         var product Product
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("food %s\n", JsonEncode(product))
     }
@@ -78,9 +88,12 @@ func main() {
     // find all food
     {
         var products []Product
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("foods %s\n", JsonEncode(products))
     }
@@ -88,42 +101,54 @@ func main() {
     // find count = 2
     {
         var products []Product
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Find(&products)
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("count > 2 products %s\n", JsonEncode(products))
     }
     // find count = 2 and price > 3
     {
         var products []Product
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
             Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("count = 2 and price > 3 products %s\n", JsonEncode(products))
     }
     // find count = 2 and price > 3 or count = 4
     {
         var products []Product
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
             Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Or().
             Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 4).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("count = 2 and price > 3 or count = 4  products %s\n", JsonEncode(products))
     }
     // find price > 3 and (count = 2 or count = 1)
     {
         var products []Product
-        _, err := brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
+        result, err := brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
             brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
                 Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
         ).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("price > 3 and (count = 2 or count = 1)  products %s\n", JsonEncode(products))
     }
@@ -131,7 +156,7 @@ func main() {
     // find (count = 2 or count = 1) and (price = 3 or price = 4)
     {
         var products []Product
-        _, err := brick.Conditions(
+        result, err := brick.Conditions(
             brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
                 Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
         ).And().Conditions(
@@ -141,52 +166,96 @@ func main() {
         if err != nil {
             panic(err)
         }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
+        }
         fmt.Printf("(count = 2 or count = 1) and (price = 3 or price = 4)  products %s\n", JsonEncode(products))
     }
     // find offset 2 limit 2
     {
         var products []Product
-        _, err := brick.Offset(2).Limit(2).Find(&products)
+        result, err := brick.Offset(2).Limit(2).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("offset 1 limit 2 products %s\n", JsonEncode(products))
     }
     // order by
     {
         var products []Product
-        _, err := brick.OrderBy(Offsetof(Product{}.Name)).Find(&products)
+        result, err := brick.OrderBy(Offsetof(Product{}.Name)).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("order by name products %s\n", JsonEncode(products))
     }
     {
         var products []Product
-        _, err := brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name))).Find(&products)
+        result, err := brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name))).Find(&products)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         fmt.Printf("order by name desc products %s\n", JsonEncode(products))
     }
     // update to count = 4
     {
-        _, err := brick.Update(&Product{
+        result, err := brick.Update(&Product{
             Count: 4,
         })
         if err != nil {
             panic(err)
         }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
+        }
         var Counters []struct {
             Name  string
             Count int
         }
-        _, err = brick.Find(&Counters)
+        result, err = brick.Find(&Counters)
         if err != nil {
             panic(err)
         }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
+        }
         for _, counter := range Counters {
             fmt.Printf("product name %s, count %d\n", counter.Name, counter.Count)
+        }
+    }
+    // use bind fields to update a zero value
+    {
+        {
+            var p Product
+            result, err := brick.BindDefaultFields(Offsetof(p.Price), Offsetof(p.UpdatedAt)).Update(&Product{
+                Price: 0,
+            })
+            if err != nil {
+                panic(err)
+            }
+            if resultErr := result.Err(); resultErr != nil {
+                fmt.Print(resultErr)
+            }
+        }
+        var products []Product
+        result, err = brick.Find(&products)
+        if err != nil {
+            panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
+        }
+        for _, p := range products {
+            fmt.Printf("product name %s, price %v\n", p.Name, p.Price)
         }
     }
     // delete with element
@@ -194,18 +263,27 @@ func main() {
         // make a transaction, because I do not really delete a data
         brick := brick.Begin()
         var product Product
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
         if err != nil {
             panic(err)
         }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
+        }
 
-        _, err = brick.Delete(&product)
+        result, err = brick.Delete(&product)
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
 
         var disappearProduct Product
-        _, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&disappearProduct)
+        result, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&disappearProduct)
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
+        }
         fmt.Printf("error(%s)\n", err)
         brick.Rollback()
     }
@@ -213,9 +291,12 @@ func main() {
     {
         // make a transaction, because I am not really delete a data
         brick := brick.Begin()
-        _, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").DeleteWithConditions()
+        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").DeleteWithConditions()
         if err != nil {
             panic(err)
+        }
+        if resultErr := result.Err(); resultErr != nil {
+            fmt.Print(resultErr)
         }
         var product Product
         _, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
@@ -625,19 +706,28 @@ brick = brick.Debug()
 
 #### IgnoreMode
 
-when I Update/Replace or Search with struct that have some zero value, did I update it ?
+when I Update or Search with struct that have some zero value, did I update it ?
 
 
 use IgnoreMode to differentiate what zero value should update
 
 ```golang
-brick = brick.IgnoreMode(toyorm.IgnoreZero ^ toyorm.IgnoreZeroLen)
+brick = brick.IgnoreMode(toyorm.Mode("Update"), toyorm.IgnoreZero ^ toyorm.IgnoreZeroLen)
 // ignore all zeor value but excloud zero len slice
-// now value = []int(nil) will ignore
-// but value = []int{} will update
+// now value = []int(nil) will ignore when update
+// but value = []int{} will update when update
 ```
 
----
+In default
+
+Operation | Mode       | affect
+----------|------------|--------
+Insert    | IgnoreNo   | brick.Insert(<struct>)
+Replace   | IgnoreNo   | brick.Replace(<struct>)
+Condition | IgnoreZero | brick.Where(ExprAnd/ExprOr, <struct>)
+Update    | IgnoreZero | brick.Update(<struct>)
+
+**All of IgnoreMode**
 
 mode              |  effective
 ------------------|---------------
@@ -652,6 +742,29 @@ IgnoreNullStruct  | ignore field type is struct and value is zero value struct e
 IgnoreNil         | ignore with IgnoreNilPoint and IgnoreZeroLen
 IgnoreZero        | ignore all of the above
 
+
+#### BindFields
+
+if bind a not null fields, the IgnoreMode will failure
+
+```golang
+{
+    var p Product
+    result, err := brick.BindDefaultFields(Offsetof(p.Price), Offsetof(p.UpdatedAt)).Update(&Product{
+        Price: 0,
+    })
+   // process error
+   ...
+}
+var products []Product
+result, err = brick.Find(&products)
+// process error
+...
+
+for _, p := range products {
+    fmt.Printf("product name %s, price %v\n", p.Name, p.Price)
+}
+```
 
 #### Scope
 
@@ -804,9 +917,24 @@ brick.CustomBelongToPreload(<main container>, <main relation>, [sub model struct
 // one to many
 brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model struct])
 // many to many
-brick.CustomManyToManyPreload(<main container>, <middle model struct>, <main relation field>, <sub relation field>, [sub model struct])
+brick.CustomManyToManyPreload(<main container>, <middle model struct>, <main relation>, <sub relation>, [sub model struct])
 ```
 
+
+#### Selector
+
+toyorm support following selector
+
+operation  \\  selector | OffsetOf | Name string | map\[OffsetOf\]interface{} | map\[string\]interface{} | struct |
+--------------------|----------|-------------|--------------------------------|--------------------------|--------|
+Update              | no       | no          | yes                            | yes                      | yes
+Insert              | no       | no          | yes                            | yes                      | yes
+Save                | no       | no          | yes                            | yes                      | yes
+Where & Conditions  | yes      | yes         | yes                            | yes                      | yes
+BindFields          | yes      | yes         | no                             | no                       | no
+Preload & Custom Preload | yes | yes         | no                             | no                       | no
+OrderBy             | yes      | yes         | no                             | no                       | no
+Find                | no       | no          | no                             | no                       | yes
 
 ### Full Feature Example
 

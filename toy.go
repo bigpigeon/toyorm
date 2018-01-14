@@ -58,7 +58,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"Insert":                {HandlerPreloadInsertOrSave("Insert"), HandlerInsertTimeGenerate, HandlerInsert},
 			"Find":                  {HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadFind},
 			"Update":                {HandlerSoftDeleteCheck, HandlerUpdateTimeGenerate, HandlerUpdate},
-			"Save":                  {HandlerPreloadInsertOrSave("Save"), HandlerSaveTimeProcess, HandlerUpdateTimeGenerate, HandlerSave},
+			"Save":                  {HandlerPreloadInsertOrSave("Save"), HandlerSaveTimeGenerate, HandlerSave},
 			"HardDelete":            {HandlerPreloadDelete, HandlerHardDelete},
 			"SoftDelete":            {HandlerPreloadDelete, HandlerSoftDelete},
 		},

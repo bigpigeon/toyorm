@@ -2,6 +2,7 @@ package toyorm
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -14,25 +15,43 @@ type Result struct {
 	MiddleModelPreload map[*ModelField]*Result
 }
 
-func (r *Result) AllErrors() []error {
-	var errs []error
+func (r *Result) Err() error {
+	var errStr string
+
 	for _, action := range r.ActionFlow {
 		switch t := action.sqlAction.(type) {
 		case QueryAction:
-			errs = append(errs, t.Error...)
+			errs := ""
+			for i, err := range t.Error {
+				if err != nil {
+					errs += fmt.Sprintf("\t[%d]%s\n", i, err)
+				}
+			}
+			if errs != "" {
+				errStr += fmt.Sprintf("%s args:%s errors(\n%s)\n", t.Exec.Query, t.Exec.JsonArgs(), errs)
+			}
 		case ExecAction:
 			if t.Error != nil {
-				errs = append(errs, t.Error)
+				errStr += fmt.Sprintf("%s args:%s errors(\n\t%s\n)\n", t.Exec.Query, t.Exec.JsonArgs(), t.Error)
 			}
 		}
 	}
-	for _, preload := range r.Preload {
-		errs = append(errs, preload.AllErrors()...)
+	for mField, preload := range r.Preload {
+		err := preload.Err()
+		if err != nil {
+			errStr += fmt.Sprintf("Preload %s errors:\n%s", mField.Field.Name, err)
+		}
 	}
-	for _, middlePreload := range r.MiddleModelPreload {
-		errs = append(errs, middlePreload.AllErrors()...)
+	for mField, preload := range r.MiddleModelPreload {
+		err := preload.Err()
+		if err != nil {
+			errStr += fmt.Sprintf("Middle Preload %s errors:\n%s", mField.Field.Name, err)
+		}
 	}
-	return errs
+	if errStr != "" {
+		return errors.New(errStr)
+	}
+	return nil
 }
 
 func (r *Result) AddExecRecord(e ExecAction, index ...int) {
@@ -44,7 +63,6 @@ func (r *Result) AddExecRecord(e ExecAction, index ...int) {
 
 // TODO a report log
 func (r *Result) Report() string {
-
 	return ""
 }
 

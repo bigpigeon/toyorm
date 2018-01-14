@@ -7,6 +7,7 @@ import (
 type IgnoreMode int
 
 const (
+	IgnoreNo    = IgnoreMode(0)
 	IgnoreFalse = IgnoreMode(1 << iota)
 	IgnoreZeroInt
 	IgnoreZeroFloat

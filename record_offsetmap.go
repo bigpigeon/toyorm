@@ -2,6 +2,7 @@ package toyorm
 
 import (
 	"reflect"
+	"time"
 )
 
 type ModelOffsetMapRecords struct {
@@ -78,7 +79,9 @@ func (m *ModelOffsetMapRecords) Add(v reflect.Value) ModelRecord {
 
 func (m *ModelOffsetMapRecords) GetFieldType(field *ModelField) reflect.Type {
 	t := LoopTypeIndirect(field.Field.Type)
-	// TODO some sql datatype e.g time.Time is struct
+	if _, ok := reflect.Zero(t).Interface().(time.Time); ok {
+		return field.Field.Type
+	}
 	switch t.Kind() {
 	case reflect.Struct:
 		return reflect.TypeOf(map[uintptr]interface{}{})
@@ -152,7 +155,9 @@ func (m *ModelOffsetMapRecord) Source() reflect.Value {
 
 func (m *ModelOffsetMapRecord) GetFieldType(field *ModelField) reflect.Type {
 	t := LoopTypeIndirect(field.Field.Type)
-	// TODO some sql datatype e.g time.Time is struct
+	if _, ok := reflect.Zero(t).Interface().(time.Time); ok {
+		return field.Field.Type
+	}
 	switch t.Kind() {
 	case reflect.Struct:
 		return reflect.TypeOf(map[string]interface{}{})

@@ -30,22 +30,24 @@ type ToyBrick struct {
 	offset  int
 	limit   int
 	// use by update/insert/replace data when source value is struct
-	ignoreMode IgnoreMode
+	//ignoreMode IgnoreMode
 	// use by SELECT fields FROM TABLE/INSERT INFO table(fields)/UPDATE table SET field...
 	// if len(Fields) == 0, use model.SqlFields
-	Fields []*ModelField
+	//Fields []*ModelField
 	// TODO use by find data if fields number not equal scan value number
+	FieldsSelector     map[Mode][]*ModelField
+	ignoreModeSelector map[Mode]IgnoreMode
 
 	// use for SELECT Fields... FROM table, if nil or len = 0, use Fields
-	SelectField []*ModelField
+	//SelectField []*ModelField
 	// use for INSERT / REPLACE INTO(InsertField), if nil or len = 0, use Fields
-	InsertField []*ModelField
+	//InsertField []*ModelField
 	// use for UPDATE table SET field1=xx,field2=xx, if nil or len = 0, use Fields
-	UpdateFields []*ModelField
+	//UpdateFields []*ModelField
 	// use for scan, if nil or len = 0, use Fields
-	ScanFields []*ModelField
+	//ScanFields []*ModelField
 	// use for brick.Where(ExprAnd/ExprOr, data)
-	ConditionFields []*ModelField
+	//ConditionFields []*ModelField
 }
 
 func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
@@ -56,7 +58,12 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 		OneToOnePreload:   map[*ModelField]*OneToOnePreload{},
 		OneToManyPreload:  map[*ModelField]*OneToManyPreload{},
 		ManyToManyPreload: map[*ModelField]*ManyToManyPreload{},
-		ignoreMode:        IgnoreZero,
+		ignoreModeSelector: map[Mode]IgnoreMode{
+			ModeInsert:    IgnoreNo,
+			ModeReplace:   IgnoreNo,
+			ModeCondition: IgnoreZero,
+			ModeUpdate:    IgnoreZero,
+		},
 	}
 }
 
@@ -84,7 +91,10 @@ func (t *ToyBrick) CopyStatus(statusBrick *ToyBrick) *ToyBrick {
 	newt := *t
 	newt.tx = statusBrick.tx
 	newt.debug = statusBrick.debug
-	newt.ignoreMode = statusBrick.ignoreMode
+	newt.ignoreModeSelector = map[Mode]IgnoreMode{}
+	for k, v := range t.ignoreModeSelector {
+		newt.ignoreModeSelector[k] = v
+	}
 	return &newt
 }
 
@@ -300,10 +310,57 @@ func (t *ToyBrick) CustomManyToManyPreload(container, middleStruct, relation, su
 	return newSubt
 }
 
-func (t *ToyBrick) BindFields(fields ...*ModelField) *ToyBrick {
+func (t *ToyBrick) BindFields(mode string, args ...interface{}) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		var fields []*ModelField
+		for _, v := range args {
+			fields = append(fields, t.model.fieldSelect(v))
+		}
+		newt := *t
+		newt.FieldsSelector = map[Mode][]*ModelField{}
+		for k, v := range t.FieldsSelector {
+			newt.FieldsSelector[k] = v
+		}
+		newt.FieldsSelector[Mode(mode)] = fields
+		return &newt
+	})
+}
+func (t *ToyBrick) BindDefaultFields(args ...interface{}) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		var fields []*ModelField
+		for _, v := range args {
+			fields = append(fields, t.model.fieldSelect(v))
+		}
+		newt := *t
+		newt.FieldsSelector = map[Mode][]*ModelField{}
+		for k, v := range t.FieldsSelector {
+			newt.FieldsSelector[k] = v
+		}
+		newt.FieldsSelector[ModeDefault] = fields
+		return &newt
+	})
+}
+
+func (t *ToyBrick) bindDefaultFields(fields ...*ModelField) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
-		newt.Fields = fields
+		newt.FieldsSelector = map[Mode][]*ModelField{}
+		for k, v := range t.FieldsSelector {
+			newt.FieldsSelector[k] = v
+		}
+		newt.FieldsSelector[ModeDefault] = fields
+		return &newt
+	})
+}
+
+func (t *ToyBrick) bindFields(mode Mode, fields ...*ModelField) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		newt.FieldsSelector = map[Mode][]*ModelField{}
+		for k, v := range t.FieldsSelector {
+			newt.FieldsSelector[k] = v
+		}
+		newt.FieldsSelector[Mode(mode)] = fields
 		return &newt
 	})
 }
@@ -317,7 +374,7 @@ func (t *ToyBrick) condition(expr SearchExpr, v ...interface{}) SearchList {
 		switch vValue.Kind() {
 		case reflect.Struct:
 			record := NewStructRecord(t.model, vValue)
-			pairs := getModelFieldAndValues(t.ignoreMode, record, t.ConditionFields, t.Fields, t.model.SqlFields)
+			pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
 			for _, pair := range pairs {
 				search = search.Condition(pair.Field, pair.Value.Interface(), ExprEqual, expr)
 			}
@@ -429,9 +486,13 @@ func (t *ToyBrick) Debug() *ToyBrick {
 	})
 }
 
-func (t *ToyBrick) IgnoreMode(ignore IgnoreMode) *ToyBrick {
+func (t *ToyBrick) IgnoreMode(s string, ignore IgnoreMode) *ToyBrick {
 	newt := *t
-	newt.ignoreMode = ignore
+	newt.ignoreModeSelector = map[Mode]IgnoreMode{}
+	for k, v := range t.ignoreModeSelector {
+		newt.ignoreModeSelector[k] = v
+	}
+	newt.ignoreModeSelector[Mode(s)] = ignore
 	return &newt
 }
 
@@ -529,13 +590,13 @@ func (t *ToyBrick) DropTableIfExist() (*Result, error) {
 
 func (t *ToyBrick) HasTable() (b bool, err error) {
 	exec := t.HasTableExec(t.Toy.Dialect)
-	err = t.QueryRow(exec.Query, exec.Args...).Scan(&b)
+	err = t.QueryRow(exec).Scan(&b)
 	return b, err
 }
 
 func (t *ToyBrick) Count() (count int, err error) {
 	exec := t.CountExec()
-	err = t.QueryRow(exec.Query, exec.Args).Scan(&count)
+	err = t.QueryRow(exec).Scan(&count)
 	return count, err
 }
 
@@ -608,56 +669,68 @@ func (t *ToyBrick) DeleteWithConditions() (*Result, error) {
 	return t.delete(nil)
 }
 
-func (t *ToyBrick) Exec(s string, args ...interface{}) (result sql.Result, err error) {
+func (t *ToyBrick) Exec(exec ExecValue) (result sql.Result, err error) {
 	if t.tx == nil {
-		result, err = t.Toy.db.Exec(s, args...)
+		result, err = t.Toy.db.Exec(exec.Query, exec.Args...)
 	} else {
-		result, err = t.tx.Exec(s, args...)
+		result, err = t.tx.Exec(exec.Query, exec.Args...)
 	}
 
 	if t.debug {
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%#v faiure reason %s\n", t.tx, s, args, err)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s faiure reason %s\n", t.tx, exec.Query, exec.JsonArgs(), err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%#v\n", t.tx, s, args)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s\n", t.tx, exec.Query, exec.JsonArgs())
 		}
 	}
 	return
 }
 
-func (t *ToyBrick) Query(s string, args ...interface{}) (rows *sql.Rows, err error) {
+func (t *ToyBrick) Query(exec ExecValue) (rows *sql.Rows, err error) {
 	if t.tx == nil {
-		rows, err = t.Toy.db.Query(s, args...)
+		rows, err = t.Toy.db.Query(exec.Query, exec.Args...)
 	} else {
-		rows, err = t.tx.Query(s, args...)
+		rows, err = t.tx.Query(exec.Query, exec.Args...)
 	}
 	if t.debug {
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%#v faiure reason %s\n", t.tx, s, args, err)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s faiure reason %s\n", t.tx, exec.Query, exec.JsonArgs(), err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%#v\n", t.tx, s, args)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s\n", t.tx, exec.Query, exec.JsonArgs())
 		}
 	}
 	return
 }
 
-func (t *ToyBrick) QueryRow(s string, args ...interface{}) (row *sql.Row) {
+func (t *ToyBrick) QueryRow(exec ExecValue) (row *sql.Row) {
 	if t.tx == nil {
-		row = t.Toy.db.QueryRow(s, args...)
+		row = t.Toy.db.QueryRow(exec.Query, exec.Args...)
 	} else {
-		row = t.tx.QueryRow(s, args...)
+		row = t.tx.QueryRow(exec.Query, exec.Args...)
 	}
 	if t.debug {
-		fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%#v\n", t.tx, s, args)
+
+		fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s\n", t.tx, exec.Query, exec.JsonArgs())
 	}
 	return
 }
 
 func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
+	var stmt *sql.Stmt
+	var err error
 	if t.tx == nil {
-		return t.Toy.db.Prepare(query)
+		stmt, err = t.Toy.db.Prepare(query)
+	} else {
+		stmt, err = t.tx.Prepare(query)
 	}
-	return t.tx.Prepare(query)
+	if t.debug {
+		if err != nil {
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, stmt query:%s, error: %s\n", t.tx, query, err)
+		} else {
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, stmt query:%s\n", t.tx, query)
+		}
+	}
+	return stmt, err
 }
 
 // TODO all exec method move to dialect
@@ -718,7 +791,7 @@ func (t *ToyBrick) FindExec(records ModelRecords) (exec ExecValue) {
 
 func (t *ToyBrick) UpdateExec(record ModelRecord) (exec ExecValue) {
 	var recordList []string
-	pairs := getModelFieldAndValues(t.ignoreMode, record, t.InsertField, t.Fields, t.model.SqlFields)
+	pairs := t.getFieldValuePairWithRecord(ModeUpdate, record)
 	for _, pair := range pairs {
 		recordList = append(recordList, pair.Field.Name+"=?")
 		exec.Args = append(exec.Args, pair.Value.Interface())
@@ -747,7 +820,7 @@ func (t *ToyBrick) InsertExec(record ModelRecord) (exec ExecValue) {
 		__list := []string{}
 		__qlist := []string{}
 
-		pairs := getModelFieldAndValues(t.ignoreMode, record, t.InsertField, t.Fields, t.model.SqlFields)
+		pairs := t.getFieldValuePairWithRecord(ModeInsert, record)
 		for _, pair := range pairs {
 			__list = append(__list, pair.Field.Name)
 			__qlist = append(__qlist, "?")
@@ -771,7 +844,7 @@ func (t *ToyBrick) ReplaceExec(record ModelRecord) (exec ExecValue) {
 		__list := []string{}
 		__qlist := []string{}
 
-		pairs := getModelFieldAndValues(t.ignoreMode, record, t.InsertField, t.Fields, t.model.SqlFields)
+		pairs := t.getFieldValuePairWithRecord(ModeReplace, record)
 		for _, pair := range pairs {
 			__list = append(__list, pair.Field.Name)
 			__qlist = append(__qlist, "?")
@@ -787,32 +860,61 @@ func (t *ToyBrick) ReplaceExec(record ModelRecord) (exec ExecValue) {
 	return
 }
 
-func (t *ToyBrick) getInsertFields(records ModelRecordFieldTypes) []*ModelField {
+func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []struct {
+	Field *ModelField
+	Value reflect.Value
+} {
 	var fields []*ModelField
-	if len(t.InsertField) > 0 {
-		fields = t.InsertField
-	} else if len(t.Fields) > 0 {
-		fields = t.Fields
+	if len(t.FieldsSelector[mode]) > 0 {
+		fields = t.FieldsSelector[mode]
+	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
+		fields = t.FieldsSelector[ModeDefault]
 	}
-	return getFieldsWithRecords(fields, records)
-}
 
-func (t *ToyBrick) getUpdateFields(records ModelRecordFieldTypes) []*ModelField {
-	var fields []*ModelField
-	if len(t.UpdateFields) > 0 {
-		fields = t.UpdateFields
-	} else if len(t.Fields) > 0 {
-		fields = t.Fields
+	var useIgnoreMode bool
+	if len(fields) == 0 {
+		fields = t.model.SqlFields
+		useIgnoreMode = record.IsVariableContainer() == false
 	}
-	return getFieldsWithRecords(fields, records)
+	var pairs []struct {
+		Field *ModelField
+		Value reflect.Value
+	}
+	if useIgnoreMode {
+		for _, mField := range fields {
+			if fieldValue := record.Field(mField); fieldValue.IsValid() {
+				if t.ignoreModeSelector[mode].Ignore(fieldValue) == false {
+					// TODO have a special mode is when primary key is zero, need to ignore
+					if mField.PrimaryKey && IsZero(fieldValue) {
+
+					} else {
+						pairs = append(pairs, struct {
+							Field *ModelField
+							Value reflect.Value
+						}{mField, fieldValue})
+					}
+				}
+			}
+		}
+	} else {
+		for _, mField := range fields {
+			if fieldValue := record.Field(mField); fieldValue.IsValid() {
+				pairs = append(pairs, struct {
+					Field *ModelField
+					Value reflect.Value
+				}{mField, fieldValue})
+			}
+		}
+	}
+	return pairs
 }
 
 func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) []*ModelField {
 	var fields []*ModelField
-	if len(t.SelectField) > 0 {
-		fields = t.SelectField
-	} else if len(t.Fields) > 0 {
-		fields = t.Fields
+	if len(t.FieldsSelector[ModeSelect]) > 0 {
+		fields = t.FieldsSelector[ModeSelect]
+	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
+		fields = t.FieldsSelector[ModeDefault]
 	} else {
 		fields = t.model.SqlFields
 	}
@@ -821,22 +923,12 @@ func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) []*ModelField 
 
 func (t *ToyBrick) getScanFields(records ModelRecordFieldTypes) []*ModelField {
 	var fields []*ModelField
-	if len(t.ScanFields) > 0 {
-		fields = t.ScanFields
-	} else if len(t.Fields) > 0 {
-		fields = t.Fields
+	if len(t.FieldsSelector[ModeScan]) > 0 {
+		fields = t.FieldsSelector[ModeScan]
+	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
+		fields = t.FieldsSelector[ModeDefault]
 	} else {
 		fields = t.model.SqlFields
-	}
-	return getFieldsWithRecords(fields, records)
-}
-
-func (t *ToyBrick) getConditionFields(records ModelRecordFieldTypes) []*ModelField {
-	var fields []*ModelField
-	if len(t.ConditionFields) > 0 {
-		fields = t.UpdateFields
-	} else if len(t.Fields) > 0 {
-		fields = t.Fields
 	}
 	return getFieldsWithRecords(fields, records)
 }
