@@ -13,59 +13,76 @@ import (
 
 var (
 	TestDB *Toy
-	models []interface{}
 )
 
-type TestTable1 struct {
+type TestCreateTable1 struct {
 	ID       int    `toyorm:"primary key;AUTOINCREMENT"`
 	Name     string `toyorm:"not null"`
 	Category string `toyorm:"index"`
 }
 
-type TestTable2 struct {
+type TestCreateTable2 struct {
 	ID   string `toyorm:"primary key"`
 	Name string `toyorm:"not null;index:idx_name_code"`
 	Code string `toyorm:"not null;index:idx_name_code"`
 }
 
-type TestTable3 struct {
+type TestCreateTable3 struct {
 	ID       int      `toyorm:"primary key;auto_increment"`
 	Name     string   `toyorm:"not null"`
 	Category string   `toyorm:"index"`
 	Value    *float64 `toyorm:""`
 }
 
-type TestTable4 struct {
+type TestCreateTable4 struct {
 	ID          int    `toyorm:"primary key;auto_increment"`
 	Name        string `toyorm:"not null"`
 	Value       int
 	PtrPtrValue **int
 }
 
-type TestTable5Sub1 struct {
+type TestCreateTable5Sub1 struct {
 	ID   int `toyorm:"primary key;auto_increment"`
 	Name string
 }
 
-type TestTable5Sub2 struct {
-	ID           int `toyorm:"primary key;auto_increment"`
-	Name         string
-	TestTable5ID uint `toyorm:"index"`
+type TestCreateTable5Sub2 struct {
+	ID                 int `toyorm:"primary key;auto_increment"`
+	Name               string
+	TestCreateTable5ID uint `toyorm:"index"`
 }
 
-type TestTable5Sub3 struct {
-	ID           int `toyorm:"primary key;auto_increment"`
-	Name         string
-	TestTable5ID uint `toyorm:"index"`
+type TestCreateTable5Sub3 struct {
+	ID                 int `toyorm:"primary key;auto_increment"`
+	Name               string
+	TestCreateTable5ID uint `toyorm:"index"`
 }
 
-type TestTable5 struct {
+type TestCreateTable5Sub4 struct {
+	ID   int `toyorm:"primary key;auto_increment"`
+	Name string
+}
+
+type TestCreateTable5 struct {
 	ModelDefault
 	Name   string `toyorm:"not null"`
 	Sub1ID int
-	Sub1   *TestTable5Sub1
-	Sub2   *TestTable5Sub2
-	Sub3   []TestTable5Sub3
+	Sub1   *TestCreateTable5Sub1
+	Sub2   *TestCreateTable5Sub2
+	Sub3   []TestCreateTable5Sub3
+	Sub4   []TestCreateTable5Sub4
+}
+
+type TestInsertTable struct {
+	ModelDefault
+	DataStr     string
+	DataInt     int
+	DataFloat   float64
+	DataComplex complex64
+	PtrStr      *string
+	PtrInt      *int
+	PtrFloat    *float64
+	PtrComplex  *complex128
 }
 
 type TestSearchTable struct {
@@ -221,24 +238,6 @@ type SqlTypeTable struct {
 	Age   sql.NullInt64
 	Sex   sql.NullBool
 	Money sql.NullFloat64
-}
-
-func init() {
-	models = append(
-		models,
-		TestTable1{},
-		TestTable2{},
-		TestTable3{},
-		TestTable4{},
-		TestTable5{},
-		TestTable5Sub1{},
-		TestTable5Sub2{},
-		TestTable5Sub3{},
-		TestSearchTable{},
-		Address{},
-		User{},
-		SqlTypeTable{},
-	)
 }
 
 func TestMain(m *testing.M) {

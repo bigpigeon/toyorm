@@ -183,6 +183,8 @@ func HandlerFind(ctx *Context) error {
 	}
 	rows, err := ctx.Brick.Query(action.Exec)
 	if err != nil {
+		action.Error = append(action.Error, err)
+		ctx.Result.AddQueryRecord(action)
 		return err
 	}
 	// find current data
@@ -221,29 +223,31 @@ func HandlerPreloadFind(ctx *Context) error {
 		for _, record := range records.GetRecords() {
 			keys = SafeAppend(keys, record.Field(mainField))
 		}
-		// the relation condition should have lowest priority
-		brick = brick.Where(ExprIn, subField, keys.Interface()).And().Conditions(brick.Search)
-		containerList := reflect.New(reflect.SliceOf(records.GetFieldType(mField))).Elem()
-		//var preloadRecords ModelRecords
-		subCtx, err := brick.find(LoopIndirectAndNew(containerList))
-		ctx.Result.Preload[mField] = subCtx.Result
-		if err != nil {
-			return err
-		}
-		// use to map preload model relation field
-		fieldMapKeyType := LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subField))
-		fieldMapType := reflect.MapOf(fieldMapKeyType, records.GetFieldType(mField))
-		fieldMap := reflect.MakeMap(fieldMapType)
-		for i, pRecord := range subCtx.Result.Records.GetRecords() {
-			fieldMapKey := LoopIndirect(pRecord.Field(subField))
-			if fieldMapKey.IsValid() {
-				fieldMap.SetMapIndex(fieldMapKey, containerList.Index(i))
+		if keys.Len() != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subField, keys.Interface()).And().Conditions(brick.Search)
+			containerList := reflect.New(reflect.SliceOf(records.GetFieldType(mField))).Elem()
+			//var preloadRecords ModelRecords
+			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
+			ctx.Result.Preload[mField] = subCtx.Result
+			if err != nil {
+				return err
 			}
-		}
-		for _, record := range records.GetRecords() {
-			key := record.Field(mainField)
-			if preloadMatchValue := fieldMap.MapIndex(key); preloadMatchValue.IsValid() {
-				record.Field(mField).Set(preloadMatchValue)
+			// use to map preload model relation field
+			fieldMapKeyType := LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subField))
+			fieldMapType := reflect.MapOf(fieldMapKeyType, records.GetFieldType(mField))
+			fieldMap := reflect.MakeMap(fieldMapType)
+			for i, pRecord := range subCtx.Result.Records.GetRecords() {
+				fieldMapKey := LoopIndirect(pRecord.Field(subField))
+				if fieldMapKey.IsValid() {
+					fieldMap.SetMapIndex(fieldMapKey, containerList.Index(i))
+				}
+			}
+			for _, record := range records.GetRecords() {
+				key := record.Field(mainField)
+				if preloadMatchValue := fieldMap.MapIndex(key); preloadMatchValue.IsValid() {
+					record.Field(mField).Set(preloadMatchValue)
+				}
 			}
 		}
 	}
@@ -256,34 +260,36 @@ func HandlerPreloadFind(ctx *Context) error {
 		for _, fieldValue := range records.GetRecords() {
 			keys = SafeAppend(keys, fieldValue.Field(mainField))
 		}
-		// the relation condition should have lowest priority
-		brick = brick.Where(ExprIn, subField, keys.Interface()).And().Conditions(brick.Search)
-		containerList := reflect.New(records.GetFieldType(mField)).Elem()
-		//var preloadRecords ModelRecords
-		subCtx, err := brick.find(LoopIndirectAndNew(containerList))
-		ctx.Result.Preload[mField] = subCtx.Result
-		if err != nil {
-			return err
-		}
-		// fieldMap:  map[submodel.id]->submodel
-		fieldMapKeyType := LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subField))
-		fieldMapValueType := records.GetFieldType(mField)
-		fieldMapType := reflect.MapOf(fieldMapKeyType, fieldMapValueType)
-		fieldMap := reflect.MakeMap(fieldMapType)
-		for i, pRecord := range subCtx.Result.Records.GetRecords() {
-			fieldMapKey := LoopIndirect(pRecord.Field(subField))
-			if fieldMapKey.IsValid() {
-				currentListField := fieldMap.MapIndex(fieldMapKey)
-				if currentListField.IsValid() == false {
-					currentListField = reflect.MakeSlice(fieldMapValueType, 0, 1)
-				}
-				fieldMap.SetMapIndex(fieldMapKey, SafeAppend(currentListField, containerList.Index(i)))
+		if keys.Len() != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subField, keys.Interface()).And().Conditions(brick.Search)
+			containerList := reflect.New(records.GetFieldType(mField)).Elem()
+			//var preloadRecords ModelRecords
+			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
+			ctx.Result.Preload[mField] = subCtx.Result
+			if err != nil {
+				return err
 			}
-		}
-		for _, record := range records.GetRecords() {
-			key := record.Field(mainField)
-			if preloadMatchValue := fieldMap.MapIndex(key); preloadMatchValue.IsValid() {
-				record.Field(preload.ContainerField).Set(preloadMatchValue)
+			// fieldMap:  map[submodel.id]->submodel
+			fieldMapKeyType := LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subField))
+			fieldMapValueType := records.GetFieldType(mField)
+			fieldMapType := reflect.MapOf(fieldMapKeyType, fieldMapValueType)
+			fieldMap := reflect.MakeMap(fieldMapType)
+			for i, pRecord := range subCtx.Result.Records.GetRecords() {
+				fieldMapKey := LoopIndirect(pRecord.Field(subField))
+				if fieldMapKey.IsValid() {
+					currentListField := fieldMap.MapIndex(fieldMapKey)
+					if currentListField.IsValid() == false {
+						currentListField = reflect.MakeSlice(fieldMapValueType, 0, 1)
+					}
+					fieldMap.SetMapIndex(fieldMapKey, SafeAppend(currentListField, containerList.Index(i)))
+				}
+			}
+			for _, record := range records.GetRecords() {
+				key := record.Field(mainField)
+				if preloadMatchValue := fieldMap.MapIndex(key); preloadMatchValue.IsValid() {
+					record.Field(preload.ContainerField).Set(preloadMatchValue)
+				}
 			}
 		}
 	}
@@ -327,19 +333,21 @@ func HandlerPreloadFind(ctx *Context) error {
 			middlePrimary2Keys = reflect.Append(middlePrimary2Keys, reflect.ValueOf(key))
 		}
 		brick := ctx.Brick.MapPreloadBrick[mField]
-		// the relation condition should have lowest priority
-		brick = brick.Where(ExprIn, subPrimary, middlePrimary2Keys.Interface()).And().Conditions(brick.Search)
-		containerField := reflect.New(records.GetFieldType(mField)).Elem()
-		//var subRecords ModelRecords
-		subCtx, err := brick.find(LoopIndirectAndNew(containerField))
-		ctx.Result.Preload[mField] = subCtx.Result
-		if err != nil {
-			return err
-		}
-		for i, subRecord := range subCtx.Result.Records.GetRecords() {
-			records := subPrimaryMap[subRecord.Field(subPrimary).Interface()]
-			for _, record := range records {
-				record.SetField(mField, reflect.Append(record.Field(mField), containerField.Index(i)))
+		if middlePrimary2Keys.Len() != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subPrimary, middlePrimary2Keys.Interface()).And().Conditions(brick.Search)
+			containerField := reflect.New(records.GetFieldType(mField)).Elem()
+			//var subRecords ModelRecords
+			subCtx, err := brick.find(LoopIndirectAndNew(containerField))
+			ctx.Result.Preload[mField] = subCtx.Result
+			if err != nil {
+				return err
+			}
+			for i, subRecord := range subCtx.Result.Records.GetRecords() {
+				records := subPrimaryMap[subRecord.Field(subPrimary).Interface()]
+				for _, record := range records {
+					record.SetField(mField, reflect.Append(record.Field(mField), containerField.Index(i)))
+				}
 			}
 		}
 	}
@@ -405,11 +413,13 @@ func HandlerSave(ctx *Context) error {
 }
 
 func HandlerSaveTimeGenerate(ctx *Context) error {
-	createField := ctx.Brick.model.NameFields["CreatedAt"]
+	createdAtField := ctx.Brick.model.NameFields["CreatedAt"]
+	// TODO process a exist deleted_at time
+	//deletedAtField := ctx.Brick.model.NameFields["DeletedAt"]
 	now := reflect.ValueOf(time.Now())
-	if ctx.Result.Records.Len() > 0 && createField != nil {
+	if ctx.Result.Records.Len() > 0 && createdAtField != nil {
 		primaryField := ctx.Brick.model.GetOnePrimary()
-		brick := ctx.Brick.bindFields(ModeUpdate, primaryField, createField)
+		brick := ctx.Brick.bindFields(ModeDefault, primaryField, createdAtField)
 		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.Field.Type), 0, ctx.Result.Records.Len())
 		action := QueryAction{}
 		var tryFindTimeIndex []int
@@ -430,12 +440,12 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 				ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
 				return nil
 			}
-			primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.Field.Type, createField.Field.Type))
+			primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.Field.Type, createdAtField.Field.Type))
 
 			// find all createtime
 			for rows.Next() {
 				id := reflect.New(primaryField.Field.Type)
-				createAt := reflect.New(createField.Field.Type)
+				createAt := reflect.New(createdAtField.Field.Type)
 				err := rows.Scan(id.Interface(), createAt.Interface())
 				if err != nil {
 					action.Error = append(action.Error, err)
@@ -447,15 +457,14 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 			for _, record := range ctx.Result.Records.GetRecords() {
 				pri := record.Field(primaryField)
 				if createAt := primaryKeysMap.MapIndex(pri); createAt.IsValid() && IsZero(createAt) == false {
-					record.SetField(createField, createAt)
+					record.SetField(createdAtField, createAt)
 				} else {
-					record.SetField(createField, now)
+					record.SetField(createdAtField, now)
 				}
-				fmt.Printf("record %#v\n", record.Source())
 			}
 		} else {
 			for _, record := range ctx.Result.Records.GetRecords() {
-				record.SetField(createField, now)
+				record.SetField(createdAtField, now)
 			}
 		}
 	}

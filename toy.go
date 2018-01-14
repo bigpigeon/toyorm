@@ -70,9 +70,6 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 func (t *Toy) Model(v interface{}) *ToyBrick {
 	var model *Model
 	vType := LoopTypeIndirect(reflect.ValueOf(v).Type())
-	if vType.Kind() != reflect.Struct {
-		panic("v must be struct or address with struct")
-	}
 	// lazy init model
 	model = t.GetModel(vType)
 	toyBrick := NewToyBrick(t, model)

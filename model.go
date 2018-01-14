@@ -158,16 +158,16 @@ func NewField(f *reflect.StructField, table_name string, dia Dialect) *ModelFiel
 
 func NewModel(_type reflect.Type, dia Dialect) *Model {
 	if _type.Kind() != reflect.Struct {
-		panic(ErrInvalidType)
+		panic(ErrInvalidModelType(_type.Name()))
+	}
+	if _type.Name() == "" {
+		panic(ErrInvalidModelName{})
 	}
 	var modelName string
 	if v, ok := reflect.New(_type).Interface().(tabler); ok {
 		modelName = v.TableName()
 	} else {
-		//if _type.PkgPath() != "" {
-		//	modelName = SqlNameConvert(_type.PkgPath())
-		//}
-		modelName += SqlNameConvert(_type.Name())
+		modelName = SqlNameConvert(_type.Name())
 	}
 	return newModel(_type, dia, modelName)
 }

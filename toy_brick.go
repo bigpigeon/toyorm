@@ -29,12 +29,11 @@ type ToyBrick struct {
 	Search  SearchList
 	offset  int
 	limit   int
-	// use by update/insert/replace data when source value is struct
+	// use by update//replace data when source value is struct
 	//ignoreMode IgnoreMode
 	// use by SELECT fields FROM TABLE/INSERT INFO table(fields)/UPDATE table SET field...
 	// if len(Fields) == 0, use model.SqlFields
 	//Fields []*ModelField
-	// TODO use by find data if fields number not equal scan value number
 	FieldsSelector     map[Mode][]*ModelField
 	ignoreModeSelector map[Mode]IgnoreMode
 
@@ -139,7 +138,7 @@ func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field] = preload
 		} else {
-			panic(fmt.Sprintf("invalid preload field '%s'", field.Field.Name))
+			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Field.Name})
 		}
 		return newSubt
 	})
@@ -172,7 +171,7 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field] = preload
 		} else {
-			panic(fmt.Sprintf("invalid preload field '%s'", field.Field.Name))
+			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Field.Name})
 		}
 		return newSubt
 	})
@@ -221,7 +220,7 @@ func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, ar
 	relationshipField := subModel.fieldSelect(relationship)
 	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, false)
 	if preload == nil {
-		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Field.Name})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -245,7 +244,7 @@ func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, ar
 	}
 	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, false)
 	if preload == nil {
-		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Field.Name})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -270,7 +269,7 @@ func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, a
 	relationshipField := subModel.fieldSelect(relationship)
 	preload := t.Toy.OneToManyBind(t.model, subModel, containerField, relationshipField)
 	if preload == nil {
-		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Field.Name})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -296,7 +295,7 @@ func (t *ToyBrick) CustomManyToManyPreload(container, middleStruct, relation, su
 	relationField, subRelationField := middleModel.fieldSelect(relation), middleModel.fieldSelect(subRelation)
 	preload := t.Toy.ManyToManyPreloadBind(t.model, subModel, middleModel, containerField, relationField, subRelationField)
 	if preload == nil {
-		panic(fmt.Sprintf("invalid preload field '%s'", containerField.Field.Name))
+		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Field.Name})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -559,7 +558,7 @@ func (t *ToyBrick) find(value reflect.Value) (*Context, error) {
 		err := ctx.Next()
 		if vList.Len() == 0 {
 			if err == nil {
-				err = errors.New("record not found")
+				err = sql.ErrNoRows
 			}
 			return ctx, err
 		}
@@ -613,8 +612,14 @@ func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
 		records = NewRecords(t.model, vValue)
 		return t.insert(records)
 	default:
-		records := MakeRecordsWithElem(t.model, vValue.Addr().Type())
-		records.Add(vValue.Addr())
+		var records ModelRecords
+		if vValue.CanAddr() {
+			records = MakeRecordsWithElem(t.model, vValue.Addr().Type())
+			records.Add(vValue.Addr())
+		} else {
+			records = MakeRecordsWithElem(t.model, vValue.Type())
+			records.Add(vValue)
+		}
 		return t.insert(records)
 	}
 }
@@ -884,7 +889,6 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField); fieldValue.IsValid() {
 				if t.ignoreModeSelector[mode].Ignore(fieldValue) == false {
-					// TODO have a special mode is when primary key is zero, need to ignore
 					if mField.PrimaryKey && IsZero(fieldValue) {
 
 					} else {

@@ -8,7 +8,7 @@ import (
 )
 
 func TestStructRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestTable3{}).Type(), MySqlDialect{})
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type(), MySqlDialect{})
 	data := []struct {
 		Name     string
 		Category string
@@ -42,7 +42,7 @@ func TestStructRecord(t *testing.T) {
 }
 
 func TestNameMapRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestTable3{}).Type(), MySqlDialect{})
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type(), MySqlDialect{})
 	data := []map[string]interface{}{{
 		"Name":     "bigpigeon",
 		"Category": "user",
@@ -68,11 +68,11 @@ func TestNameMapRecord(t *testing.T) {
 }
 
 func TestOffsetMapRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestTable3{}).Type(), MySqlDialect{})
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type(), MySqlDialect{})
 	data := []map[uintptr]interface{}{{
-		Offsetof(TestTable3{}.Name):     "bigpigeon",
-		Offsetof(TestTable3{}.Category): "user",
-		Offsetof(TestTable3{}.Value):    20,
+		Offsetof(TestCreateTable3{}.Name):     "bigpigeon",
+		Offsetof(TestCreateTable3{}.Category): "user",
+		Offsetof(TestCreateTable3{}.Value):    20,
 	}}
 	records := NewRecords(model, reflect.ValueOf(&data).Elem())
 	//t.Log(records.GetRecord(0).Field(0))
@@ -80,13 +80,13 @@ func TestOffsetMapRecord(t *testing.T) {
 	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
 	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), 1)
 	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
-	assert.Equal(t, data[0][Offsetof(TestTable3{}.Name)], "verybigpigeon")
+	assert.Equal(t, data[0][Offsetof(TestCreateTable3{}.Name)], "verybigpigeon")
 	t.Log(data)
 	// test add
 	elem := map[uintptr]interface{}{
-		Offsetof(TestTable3{}.Name):     "whatever",
-		Offsetof(TestTable3{}.Category): "stuff",
-		Offsetof(TestTable3{}.Value):    30,
+		Offsetof(TestCreateTable3{}.Name):     "whatever",
+		Offsetof(TestCreateTable3{}.Category): "stuff",
+		Offsetof(TestCreateTable3{}.Value):    30,
 	}
 	records.Add(reflect.ValueOf(elem))
 	t.Log(data)

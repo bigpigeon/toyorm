@@ -11,7 +11,12 @@ import (
 func TestCreateTable(t *testing.T) {
 	var hastable bool
 	var err error
-	for _, tab := range models {
+	for _, tab := range []interface{}{
+		TestCreateTable1{},
+		TestCreateTable2{},
+		TestCreateTable3{},
+		TestCreateTable4{},
+	} {
 		// start a session
 		brick := TestDB.Model(tab).Begin().Debug()
 		hastable, err = brick.HasTable()
@@ -35,111 +40,236 @@ func TestCreateTable(t *testing.T) {
 	}
 }
 
+func TestPreloadCreateTable(t *testing.T) {
+	brick := TestDB.Model(TestCreateTable5{}).Debug().
+		Preload(Offsetof(TestCreateTable5{}.Sub1)).Enter().
+		Preload(Offsetof(TestCreateTable5{}.Sub2)).Enter().
+		Preload(Offsetof(TestCreateTable5{}.Sub3)).Enter().
+		Preload(Offsetof(TestCreateTable5{}.Sub4)).Enter()
+	brick.CreateTable()
+	hastable, err := brick.HasTable()
+	assert.Nil(t, err)
+	t.Logf("table %s exist:%v\n", brick.model.Name, hastable)
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+		t.Fail()
+	}
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+		t.Fail()
+	}
+}
+
 func TestInsertData(t *testing.T) {
-	for i := 1; i < 5; i++ {
-		d := strings.Repeat("d", i)
-		t1 := TestSearchTable{
-			A: strings.Repeat("a", i),
-			B: strings.Repeat("b", i),
-			C: strings.Repeat("c", i),
-			D: &d,
-		}
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
-		assert.Nil(t, err)
+	brick := TestDB.Model(&TestInsertTable{}).Debug()
+	//create table
+	{
+		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("%#v\n", t1)
+		result, err = brick.CreateTable()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
 	}
-	t2 := TestSearchTable{
-		A: "a",
-		B: "b",
-		C: "c",
+	// insert with struct
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		tab := TestInsertTable{
+			DataStr:     "some str data",
+			DataInt:     100,
+			DataFloat:   100.0,
+			DataComplex: 100 + 1i,
+			PtrStr:      &dstr,
+			PtrInt:      &dint,
+			PtrFloat:    &dfloat,
+			PtrComplex:  &dcomplex,
+		}
+		result, err := brick.Insert(tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v", tab.ID)
 	}
-	result, err := TestDB.Model(&TestSearchTable{}).Debug().Insert(&t2)
-	assert.Nil(t, err)
-	assert.Nil(t, err)
-	if err := result.Err(); err != nil {
-		t.Error(err)
+	// test insert map[string]interface{}
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		tab := map[string]interface{}{
+			"DataStr":     "some str data",
+			"DataInt":     100,
+			"DataFloat":   100.0,
+			"DataComplex": 100 + 1i,
+			"PtrStr":      &dstr,
+			"PtrInt":      &dint,
+			"PtrFloat":    &dfloat,
+			"PtrComplex":  &dcomplex,
+		}
+		result, err := brick.Insert(tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v", tab["ID"])
 	}
+	// test insert map[OffsetOf]interface{}
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		var tab TestInsertTable
+		tabMap := map[uintptr]interface{}{
+			Offsetof(tab.DataStr):     "some str data",
+			Offsetof(tab.DataInt):     100,
+			Offsetof(tab.DataFloat):   100.0,
+			Offsetof(tab.DataComplex): 100 + 1i,
+			Offsetof(tab.PtrStr):      &dstr,
+			Offsetof(tab.PtrInt):      &dint,
+			Offsetof(tab.PtrFloat):    &dfloat,
+			Offsetof(tab.PtrComplex):  &dcomplex,
+		}
+		result, err := brick.Insert(tabMap)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v", tabMap[Offsetof(tab.ID)])
+	}
+}
 
-	// insert with map[string]interface{}
-	t3 := map[string]interface{}{
-		"Name":        "one",
-		"Value":       0,
-		"PtrPtrValue": 20,
-	}
-	result, err = TestDB.Model(&TestTable4{}).Debug().Insert(&t3)
-	assert.Nil(t, err)
-	assert.Nil(t, err)
-	if err := result.Err(); err != nil {
-		t.Error(err)
-	}
-	t.Log(t3)
+func TestInsertPointData(t *testing.T) {
+	brick := TestDB.Model(&TestInsertTable{}).Debug()
 
-	t4 := map[uintptr]interface{}{
-		Offsetof(TestTable4{}.Name):        "two",
-		Offsetof(TestTable4{}.Value):       0,
-		Offsetof(TestTable4{}.PtrPtrValue): 20,
+	// insert with struct
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		tab := TestInsertTable{
+			DataStr:     "some str data",
+			DataInt:     100,
+			DataFloat:   100.0,
+			DataComplex: 100 + 1i,
+			PtrStr:      &dstr,
+			PtrInt:      &dint,
+			PtrFloat:    &dfloat,
+			PtrComplex:  &dcomplex,
+		}
+		result, err := brick.Insert(&tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v", tab.ID)
 	}
-	result, err = TestDB.Model(&TestTable4{}).Debug().Insert(&t4)
-	assert.Nil(t, err)
-	assert.Nil(t, err)
-	if err := result.Err(); err != nil {
-		t.Error(err)
+	// test insert map[string]interface{}
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		tab := map[string]interface{}{
+			"DataStr":     "some str data",
+			"DataInt":     100,
+			"DataFloat":   100.0,
+			"DataComplex": 100 + 1i,
+			"PtrStr":      &dstr,
+			"PtrInt":      &dint,
+			"PtrFloat":    &dfloat,
+			"PtrComplex":  &dcomplex,
+		}
+		result, err := brick.Insert(&tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v", tab["ID"])
 	}
-	t.Logf("%#v\n", t4)
-
-	t5 := TestTable5{
-		Name: "one",
-		Sub1: &TestTable5Sub1{
-			Name: "sub one",
-		},
-		Sub2: &TestTable5Sub2{
-			Name: "sub two",
-		},
-		Sub3: []TestTable5Sub3{
-			TestTable5Sub3{Name: "sub three a"},
-			TestTable5Sub3{Name: "sub three two"},
-		},
+	// test insert map[OffsetOf]interface{}
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		var tab TestInsertTable
+		tabMap := map[uintptr]interface{}{
+			Offsetof(tab.DataStr):     "some str data",
+			Offsetof(tab.DataInt):     100,
+			Offsetof(tab.DataFloat):   100.0,
+			Offsetof(tab.DataComplex): 100 + 1i,
+			Offsetof(tab.PtrStr):      &dstr,
+			Offsetof(tab.PtrInt):      &dint,
+			Offsetof(tab.PtrFloat):    &dfloat,
+			Offsetof(tab.PtrComplex):  &dcomplex,
+		}
+		result, err := brick.Insert(&tabMap)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v", tabMap[Offsetof(tab.ID)])
 	}
-	result, err = TestDB.Model(&TestTable5{}).Debug().
-		Preload(Offsetof(t5.Sub1)).Enter().
-		Preload(Offsetof(t5.Sub2)).Enter().
-		Preload(Offsetof(t5.Sub3)).Enter().Insert(&t5)
-	assert.Nil(t, err)
-	t.Logf("%#v\n", t5.Sub1)
-	t.Logf("%#v\n", t5.Sub2)
-	t.Logf("%#v\n", t5)
-
-	t6 := map[string]interface{}{
-		"Name": "two",
-		"Sub1": map[string]interface{}{
-			"Name": "sub 1",
-		},
-		"Sub2": map[string]interface{}{
-			"Name": "sub 2",
-		},
-		"Sub3": []map[string]interface{}{
-			{"Name": "sub 3 a"},
-			{"Name": "sub 3 b"},
-		},
-	}
-	result, err = TestDB.Model(&TestTable5{}).Debug().
-		Preload(Offsetof(TestTable5{}.Sub1)).Enter().
-		Preload(Offsetof(TestTable5{}.Sub2)).Enter().
-		Preload(Offsetof(TestTable5{}.Sub3)).Enter().Insert(&t6)
-	assert.Nil(t, err)
-	assert.Nil(t, err)
-	if err := result.Err(); err != nil {
-		t.Error(err)
-	}
-	t.Logf("%#v\n", t6)
 }
 
 func TestFind(t *testing.T) {
+	{
+		brick := TestDB.Model(&TestSearchTable{}).Debug()
+		result, err := brick.DropTableIfExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		result, err = brick.CreateTable()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+	}
+	// fill data
+	{
+		for i := 1; i < 5; i++ {
+			d := strings.Repeat("d", i)
+			t1 := TestSearchTable{
+				A: strings.Repeat("a", i),
+				B: strings.Repeat("b", i),
+				C: strings.Repeat("c", i),
+				D: &d,
+			}
+			result, err := TestDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
+			assert.Nil(t, err)
+			if err := result.Err(); err != nil {
+				t.Error(err)
+				t.Fail()
+			}
+			t.Logf("%#v\n", t1)
+		}
+	}
 	// test find with struct
 	{
 		table := TestSearchTable{}
@@ -167,48 +297,6 @@ func TestFind(t *testing.T) {
 	//	err := TestDB.Model(&TestSearchTable{}).Debug().Find(&tables)
 	//	assert.Nil(t, err)
 	//	t.Logf("%#v\n", tables)
-	//}
-	// test find with struct preload
-	{
-		table := TestTable5{}
-		result, err := TestDB.Model(&TestTable5{}).Debug().
-			Preload(Offsetof(table.Sub1)).Enter().
-			Preload(Offsetof(table.Sub2)).Enter().
-			Preload(Offsetof(table.Sub3)).Enter().
-			Find(&table)
-		assert.Nil(t, err)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
-		t.Logf("%#v\n", table)
-	}
-	{
-		table := []TestTable5{}
-		result, err := TestDB.Model(&TestTable5{}).Debug().
-			Preload(Offsetof(TestTable5{}.Sub1)).Enter().
-			Preload(Offsetof(TestTable5{}.Sub2)).Enter().
-			Preload(Offsetof(TestTable5{}.Sub3)).Enter().
-			Find(&table)
-		assert.Nil(t, err)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
-		t.Logf("%#v\n", table)
-	}
-	//test find map
-	//{
-	//	table := map[string]interface{}{}
-	//	err := TestDB.Model(&TestTable5{}).Debug().
-	//		Preload(Offsetof(TestTable5{}.Sub1)).Enter().
-	//		Preload(Offsetof(TestTable5{}.Sub2)).Enter().
-	//		Preload(Offsetof(TestTable5{}.Sub3)).Enter().
-	//		Find(&table)
-	//	assert.Nil(t, err)
-	//	t.Logf("%#v\n", table)
 	//}
 }
 
@@ -307,16 +395,16 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	table := []TestTable5{
+	table := []TestCreateTable5{
 		{
 			Name: "test save 1",
-			Sub1: &TestTable5Sub1{
+			Sub1: &TestCreateTable5Sub1{
 				Name: "test save sub1",
 			},
-			Sub2: &TestTable5Sub2{
+			Sub2: &TestCreateTable5Sub2{
 				Name: "test save sub2",
 			},
-			Sub3: []TestTable5Sub3{
+			Sub3: []TestCreateTable5Sub3{
 				{
 					Name: "test save sub3 sub1",
 				},
@@ -327,13 +415,13 @@ func TestSave(t *testing.T) {
 		},
 		{
 			Name: "test save 2",
-			Sub1: &TestTable5Sub1{
+			Sub1: &TestCreateTable5Sub1{
 				Name: "test save 2 sub1",
 			},
-			Sub2: &TestTable5Sub2{
+			Sub2: &TestCreateTable5Sub2{
 				Name: "test save 2 sub2",
 			},
-			Sub3: []TestTable5Sub3{
+			Sub3: []TestCreateTable5Sub3{
 				{
 					Name: "test save 2 sub3 sub1",
 				},
@@ -343,10 +431,10 @@ func TestSave(t *testing.T) {
 			},
 		},
 	}
-	brick := TestDB.Model(&TestTable5{}).Debug()
-	brick = brick.Preload(Offsetof(TestTable5{}.Sub1)).Enter()
-	brick = brick.Preload(Offsetof(TestTable5{}.Sub2)).Enter()
-	brick = brick.Preload(Offsetof(TestTable5{}.Sub3)).Enter()
+	brick := TestDB.Model(&TestCreateTable5{}).Debug()
+	brick = brick.Preload(Offsetof(TestCreateTable5{}.Sub1)).Enter()
+	brick = brick.Preload(Offsetof(TestCreateTable5{}.Sub2)).Enter()
+	brick = brick.Preload(Offsetof(TestCreateTable5{}.Sub3)).Enter()
 	result, err := brick.Save(&table)
 	assert.Nil(t, err)
 	assert.Nil(t, err)
