@@ -5,8 +5,6 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -266,7 +264,7 @@ func TestMain(m *testing.M) {
 		Source string
 	}{
 		{"mysql", "root:@tcp(localhost:3306)/toyorm?charset=utf8&parseTime=True"},
-		{"sqlite3", filepath.Join(os.TempDir() + "toyorm_test.db")},
+		{"sqlite3", ":memory:"},
 	} {
 		var err error
 		TestDB, err = Open(sqldata.Driver, sqldata.Source)
