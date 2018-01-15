@@ -1,0 +1,12 @@
+language: go
+go:
+  - 1.9
+  - master
+
+go_import_path: github.com/bigpigeon/toyorm
+
+before_install:
+  - mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
+
+services:
+  - mysql
