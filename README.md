@@ -1,4 +1,4 @@
-# Introduction
+# Toyorm golang orm
 
 this is powerful sql orm library for Golang, it has few dependencies and high performance
 

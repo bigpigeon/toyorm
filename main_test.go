@@ -109,6 +109,22 @@ type TestHardDeleteTable struct {
 	SoftManyToMany []TestSoftDeleteTableManyToMany
 }
 
+type TestSoftDeleteTable struct {
+	ModelDefault
+	Data       string
+	BelongToID uint `toyorm:"unique index"`
+	BelongTo   *TestHardDeleteTableBelongTo
+	OneToOne   *TestHardDeleteTableOneToOne
+	OneToMany  []TestHardDeleteTableOneToMany
+	ManyToMany []TestHardDeleteTableManyToMany
+
+	SoftBelongToID uint `toyorm:"unique index"`
+	SoftBelongTo   *TestSoftDeleteTableBelongTo
+	SoftOneToOne   *TestSoftDeleteTableOneToOne
+	SoftOneToMany  []TestSoftDeleteTableOneToMany
+	SoftManyToMany []TestSoftDeleteTableManyToMany
+}
+
 type TestCustomPreloadTable struct {
 	ID            uint `toyorm:"primary key;auto_increment"`
 	Data          string
@@ -155,12 +171,14 @@ type TestHardDeleteTableOneToOne struct {
 	ID                    uint `toyorm:"primary key;auto_increment"`
 	Data                  string
 	TestHardDeleteTableID uint `toyorm:"index"`
+	TestSoftDeleteTableID uint `toyorm:"index"`
 }
 
 type TestHardDeleteTableOneToMany struct {
 	ID                    uint `toyorm:"primary key;auto_increment"`
 	Data                  string
 	TestHardDeleteTableID uint `toyorm:"index"`
+	TestSoftDeleteTableID uint `toyorm:"index"`
 }
 
 type TestHardDeleteTableManyToMany struct {
@@ -177,12 +195,14 @@ type TestSoftDeleteTableOneToOne struct {
 	ModelDefault
 	Data                  string
 	TestHardDeleteTableID uint `toyorm:"index"`
+	TestSoftDeleteTableID uint `toyorm:"index"`
 }
 
 type TestSoftDeleteTableOneToMany struct {
 	ModelDefault
 	Data                  string
 	TestHardDeleteTableID uint `toyorm:"index"`
+	TestSoftDeleteTableID uint `toyorm:"index"`
 }
 
 type TestSoftDeleteTableManyToMany struct {

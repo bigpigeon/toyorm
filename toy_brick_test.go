@@ -155,6 +155,117 @@ func TestInsertData(t *testing.T) {
 		}
 		t.Logf("id %v", tabMap[Offsetof(tab.ID)])
 	}
+	// insert list
+	// insert with struct
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		tab := []TestInsertTable{
+			{
+				DataStr:     "some str data",
+				DataInt:     100,
+				DataFloat:   100.0,
+				DataComplex: 100 + 1i,
+				PtrStr:      &dstr,
+				PtrInt:      &dint,
+				PtrFloat:    &dfloat,
+				PtrComplex:  &dcomplex,
+			},
+			{
+				DataStr:     "some str data.",
+				DataInt:     101,
+				DataFloat:   101.0,
+				DataComplex: 101 + 1i,
+				PtrStr:      &dstr,
+				PtrInt:      &dint,
+				PtrFloat:    &dfloat,
+				PtrComplex:  &dcomplex,
+			},
+		}
+		result, err := brick.Insert(tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v %v", tab[0].ID, tab[1].ID)
+	}
+	// test insert map[string]interface{}
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		tab := []map[string]interface{}{
+			{
+				"DataStr":     "some str data",
+				"DataInt":     100,
+				"DataFloat":   100.0,
+				"DataComplex": 100 + 1i,
+				"PtrStr":      &dstr,
+				"PtrInt":      &dint,
+				"PtrFloat":    &dfloat,
+				"PtrComplex":  &dcomplex,
+			},
+			{
+				"DataStr":     "some str data.",
+				"DataInt":     101,
+				"DataFloat":   101.0,
+				"DataComplex": 101 + 1i,
+				"PtrStr":      &dstr,
+				"PtrInt":      &dint,
+				"PtrFloat":    &dfloat,
+				"PtrComplex":  &dcomplex,
+			},
+		}
+		result, err := brick.Insert(tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v %v", tab[0]["ID"], tab[1]["ID"])
+	}
+	// test insert map[OffsetOf]interface{}
+	{
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		var tab TestInsertTable
+		tabMap := []map[uintptr]interface{}{
+			{
+				Offsetof(tab.DataStr):     "some str data",
+				Offsetof(tab.DataInt):     100,
+				Offsetof(tab.DataFloat):   100.0,
+				Offsetof(tab.DataComplex): 100 + 1i,
+				Offsetof(tab.PtrStr):      &dstr,
+				Offsetof(tab.PtrInt):      &dint,
+				Offsetof(tab.PtrFloat):    &dfloat,
+				Offsetof(tab.PtrComplex):  &dcomplex,
+			},
+			{
+				Offsetof(tab.DataStr):     "some str data.",
+				Offsetof(tab.DataInt):     101,
+				Offsetof(tab.DataFloat):   100.1,
+				Offsetof(tab.DataComplex): 101 + 2i,
+				Offsetof(tab.PtrStr):      &dstr,
+				Offsetof(tab.PtrInt):      &dint,
+				Offsetof(tab.PtrFloat):    &dfloat,
+				Offsetof(tab.PtrComplex):  &dcomplex,
+			},
+		}
+		result, err := brick.Insert(tabMap)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("id %v %v", tabMap[0][Offsetof(tab.ID)], tabMap[1][Offsetof(tab.ID)])
+
+	}
 }
 
 func TestInsertPointData(t *testing.T) {
@@ -453,7 +564,7 @@ func TestSave(t *testing.T) {
 	t.Logf("%#v", table)
 }
 
-func TestDelete(t *testing.T) {
+func TestPreloadHardDelete(t *testing.T) {
 	brick := TestDB.Model(&TestHardDeleteTable{}).Debug()
 	brick = brick.Preload(Offsetof(TestHardDeleteTable{}.BelongTo)).Enter()
 	brick = brick.Preload(Offsetof(TestHardDeleteTable{}.OneToOne)).Enter()
@@ -542,6 +653,102 @@ func TestDelete(t *testing.T) {
 	}
 
 	_, err = brick.Delete(&hardDeleteData)
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPreloadSoftDelete(t *testing.T) {
+	brick := TestDB.Model(&TestSoftDeleteTable{}).Debug()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.BelongTo)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.OneToOne)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.OneToMany)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.ManyToMany)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.SoftBelongTo)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.SoftOneToOne)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.SoftOneToMany)).Enter()
+	brick = brick.Preload(Offsetof(TestSoftDeleteTable{}.SoftManyToMany)).Enter()
+	var err error
+	var result *Result
+	result, err = brick.DropTableIfExist()
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.Save([]TestSoftDeleteTable{
+		{
+			Data:     "hard delete main model",
+			BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
+			OneToOne: &TestHardDeleteTableOneToOne{Data: "one to one data"},
+			OneToMany: []TestHardDeleteTableOneToMany{
+				{Data: "one to many data"},
+				{Data: "one to many data"},
+			},
+			ManyToMany: []TestHardDeleteTableManyToMany{
+				{ID: 1, Data: "many to many data"},
+				{ID: 2, Data: "many to many data"},
+			},
+			SoftBelongTo: &TestSoftDeleteTableBelongTo{Data: "belong to data"},
+			SoftOneToOne: &TestSoftDeleteTableOneToOne{Data: "one to one data"},
+			SoftOneToMany: []TestSoftDeleteTableOneToMany{
+				{Data: "one to many data"},
+				{Data: "one to many data"},
+			},
+			SoftManyToMany: []TestSoftDeleteTableManyToMany{
+				{ModelDefault: ModelDefault{ID: 1}, Data: "many to many data"},
+				{ModelDefault: ModelDefault{ID: 2}, Data: "many to many data"},
+			},
+		},
+		{
+			Data:     "hard delete main model",
+			BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
+			OneToOne: &TestHardDeleteTableOneToOne{Data: "one to one data"},
+			OneToMany: []TestHardDeleteTableOneToMany{
+				{Data: "one to many data"},
+				{Data: "one to many data"},
+			},
+			ManyToMany: []TestHardDeleteTableManyToMany{
+				{ID: 1, Data: "many to many data"},
+				{ID: 2, Data: "many to many data"},
+			},
+			SoftBelongTo: &TestSoftDeleteTableBelongTo{Data: "belong to data"},
+			SoftOneToOne: &TestSoftDeleteTableOneToOne{Data: "one to one data"},
+			SoftOneToMany: []TestSoftDeleteTableOneToMany{
+				{Data: "one to many data"},
+				{Data: "one to many data"},
+			},
+			SoftManyToMany: []TestSoftDeleteTableManyToMany{
+				{ModelDefault: ModelDefault{ID: 1}, Data: "many to many data"},
+				{ModelDefault: ModelDefault{ID: 2}, Data: "many to many data"},
+			},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var softDeleteData []TestSoftDeleteTable
+	result, err = brick.Find(&softDeleteData)
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	_, err = brick.Delete(&softDeleteData)
 	assert.Nil(t, err)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
