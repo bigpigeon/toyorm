@@ -7,6 +7,13 @@ go_import_path: github.com/bigpigeon/toyorm
 
 before_install:
   - mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
+  - go get -t -v ./...
+
+script:
+  - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 services:
   - mysql

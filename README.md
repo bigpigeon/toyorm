@@ -3,6 +3,7 @@
 this is powerful sql orm library for Golang, it has few dependencies and high performance
 
 [![Build Status](https://travis-ci.org/bigpigeon/toyorm.svg)](https://travis-ci.org/bigpigeon/toyorm)
+[![codecov](https://codecov.io/gh/bigpigeon/toyorm/branch/master/graph/badge.svg)](https://codecov.io/gh/bigpigeon/toyorm)
  [![Go Report Card](https://goreportcard.com/badge/github.com/bigpigeon/toyorm)](https://goreportcard.com/report/github.com/bigpigeon/toyorm)
 
 ### A Simple Example
