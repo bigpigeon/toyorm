@@ -62,15 +62,15 @@ func (m *ModelOffsetMapRecords) Add(v reflect.Value) ModelRecord {
 	m.source.Set(reflect.Append(m.source, v))
 	v = LoopIndirectAndNew(v)
 	c := map[*ModelField]reflect.Value{}
-	for name, field := range m.model.OffsetFields {
-		if elemField := v.MapIndex(reflect.ValueOf(name)); elemField.IsValid() {
+	for offset, field := range m.model.OffsetFields {
+		if elemField := v.MapIndex(reflect.ValueOf(offset)); elemField.IsValid() {
 			elemField = elemField.Elem()
 			c[field] = elemField
 		}
 	}
 
 	m.FieldValuesList = append(m.FieldValuesList, c)
-	return &ModelNameMapRecord{
+	return &ModelOffsetMapRecord{
 		FieldValues: c,
 		source:      LoopIndirect(m.source.Index(m.source.Len() - 1)),
 		model:       m.model,
@@ -160,9 +160,9 @@ func (m *ModelOffsetMapRecord) GetFieldType(field *ModelField) reflect.Type {
 	}
 	switch t.Kind() {
 	case reflect.Struct:
-		return reflect.TypeOf(map[string]interface{}{})
+		return reflect.TypeOf(map[uintptr]interface{}{})
 	case reflect.Slice:
-		return reflect.TypeOf([]map[string]interface{}{})
+		return reflect.TypeOf([]map[uintptr]interface{}{})
 	default:
 		return field.Field.Type
 	}

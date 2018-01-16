@@ -63,7 +63,6 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 			elemAddressType := reflect.PtrTo(LoopTypeIndirect(ctx.Result.Records.GetFieldType(mField)).Elem())
 			subRecords := MakeRecordsWithElem(preload.SubModel, elemAddressType)
 			// reset sub model relation field
-
 			for _, record := range ctx.Result.Records.GetRecords() {
 				if primary := record.Field(mainField); primary.IsValid() {
 					rField := LoopIndirect(record.Field(mField))

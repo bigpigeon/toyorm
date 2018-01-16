@@ -60,9 +60,9 @@ func NewRecords(model *Model, value reflect.Value) ModelRecords {
 		panic("value must be slice")
 	}
 	elemType := LoopTypeIndirectSliceAndPtr(value.Type())
-	if _, ok := reflect.New(elemType).Elem().Interface().(map[string]interface{}); ok {
+	if _, ok := reflect.Zero(elemType).Interface().(map[string]interface{}); ok {
 		return NewNameMapRecords(model, value)
-	} else if _, ok := reflect.New(elemType).Elem().Interface().(map[uintptr]interface{}); ok {
+	} else if _, ok := reflect.Zero(elemType).Interface().(map[uintptr]interface{}); ok {
 		return NewOffsetMapRecords(model, value)
 	} else {
 		return NewStructRecords(model, value)

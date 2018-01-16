@@ -39,36 +39,36 @@ type TestCreateTable4 struct {
 	PtrPtrValue **int
 }
 
-type TestCreateTable5Sub1 struct {
+type TestPreloadTableBelongTo struct {
 	ID   int `toyorm:"primary key;auto_increment"`
 	Name string
 }
 
-type TestCreateTable5Sub2 struct {
+type TestPreloadTableOneToOne struct {
 	ID                 int `toyorm:"primary key;auto_increment"`
 	Name               string
-	TestCreateTable5ID uint `toyorm:"index"`
+	TestPreloadTableID uint `toyorm:"index"`
 }
 
-type TestCreateTable5Sub3 struct {
+type TestPreloadTableOneToMany struct {
 	ID                 int `toyorm:"primary key;auto_increment"`
 	Name               string
-	TestCreateTable5ID uint `toyorm:"index"`
+	TestPreloadTableID uint `toyorm:"index"`
 }
 
-type TestCreateTable5Sub4 struct {
+type TestPreloadTableManyToMany struct {
 	ID   int `toyorm:"primary key;auto_increment"`
 	Name string
 }
 
-type TestCreateTable5 struct {
+type TestPreloadTable struct {
 	ModelDefault
-	Name   string `toyorm:"not null"`
-	Sub1ID int
-	Sub1   *TestCreateTable5Sub1
-	Sub2   *TestCreateTable5Sub2
-	Sub3   []TestCreateTable5Sub3
-	Sub4   []TestCreateTable5Sub4
+	Name       string `toyorm:"not null"`
+	BelongToID int
+	BelongTo   *TestPreloadTableBelongTo
+	OneToOne   *TestPreloadTableOneToOne
+	OneToMany  []TestPreloadTableOneToMany
+	ManyToMany []TestPreloadTableManyToMany
 }
 
 type TestInsertTable struct {
