@@ -34,6 +34,22 @@ func NewNameMapRecords(model *Model, v reflect.Value) *ModelNameMapRecords {
 	return records
 }
 
+func NewNameMapRecord(model *Model, v reflect.Value) *ModelNameMapRecord {
+	record := &ModelNameMapRecord{
+		map[*ModelField]reflect.Value{},
+		v,
+		model,
+	}
+
+	for name, mField := range model.NameFields {
+		if fieldValue := v.MapIndex(reflect.ValueOf(name)); fieldValue.IsValid() {
+			fieldValue = fieldValue.Elem()
+			record.FieldValues[mField] = fieldValue
+		}
+	}
+	return record
+}
+
 func (m *ModelNameMapRecords) GetRecords() []ModelRecord {
 	var recordList []ModelRecord
 	for i := 0; i < len(m.FieldValuesList); i++ {

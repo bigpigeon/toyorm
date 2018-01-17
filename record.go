@@ -30,31 +30,6 @@ type ModelRecords interface {
 	Source() reflect.Value
 }
 
-func NewStructRecord(model *Model, value reflect.Value) ModelRecord {
-	vtype := value.Type()
-	fieldValueList := GetStructValueFields(value)
-	structFieldList := GetStructFields(vtype)
-
-	record := map[*ModelField]reflect.Value{}
-	if vtype == model.ReflectType {
-		for i := 0; i < len(model.AllFields); i++ {
-			record[model.GetPosField(i)] = fieldValueList[i]
-		}
-	} else {
-		for i, field := range structFieldList {
-			if mField, ok := model.NameFields[field.Name]; ok {
-				record[mField] = fieldValueList[i]
-			}
-		}
-	}
-	return &ModelStructRecord{
-		FieldValues:        record,
-		VirtualFieldValues: map[*ModelField]reflect.Value{},
-		source:             value,
-		model:              model,
-	}
-}
-
 func NewRecords(model *Model, value reflect.Value) ModelRecords {
 	if value.Kind() != reflect.Slice {
 		panic("value must be slice")
@@ -64,8 +39,23 @@ func NewRecords(model *Model, value reflect.Value) ModelRecords {
 		return NewNameMapRecords(model, value)
 	} else if _, ok := reflect.Zero(elemType).Interface().(map[uintptr]interface{}); ok {
 		return NewOffsetMapRecords(model, value)
-	} else {
+	} else if elemType.Kind() == reflect.Struct {
 		return NewStructRecords(model, value)
+	} else {
+		panic(ErrInvalidRecordType{})
+	}
+}
+
+func NewRecord(model *Model, value reflect.Value) ModelRecord {
+	vType := LoopTypeIndirect(value.Type())
+	if _, ok := reflect.Zero(vType).Interface().(map[string]interface{}); ok {
+		return NewNameMapRecord(model, value)
+	} else if _, ok := reflect.Zero(vType).Interface().(map[uintptr]interface{}); ok {
+		return NewOffsetMapRecord(model, value)
+	} else if vType.Kind() == reflect.Struct {
+		return NewStructRecord(model, value)
+	} else {
+		panic(ErrInvalidRecordType{})
 	}
 }
 

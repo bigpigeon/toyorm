@@ -35,6 +35,22 @@ func NewOffsetMapRecords(model *Model, m reflect.Value) *ModelOffsetMapRecords {
 	return records
 }
 
+func NewOffsetMapRecord(model *Model, v reflect.Value) *ModelOffsetMapRecord {
+	record := &ModelOffsetMapRecord{
+		map[*ModelField]reflect.Value{},
+		v,
+		model,
+	}
+
+	for offset, mField := range model.OffsetFields {
+		if fieldValue := v.MapIndex(reflect.ValueOf(offset)); fieldValue.IsValid() {
+			fieldValue = fieldValue.Elem()
+			record.FieldValues[mField] = fieldValue
+		}
+	}
+	return record
+}
+
 func (m *ModelOffsetMapRecords) GetRecords() []ModelRecord {
 	var recordList []ModelRecord
 	for i := 0; i < len(m.FieldValuesList); i++ {

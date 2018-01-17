@@ -463,6 +463,55 @@ func TestConditionFind(t *testing.T) {
 	}
 }
 
+func TestCombinationConditionFind(t *testing.T) {
+	brick := TestDB.Model(&TestSearchTable{}).Debug()
+	{
+		var tabs []TestSearchTable
+		result, err := brick.Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("%#v\n", tabs)
+	}
+	{
+		var tabs []TestSearchTable
+		result, err := brick.Where(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("%#v\n", tabs)
+	}
+	{
+		var tabs []TestSearchTable
+		result, err := brick.Where(ExprAnd, map[uintptr]interface{}{
+			Offsetof(TestSearchTable{}.A): "a",
+			Offsetof(TestSearchTable{}.B): "b",
+		}).Find(&tabs)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("%#v\n", tabs)
+	}
+
+	{
+		var tabs []TestSearchTable
+		result, err := brick.Where(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
+			Condition(ExprEqual, "C", "c").Find(&tabs)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("%#v\n", tabs)
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	table := TestSearchTable{A: "aaaaa", B: "bbbbb"}
 	brick := TestDB.Model(&TestSearchTable{}).Debug()
@@ -649,9 +698,18 @@ func TestPreloadSave(t *testing.T) {
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter()
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter()
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter()
-	brick = brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Enter()
+	manyToManyPreload := brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany))
+	brick = manyToManyPreload.Enter()
 
 	{
+		manyToMany := []TestPreloadTableManyToMany{
+			{
+				Name: "test save 1 many_to_many 1",
+			},
+			{
+				Name: "test save 1 many_to_many 2",
+			},
+		}
 		table := []TestPreloadTable{
 			{
 				Name: "test save 1",
@@ -667,14 +725,6 @@ func TestPreloadSave(t *testing.T) {
 					},
 					{
 						Name: "test save sub3 sub2",
-					},
-				},
-				ManyToMany: []TestPreloadTableManyToMany{
-					{
-						Name: "test save 1 many_to_many 1",
-					},
-					{
-						Name: "test save 1 many_to_many 2",
 					},
 				},
 			},
@@ -694,17 +744,22 @@ func TestPreloadSave(t *testing.T) {
 						Name: "test save 2 sub3 sub2",
 					},
 				},
-				ManyToMany: []TestPreloadTableManyToMany{
-					{
-						Name: "test save 2 many_to_many 1",
-					},
-					{
-						Name: "test save 2 many_to_many 2",
-					},
-				},
 			},
 		}
-		result, err := brick.Save(&table)
+		// insert many to many
+		result, err := manyToManyPreload.Insert(&manyToMany)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Failed()
+		}
+		assert.NotZero(t, manyToMany[0].ID)
+		assert.NotZero(t, manyToMany[1].ID)
+		// now many to many object have id information
+		table[0].ManyToMany = manyToMany
+		table[1].ManyToMany = manyToMany
+
+		result, err = brick.Save(&table)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -733,7 +788,7 @@ func TestPreloadFind(t *testing.T) {
 				manyToManyIds = append(manyToManyIds, sub.ID)
 			}
 
-			t.Logf("main id %v, belong id %v, one to one id %v, one to many %v, many to many %v", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, oneToManyIds, manyToManyIds)
+			t.Logf("main id %v, belong id %v, one to one id %v, one to many id list %v, many to many id list %v", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, oneToManyIds, manyToManyIds)
 			assert.NotZero(t, tab.ID)
 			assert.NotZero(t, tab.CreatedAt)
 			assert.NotZero(t, tab.UpdatedAt)

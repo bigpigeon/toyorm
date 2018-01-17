@@ -4,8 +4,8 @@ type ToyBrickAnd struct {
 	Brick *ToyBrick
 }
 
-func (t ToyBrickAnd) Condition(expr SearchExpr, v ...interface{}) *ToyBrick {
-	search := t.Brick.condition(expr, v...)
+func (t ToyBrickAnd) Condition(expr SearchExpr, key interface{}, v ...interface{}) *ToyBrick {
+	search := t.Brick.condition(expr, key, v...)
 	return t.Conditions(search)
 }
 
@@ -40,8 +40,8 @@ type ToyBrickOr struct {
 	Brick *ToyBrick
 }
 
-func (t ToyBrickOr) Condition(expr SearchExpr, v ...interface{}) *ToyBrick {
-	search := t.Brick.condition(expr, v...)
+func (t ToyBrickOr) Condition(expr SearchExpr, key interface{}, v ...interface{}) *ToyBrick {
+	search := t.Brick.condition(expr, key, v...)
 	return t.Conditions(search)
 }
 

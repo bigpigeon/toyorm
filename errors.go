@@ -19,7 +19,7 @@ var (
 type ErrInvalidModelType string
 
 func (e ErrInvalidModelType) Error() string {
-	return "invalid model type" + string(e)
+	return "invalid model type " + string(e)
 }
 
 type ErrInvalidModelName struct{}
@@ -35,4 +35,11 @@ type ErrInvalidPreloadField struct {
 
 func (e ErrInvalidPreloadField) Error() string {
 	return fmt.Sprintf("invalid preload field %s.%s", e.ModelName, e.FieldName)
+}
+
+type ErrInvalidRecordType struct {
+}
+
+func (e ErrInvalidRecordType) Error() string {
+	return fmt.Sprintf("record type must be the struct or map[string]interface{} or map[uintptr]interface{}")
 }

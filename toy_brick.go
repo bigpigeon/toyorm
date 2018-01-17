@@ -364,50 +364,37 @@ func (t *ToyBrick) bindFields(mode Mode, fields ...*ModelField) *ToyBrick {
 	})
 }
 
-func (t *ToyBrick) condition(expr SearchExpr, v ...interface{}) SearchList {
+func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface{}) SearchList {
 	search := SearchList{}
 	switch expr {
 	case ExprAnd, ExprOr:
-		value := v[0]
-		vValue := LoopIndirect(reflect.ValueOf(value))
-		switch vValue.Kind() {
-		case reflect.Struct:
-			record := NewStructRecord(t.model, vValue)
-			pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
-			for _, pair := range pairs {
-				search = search.Condition(pair.Field, pair.Value.Interface(), ExprEqual, expr)
-			}
-		default:
-			if m, ok := vValue.Interface().(map[string]interface{}); ok {
-				for name, mField := range t.model.NameFields {
-					if iface, ok := m[name]; ok {
-						search = search.Condition(mField, iface, ExprEqual, expr)
-					}
-				}
-			} else {
-				panic("and/or expr must have a struct/map args")
-			}
+		keyValue := LoopIndirect(reflect.ValueOf(key))
+		record := NewRecord(t.model, keyValue)
+		pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
+		for _, pair := range pairs {
+			search = search.Condition(pair.Field, pair.Value.Interface(), ExprEqual, expr)
+		}
+		if expr == ExprOr {
+			search = append(search, NewSearchBranch(ExprIgnore))
 		}
 	default:
-		var key, value interface{}
-		if len(v) == 2 {
-			key, value = v[0], v[1]
-		} else if len(v) == 1 {
-			key = v[0]
+		var value interface{}
+		if len(args) == 1 {
+			value = args[0]
 		} else {
-			panic("error number args")
+			value = args
 		}
-		kidx := t.model.fieldSelect(key)
-		search = search.Condition(kidx, value, expr, ExprAnd)
+		mField := t.model.fieldSelect(key)
+		search = search.Condition(mField, value, expr, ExprAnd)
 	}
 	return search
 }
 
 // where will clean old condition
-func (t *ToyBrick) Where(expr SearchExpr, v ...interface{}) *ToyBrick {
+func (t *ToyBrick) Where(expr SearchExpr, key interface{}, v ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
-		newt.Search = t.condition(expr, v...)
+		newt.Search = t.condition(expr, key, v...)
 		return &newt
 	})
 }

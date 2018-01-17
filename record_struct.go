@@ -47,6 +47,31 @@ func NewStructRecords(model *Model, value reflect.Value) *ModelStructRecords {
 	return records
 }
 
+func NewStructRecord(model *Model, value reflect.Value) ModelRecord {
+	vtype := value.Type()
+	fieldValueList := GetStructValueFields(value)
+	structFieldList := GetStructFields(vtype)
+
+	record := map[*ModelField]reflect.Value{}
+	if vtype == model.ReflectType {
+		for i := 0; i < len(model.AllFields); i++ {
+			record[model.GetPosField(i)] = fieldValueList[i]
+		}
+	} else {
+		for i, field := range structFieldList {
+			if mField, ok := model.NameFields[field.Name]; ok {
+				record[mField] = fieldValueList[i]
+			}
+		}
+	}
+	return &ModelStructRecord{
+		FieldValues:        record,
+		VirtualFieldValues: map[*ModelField]reflect.Value{},
+		source:             value,
+		model:              model,
+	}
+}
+
 func (m *ModelStructRecords) GetFieldType(field *ModelField) reflect.Type {
 	return m.FieldTypes[field]
 }
