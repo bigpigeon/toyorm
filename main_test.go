@@ -14,7 +14,7 @@ var (
 )
 
 type TestCreateTable1 struct {
-	ID       int    `toyorm:"primary key;AUTOINCREMENT"`
+	ID       int32  `toyorm:"primary key;AUTOINCREMENT"`
 	Name     string `toyorm:"not null"`
 	Category string `toyorm:"index"`
 }
@@ -26,45 +26,45 @@ type TestCreateTable2 struct {
 }
 
 type TestCreateTable3 struct {
-	ID       int      `toyorm:"primary key;auto_increment"`
+	ID       int32    `toyorm:"primary key;auto_increment"`
 	Name     string   `toyorm:"not null"`
 	Category string   `toyorm:"index"`
 	Value    *float64 `toyorm:""`
 }
 
 type TestCreateTable4 struct {
-	ID          int    `toyorm:"primary key;auto_increment"`
+	ID          int32  `toyorm:"primary key;auto_increment"`
 	Name        string `toyorm:"not null"`
 	Value       int
 	PtrPtrValue **int
 }
 
 type TestPreloadTableBelongTo struct {
-	ID   int `toyorm:"primary key;auto_increment"`
+	ID   int32 `toyorm:"primary key;auto_increment"`
 	Name string
 }
 
 type TestPreloadTableOneToOne struct {
-	ID                 int `toyorm:"primary key;auto_increment"`
+	ID                 int32 `toyorm:"primary key;auto_increment"`
 	Name               string
-	TestPreloadTableID uint `toyorm:"index"`
+	TestPreloadTableID uint32 `toyorm:"index"`
 }
 
 type TestPreloadTableOneToMany struct {
-	ID                 int `toyorm:"primary key;auto_increment"`
+	ID                 int32 `toyorm:"primary key;auto_increment"`
 	Name               string
-	TestPreloadTableID uint `toyorm:"index"`
+	TestPreloadTableID uint32 `toyorm:"index"`
 }
 
 type TestPreloadTableManyToMany struct {
-	ID   int `toyorm:"primary key;auto_increment"`
+	ID   int32 `toyorm:"primary key;auto_increment"`
 	Name string
 }
 
 type TestPreloadTable struct {
 	ModelDefault
 	Name       string `toyorm:"not null"`
-	BelongToID int
+	BelongToID int32
 	BelongTo   *TestPreloadTableBelongTo
 	OneToOne   *TestPreloadTableOneToOne
 	OneToMany  []TestPreloadTableOneToMany
@@ -92,15 +92,15 @@ type TestSearchTable struct {
 }
 
 type TestHardDeleteTable struct {
-	ID         uint `toyorm:"primary key;auto_increment"`
+	ID         uint32 `toyorm:"primary key;auto_increment"`
 	Data       string
-	BelongToID uint `toyorm:"unique index"`
+	BelongToID uint32 `toyorm:"unique index"`
 	BelongTo   *TestHardDeleteTableBelongTo
 	OneToOne   *TestHardDeleteTableOneToOne
 	OneToMany  []TestHardDeleteTableOneToMany
 	ManyToMany []TestHardDeleteTableManyToMany
 
-	SoftBelongToID uint `toyorm:"unique index"`
+	SoftBelongToID uint32 `toyorm:"unique index"`
 	SoftBelongTo   *TestSoftDeleteTableBelongTo
 	SoftOneToOne   *TestSoftDeleteTableOneToOne
 	SoftOneToMany  []TestSoftDeleteTableOneToMany
@@ -110,13 +110,13 @@ type TestHardDeleteTable struct {
 type TestSoftDeleteTable struct {
 	ModelDefault
 	Data       string
-	BelongToID uint `toyorm:"unique index"`
+	BelongToID uint32 `toyorm:"unique index"`
 	BelongTo   *TestHardDeleteTableBelongTo
 	OneToOne   *TestHardDeleteTableOneToOne
 	OneToMany  []TestHardDeleteTableOneToMany
 	ManyToMany []TestHardDeleteTableManyToMany
 
-	SoftBelongToID uint `toyorm:"unique index"`
+	SoftBelongToID uint32 `toyorm:"unique index"`
 	SoftBelongTo   *TestSoftDeleteTableBelongTo
 	SoftOneToOne   *TestSoftDeleteTableOneToOne
 	SoftOneToMany  []TestSoftDeleteTableOneToMany
@@ -124,9 +124,9 @@ type TestSoftDeleteTable struct {
 }
 
 type TestCustomPreloadTable struct {
-	ID            uint `toyorm:"primary key;auto_increment"`
+	ID            uint32 `toyorm:"primary key;auto_increment"`
 	Data          string
-	BelongToID    uint `toyorm:"index"`
+	BelongToID    uint32 `toyorm:"index"`
 	ChildOne      *TestCustomPreloadOneToOne
 	ChildTwo      *TestCustomPreloadBelongTo
 	Children      []TestCustomPreloadOneToMany
@@ -134,53 +134,53 @@ type TestCustomPreloadTable struct {
 }
 
 type TestCustomPreloadOneToOne struct {
-	ID       uint `toyorm:"primary key;auto_increment"`
+	ID       uint32 `toyorm:"primary key;auto_increment"`
 	Data     string
-	ParentID uint `toyorm:"index"`
+	ParentID uint32 `toyorm:"index"`
 }
 
 type TestCustomPreloadBelongTo struct {
-	ID   uint `toyorm:"primary key;auto_increment"`
+	ID   uint32 `toyorm:"primary key;auto_increment"`
 	Data string
 }
 
 type TestCustomPreloadOneToMany struct {
-	ID       uint `toyorm:"primary key;auto_increment"`
+	ID       uint32 `toyorm:"primary key;auto_increment"`
 	Data     string
-	ParentID uint `toyorm:"index"`
+	ParentID uint32 `toyorm:"index"`
 }
 
 type TestCustomPreloadManyToManyMiddle struct {
-	ParentID uint `toyorm:"primary key"`
-	ChildID  int  `toyorm:"primary key"`
+	ParentID uint32 `toyorm:"primary key"`
+	ChildID  int32  `toyorm:"primary key"`
 }
 
 type TestCustomPreloadManyToMany struct {
-	ID   uint `toyorm:"primary key;auto_increment"`
+	ID   uint32 `toyorm:"primary key;auto_increment"`
 	Data string
 }
 
 type TestHardDeleteTableBelongTo struct {
-	ID   uint `toyorm:"primary key;auto_increment"`
+	ID   uint32 `toyorm:"primary key;auto_increment"`
 	Data string
 }
 
 type TestHardDeleteTableOneToOne struct {
-	ID                    uint `toyorm:"primary key;auto_increment"`
+	ID                    uint32 `toyorm:"primary key;auto_increment"`
 	Data                  string
-	TestHardDeleteTableID uint `toyorm:"index"`
-	TestSoftDeleteTableID uint `toyorm:"index"`
+	TestHardDeleteTableID uint32 `toyorm:"index"`
+	TestSoftDeleteTableID uint32 `toyorm:"index"`
 }
 
 type TestHardDeleteTableOneToMany struct {
-	ID                    uint `toyorm:"primary key;auto_increment"`
+	ID                    uint32 `toyorm:"primary key;auto_increment"`
 	Data                  string
-	TestHardDeleteTableID uint `toyorm:"index"`
-	TestSoftDeleteTableID uint `toyorm:"index"`
+	TestHardDeleteTableID uint32 `toyorm:"index"`
+	TestSoftDeleteTableID uint32 `toyorm:"index"`
 }
 
 type TestHardDeleteTableManyToMany struct {
-	ID   uint `toyorm:"primary key"`
+	ID   uint32 `toyorm:"primary key"`
 	Data string
 }
 
@@ -192,15 +192,15 @@ type TestSoftDeleteTableBelongTo struct {
 type TestSoftDeleteTableOneToOne struct {
 	ModelDefault
 	Data                  string
-	TestHardDeleteTableID uint `toyorm:"index"`
-	TestSoftDeleteTableID uint `toyorm:"index"`
+	TestHardDeleteTableID uint32 `toyorm:"index"`
+	TestSoftDeleteTableID uint32 `toyorm:"index"`
 }
 
 type TestSoftDeleteTableOneToMany struct {
 	ModelDefault
 	Data                  string
-	TestHardDeleteTableID uint `toyorm:"index"`
-	TestSoftDeleteTableID uint `toyorm:"index"`
+	TestHardDeleteTableID uint32 `toyorm:"index"`
+	TestSoftDeleteTableID uint32 `toyorm:"index"`
 }
 
 type TestSoftDeleteTableManyToMany struct {
@@ -223,8 +223,8 @@ type Product struct {
 }
 
 type ProductDetail struct {
-	ID         uint `toyorm:"primary key;auto_increment"`
-	ProductID  uint `toyorm:"index"`
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	ProductID  uint32 `toyorm:"index"`
 	Page       string
 	Parameters map[string]interface{}
 }
@@ -235,10 +235,10 @@ type Tag struct {
 }
 
 type Address struct {
-	ID        int    `toyorm:"primary key;auto_increment"`
+	ID        int32  `toyorm:"primary key;auto_increment"`
 	Address1  string `toyorm:"index"`
 	Address2  string
-	ProductID uint `toyorm:"index"`
+	ProductID uint32 `toyorm:"index"`
 }
 
 type User struct {
@@ -251,7 +251,7 @@ type User struct {
 }
 
 type SqlTypeTable struct {
-	ID    int `toyorm:"primary key;auto_increment"`
+	ID    int32 `toyorm:"primary key;auto_increment"`
 	Name  sql.NullString
 	Age   sql.NullInt64
 	Sex   sql.NullBool

@@ -9,7 +9,7 @@ import (
 type SearchExpr int
 
 const (
-	ExprIgnore = SearchExpr(iota)
+	ExprIgnore SearchExpr = iota
 	ExprAnd
 	ExprOr
 	ExprNot
@@ -40,7 +40,7 @@ type SearchObjVal struct {
 
 type SearchCell struct {
 	Type SearchExpr
-	Val  *SearchObjVal
+	Val  ColumnValue
 }
 
 func NewSearchBranch(op SearchExpr) SearchCell {
@@ -50,20 +50,20 @@ func NewSearchBranch(op SearchExpr) SearchCell {
 	}
 }
 
-func NewSearchLeaf(op SearchExpr, field *ModelField, val interface{}) SearchCell {
+func NewSearchLeaf(op SearchExpr, columnValue ColumnValue) SearchCell {
 	return SearchCell{
 		op,
-		&SearchObjVal{field, val},
+		columnValue,
 	}
 }
 
-func (s SearchList) Condition(field *ModelField, val interface{}, expr, linkExpr SearchExpr) SearchList {
+func (s SearchList) Condition(columnValue ColumnValue, expr, linkExpr SearchExpr) SearchList {
 	if len(s) == 0 {
-		return SearchList{NewSearchLeaf(expr, field, val)}
+		return SearchList{NewSearchLeaf(expr, columnValue)}
 	}
 	newS := make(SearchList, len(s))
 	copy(newS, s)
-	newS = append(newS, NewSearchLeaf(expr, field, val), NewSearchBranch(linkExpr))
+	newS = append(newS, NewSearchLeaf(expr, columnValue), NewSearchBranch(linkExpr))
 	return newS
 }
 
@@ -145,55 +145,55 @@ func (s SearchList) ToExecValue() ExecValue {
 			continue
 
 		case ExprEqual:
-			exec.Query = fmt.Sprintf("%s = ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s = ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprNotEqual:
-			exec.Query = fmt.Sprintf("%s <> ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s <> ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprGreater:
-			exec.Query = fmt.Sprintf("%s > ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s > ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprGreaterEqual:
-			exec.Query = fmt.Sprintf("%s >= ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s >= ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprLess:
-			exec.Query = fmt.Sprintf("%s < ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s < ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprLessEqual:
-			exec.Query = fmt.Sprintf("%s <= ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s <= ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprBetween:
-			exec.Query = fmt.Sprintf("%s BETWEEN ? AND ?", s[i].Val.Field.Name)
-			vv := reflect.ValueOf(s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s BETWEEN ? AND ?", s[i].Val.Column())
+			vv := reflect.ValueOf(s[i].Val.Value().Interface())
 			exec.Args = append(exec.Args, vv.Index(0).Interface(), vv.Index(1).Interface())
 		case ExprNotBetween:
-			exec.Query = fmt.Sprintf("%s NOT BETWEEN ? AND ?", s[i].Val.Field.Name)
-			vv := reflect.ValueOf(s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s NOT BETWEEN ? AND ?", s[i].Val.Column())
+			vv := reflect.ValueOf(s[i].Val.Value().Interface())
 			exec.Args = append(exec.Args, vv.Index(0).Interface(), vv.Index(1).Interface())
 		case ExprIn:
-			vv := reflect.ValueOf(s[i].Val.Val)
+			vv := reflect.ValueOf(s[i].Val.Value().Interface())
 			questionMarks := strings.TrimSuffix(strings.Repeat("?,", vv.Len()), ",")
-			exec.Query = fmt.Sprintf("%s IN (%s)", s[i].Val.Field.Name, questionMarks)
+			exec.Query = fmt.Sprintf("%s IN (%s)", s[i].Val.Column(), questionMarks)
 			for i := 0; i < vv.Len(); i++ {
 				exec.Args = append(exec.Args, vv.Index(i).Interface())
 			}
 		case ExprNotIn:
-			vv := reflect.ValueOf(s[i].Val.Val)
+			vv := reflect.ValueOf(s[i].Val.Value().Interface())
 			questionMarks := strings.TrimSuffix(strings.Repeat("?,", vv.Len()), ",")
-			exec.Query = fmt.Sprintf("%s NOT IN (%s)", s[i].Val.Field.Name, questionMarks)
+			exec.Query = fmt.Sprintf("%s NOT IN (%s)", s[i].Val.Column(), questionMarks)
 			for i := 0; i < vv.Len(); i++ {
 				exec.Args = append(exec.Args, vv.Index(i).Interface())
 			}
 		case ExprLike:
-			exec.Query = fmt.Sprintf("%s LIKE ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s LIKE ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprNotLike:
-			exec.Query = fmt.Sprintf("%s NOT LIKE ?", s[i].Val.Field.Name)
-			exec.Args = append(exec.Args, s[i].Val.Val)
+			exec.Query = fmt.Sprintf("%s NOT LIKE ?", s[i].Val.Column())
+			exec.Args = append(exec.Args, s[i].Val.Value().Interface())
 		case ExprNull:
-			exec.Query = fmt.Sprintf("%s IS NULL", s[i].Val.Field.Name)
+			exec.Query = fmt.Sprintf("%s IS NULL", s[i].Val.Column())
 		case ExprNotNull:
-			exec.Query = fmt.Sprintf("%s IS NOT NULL", s[i].Val.Field.Name)
+			exec.Query = fmt.Sprintf("%s IS NOT NULL", s[i].Val.Column())
 		}
 		stack = append(stack, exec)
 

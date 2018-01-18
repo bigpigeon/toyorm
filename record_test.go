@@ -1,7 +1,7 @@
 package toyorm
 
 import (
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 	. "unsafe"
@@ -19,10 +19,10 @@ func TestStructRecord(t *testing.T) {
 		20,
 	}}
 	records := NewRecords(model, reflect.ValueOf(&data).Elem())
-	//t.Log(records.GetRecord(0).Field(0))
+
 	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)), reflect.Value{})
 	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), 1)
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), int32(1))
 	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
 	assert.Equal(t, data[0].Name, "verybigpigeon")
 	t.Log(data)
@@ -52,7 +52,7 @@ func TestNameMapRecord(t *testing.T) {
 	//t.Log(records.GetRecord(0).Field(0))
 	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)), reflect.Value{})
 	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), 1)
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), int32(1))
 	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
 	t.Log(data)
 	assert.Equal(t, data[0]["Name"], "verybigpigeon")
@@ -78,7 +78,7 @@ func TestOffsetMapRecord(t *testing.T) {
 	//t.Log(records.GetRecord(0).Field(0))
 	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)), reflect.Value{})
 	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), 1)
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), int32(1))
 	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
 	assert.Equal(t, data[0][Offsetof(TestCreateTable3{}.Name)], "verybigpigeon")
 	t.Log(data)

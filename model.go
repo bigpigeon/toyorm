@@ -12,20 +12,6 @@ type tabler interface {
 	TableName() string
 }
 
-type ModelField struct {
-	Name          string
-	Offset        uintptr
-	Type          string
-	PrimaryKey    bool
-	Index         string
-	UniqueIndex   string
-	Ignore        bool
-	CommonAttr    map[string]string
-	SpecialAttr   map[string]map[string]string
-	AutoIncrement bool
-	Field         reflect.StructField
-}
-
 // table struct used to save all sql attribute with struct
 // Name is table name attribute
 // AllFields is all struct field and it's Anonymous struct
@@ -94,68 +80,6 @@ func (t *Model) GetUniqueIndexMap() map[string][]*ModelField {
 	return t.UniqueIndexFields
 }
 
-func NewField(f *reflect.StructField, table_name string, dia Dialect) *ModelField {
-	field := &ModelField{
-		Field:      *f,
-		CommonAttr: map[string]string{},
-		Name:       SqlNameConvert(f.Name),
-		Offset:     f.Offset,
-	}
-
-	// set default type
-	if val := dia.ToSqlType(f.Type); val != "" {
-		field.Type = val
-	}
-	// set attribute by tag
-	tags := strings.Split(f.Tag.Get("toyorm"), ";")
-	for _, t := range tags {
-		keyval := strings.Split(t, ":")
-		var key, val string
-		switch len(keyval) {
-		case 0:
-			continue
-		case 1:
-			key = keyval[0]
-		case 2:
-			key, val = keyval[0], keyval[1]
-		default:
-			panic(ErrInvalidTag)
-		}
-		switch strings.ToLower(key) {
-		case "auto_increment", "autoincrement":
-			field.AutoIncrement = true
-		case "primary key":
-			field.PrimaryKey = true
-		case "index":
-			if val == "" {
-				field.Index = fmt.Sprintf("idx_%s_%s", table_name, strings.ToLower(f.Name))
-			} else {
-				field.Index = val
-			}
-		case "unique index":
-			if val == "" {
-				field.UniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, strings.ToLower(f.Name))
-			} else {
-				field.UniqueIndex = val
-			}
-		case "type":
-			if val != "" {
-				field.Type = val
-			}
-		case "column":
-			field.Name = val
-		case "-":
-			field.Ignore = true
-		default:
-			field.CommonAttr[key] = val
-		}
-	}
-	if field.Name == "" || field.Type == "" {
-		field.Ignore = true
-	}
-	return field
-}
-
 func NewModel(_type reflect.Type, dia Dialect) *Model {
 	if _type.Kind() != reflect.Struct {
 		panic(ErrInvalidModelType(_type.Name()))
@@ -169,10 +93,10 @@ func NewModel(_type reflect.Type, dia Dialect) *Model {
 	} else {
 		modelName = SqlNameConvert(_type.Name())
 	}
-	return newModel(_type, dia, modelName)
+	return newModel(_type, modelName)
 }
 
-func NewMiddleModel(model, subModel *Model, dia Dialect) *Model {
+func NewMiddleModel(model, subModel *Model) *Model {
 	var fields [2]reflect.StructField
 	var sortdModel [2]*Model
 	if model.Name < subModel.Name {
@@ -190,10 +114,10 @@ func NewMiddleModel(model, subModel *Model, dia Dialect) *Model {
 		fields[0].Name = "L_" + fields[0].Name
 		fields[1].Name = "R_" + fields[1].Name
 	}
-	return newModel(reflect.StructOf(fields[:]), dia, fmt.Sprintf("%s_%s", sortdModel[0].Name, sortdModel[1].Name))
+	return newModel(reflect.StructOf(fields[:]), fmt.Sprintf("%s_%s", sortdModel[0].Name, sortdModel[1].Name))
 }
 
-func newModel(_type reflect.Type, dia Dialect, modelName string) *Model {
+func newModel(_type reflect.Type, modelName string) *Model {
 	model := &Model{
 		Name:              modelName,
 		ReflectType:       _type,
@@ -210,13 +134,13 @@ func newModel(_type reflect.Type, dia Dialect, modelName string) *Model {
 	for i := 0; i < _type.NumField(); i++ {
 		field := _type.Field(i)
 		if field.Anonymous && field.Type.Kind() == reflect.Struct {
-			embedTable := newModel(field.Type, dia, model.Name)
+			embedTable := newModel(field.Type, model.Name)
 			for _, tabField := range embedTable.AllFields {
 				tabField.Offset += field.Offset
 				model.AllFields = append(model.AllFields, tabField)
 			}
 		} else {
-			tField := NewField(&field, model.Name, dia)
+			tField := NewField(&field, model.Name)
 			model.AllFields = append(model.AllFields, tField)
 		}
 	}
@@ -275,7 +199,7 @@ func (m *Model) fieldSelect(v interface{}) *ModelField {
 }
 
 type ModelDefault struct {
-	ID        uint       `toyorm:"primary key;auto_increment"`
+	ID        uint32     `toyorm:"primary key;auto_increment"`
 	CreatedAt time.Time  `toyorm:"NULL"`
 	UpdatedAt time.Time  `toyorm:"NULL"`
 	DeletedAt *time.Time `toyorm:"index;NULL"`
@@ -284,10 +208,8 @@ type ModelDefault struct {
 var StarField = &ModelField{
 	Name:          "*",
 	Offset:        0,
-	Type:          "",
 	Ignore:        false,
 	CommonAttr:    map[string]string{},
-	SpecialAttr:   map[string]map[string]string{},
 	AutoIncrement: false,
 	Field: reflect.StructField{
 		Name: "*",

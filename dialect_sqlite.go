@@ -1,14 +1,12 @@
 package toyorm
 
 import (
-	"database/sql"
 	"fmt"
-	"reflect"
 	"strings"
-	"time"
 )
 
 type Sqlite3Dialect struct {
+	DefaultDialect
 }
 
 func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
@@ -25,7 +23,8 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	// for strange auto_increment syntax to do strange codition
 	isSinglePrimary := len(model.PrimaryFields) == 1
 	for _, sqlField := range model.SqlFields {
-		s := fmt.Sprintf("%s %s", sqlField.Name, sqlField.Type)
+
+		s := fmt.Sprintf("%s %s", sqlField.Name, sqlField.sqlType)
 		if isSinglePrimary && sqlField == model.PrimaryFields[0] {
 			s += " PRIMARY KEY"
 		}
@@ -84,42 +83,6 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	}
 	for _, indexStr := range uniqueIndexStrList {
 		execlist = append(execlist, ExecValue{indexStr, nil})
-	}
-	return
-}
-
-func (dia Sqlite3Dialect) ToSqlType(_type reflect.Type) (sqlType string) {
-	switch _type.Kind() {
-	case reflect.Ptr:
-		sqlType = dia.ToSqlType(_type.Elem())
-	case reflect.Bool:
-		sqlType = "BOOLEAN"
-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Int, reflect.Uint:
-		sqlType = "INTEGER"
-	case reflect.Int64, reflect.Uint64:
-		sqlType = "BIGINT"
-	case reflect.Float32, reflect.Float64:
-		sqlType = "FLOAT"
-	case reflect.String:
-		sqlType = "VARCHAR(255)"
-	case reflect.Struct:
-		if _, ok := reflect.New(_type).Elem().Interface().(time.Time); ok {
-			sqlType = "TIMESTAMP"
-		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullBool); ok {
-			sqlType = "BOOLEAN"
-		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullInt64); ok {
-			sqlType = "BIGINT"
-		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullString); ok {
-			sqlType = "VARCHAR(255)"
-		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullFloat64); ok {
-			sqlType = "FLOAT"
-		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.RawBytes); ok {
-			sqlType = "VARCHAR(255)"
-		}
-	default:
-		if _, ok := reflect.New(_type).Elem().Interface().([]byte); ok {
-			sqlType = "VARCHAR(255)"
-		}
 	}
 	return
 }

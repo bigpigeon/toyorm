@@ -16,6 +16,7 @@ func TestCreateTable(t *testing.T) {
 		TestCreateTable2{},
 		TestCreateTable3{},
 		TestCreateTable4{},
+		SqlTypeTable{},
 	} {
 		// start a session
 		brick := TestDB.Model(tab).Begin().Debug()
@@ -517,7 +518,6 @@ func TestUpdate(t *testing.T) {
 	brick := TestDB.Model(&TestSearchTable{}).Debug()
 	result, err := brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "a").Update(&table)
 	assert.Nil(t, err)
-	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -779,11 +779,11 @@ func TestPreloadFind(t *testing.T) {
 		var tabs []TestPreloadTable
 		brick.Find(&tabs)
 		for _, tab := range tabs {
-			var oneToManyIds []int
+			var oneToManyIds []int32
 			for _, sub := range tab.OneToMany {
 				oneToManyIds = append(oneToManyIds, sub.ID)
 			}
-			var manyToManyIds []int
+			var manyToManyIds []int32
 			for _, sub := range tab.ManyToMany {
 				manyToManyIds = append(manyToManyIds, sub.ID)
 			}
@@ -1150,7 +1150,7 @@ func TestFlow(t *testing.T) {
 	//bind new tag to the one's product
 	middleBrick := TestDB.MiddleModel(&Product{}, &Tag{}).Debug()
 	result, err = middleBrick.Save(&struct {
-		ProductID uint
+		ProductID uint32
 		TagCode   string
 	}{product[0].ID, "nice"})
 	assert.Nil(t, err)

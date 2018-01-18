@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 type ToyBrickRelationship struct {
@@ -25,7 +24,7 @@ type ToyBrick struct {
 	tx    *sql.Tx
 
 	model   *Model
-	orderBy []*ModelField
+	orderBy []Column
 	Search  SearchList
 	offset  int
 	limit   int
@@ -372,20 +371,21 @@ func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface
 		record := NewRecord(t.model, keyValue)
 		pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
 		for _, pair := range pairs {
-			search = search.Condition(pair.Field, pair.Value.Interface(), ExprEqual, expr)
+			search = search.Condition(pair, ExprEqual, expr)
 		}
 		if expr == ExprOr {
 			search = append(search, NewSearchBranch(ExprIgnore))
 		}
 	default:
-		var value interface{}
+		var value reflect.Value
 		if len(args) == 1 {
-			value = args[0]
+			value = reflect.ValueOf(args[0])
 		} else {
-			value = args
+			value = reflect.ValueOf(args)
 		}
 		mField := t.model.fieldSelect(key)
-		search = search.Condition(mField, value, expr, ExprAnd)
+
+		search = search.Condition(&modelFieldValue{mField, value}, expr, ExprAnd)
 	}
 	return search
 }
@@ -746,116 +746,59 @@ func (t *ToyBrick) CountExec() (exec ExecValue) {
 	return
 }
 
-func (s *ToyBrick) ConditionExec() (exec ExecValue) {
-	if len(s.Search) > 0 {
-		searchExec := s.Search.ToExecValue()
-		exec.Query += "WHERE " + searchExec.Query
-		exec.Args = append(exec.Args, searchExec.Args...)
-	}
-	if s.limit != 0 {
-		exec.Query += fmt.Sprintf(" LIMIT %d", s.limit)
-	}
-	if s.offset != 0 {
-		exec.Query += fmt.Sprintf(" OFFSET %d", s.offset)
-	}
-	if len(s.orderBy) > 0 {
-		exec.Query += fmt.Sprintf(" ORDER BY ")
-		__list := []string{}
-		for _, field := range s.orderBy {
-			__list = append(__list, field.Name)
-		}
-		exec.Query += strings.Join(__list, ",")
-	}
-	return
+func (t *ToyBrick) ConditionExec() ExecValue {
+	return t.Toy.Dialect.ConditionExec(t.Search, t.limit, t.offset, t.orderBy)
 }
 
-func (t *ToyBrick) FindExec(records ModelRecords) (exec ExecValue) {
-	var _list []string
+func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
+	var columns []Column
 	for _, mField := range t.getSelectFields(records) {
-		_list = append(_list, mField.Name)
+		columns = append(columns, mField)
 	}
-	exec.Query = fmt.Sprintf("SELECT %s FROM %s", strings.Join(_list, ","), t.model.Name)
+
+	exec := t.Toy.Dialect.FindExec(t.model, columns)
+
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
-	return
+	return exec
 }
 
-func (t *ToyBrick) UpdateExec(record ModelRecord) (exec ExecValue) {
-	var recordList []string
-	pairs := t.getFieldValuePairWithRecord(ModeUpdate, record)
-	for _, pair := range pairs {
-		recordList = append(recordList, pair.Field.Name+"=?")
-		exec.Args = append(exec.Args, pair.Value.Interface())
-	}
-	exec.Query = fmt.Sprintf("UPDATE %s SET %s", t.model.Name, strings.Join(recordList, ","))
+func (t *ToyBrick) UpdateExec(record ModelRecord) ExecValue {
+	exec := t.Toy.Dialect.UpdateExec(t.model, t.getFieldValuePairWithRecord(ModeUpdate, record))
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
-
-	return
+	return exec
 }
 
-func (t *ToyBrick) DeleteExec() (exec ExecValue) {
-	exec.Query = fmt.Sprintf("DELETE FROM %s", t.model.Name)
+func (t *ToyBrick) DeleteExec() ExecValue {
+	exec := t.Toy.Dialect.DeleteExec(t.model)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
-	return
+	return exec
 }
 
-func (t *ToyBrick) InsertExec(record ModelRecord) (exec ExecValue) {
-	fieldStr := ""
-	qStr := ""
-	exec = ExecValue{}
-	{
-		__list := []string{}
-		__qlist := []string{}
-
-		pairs := t.getFieldValuePairWithRecord(ModeInsert, record)
-		for _, pair := range pairs {
-			__list = append(__list, pair.Field.Name)
-			__qlist = append(__qlist, "?")
-			exec.Args = append(exec.Args, pair.Value.Interface())
-		}
-		fieldStr += strings.Join(__list, ",")
-		qStr += strings.Join(__qlist, ",")
-	}
-	exec.Query = fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s)", t.model.Name, fieldStr, qStr)
+func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
+	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
+	exec := t.Toy.Dialect.InsertExec(t.model, recorders)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
-	return
+	return exec
 }
 
-func (t *ToyBrick) ReplaceExec(record ModelRecord) (exec ExecValue) {
-	fieldStr := ""
-	qStr := ""
-	exec = ExecValue{}
-	{
-		__list := []string{}
-		__qlist := []string{}
-
-		pairs := t.getFieldValuePairWithRecord(ModeReplace, record)
-		for _, pair := range pairs {
-			__list = append(__list, pair.Field.Name)
-			__qlist = append(__qlist, "?")
-			exec.Args = append(exec.Args, pair.Value.Interface())
-		}
-		fieldStr += strings.Join(__list, ",")
-		qStr += strings.Join(__qlist, ",")
-	}
-	exec.Query = fmt.Sprintf("REPLACE INTO %s(%s) VALUES(%s)", t.model.Name, fieldStr, qStr)
+func (t *ToyBrick) ReplaceExec(record ModelRecord) ExecValue {
+	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
+	exec := t.Toy.Dialect.ReplaceExec(t.model, recorders)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
-	return
+	return exec
 }
 
-func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []struct {
-	Field *ModelField
-	Value reflect.Value
-} {
+func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []ColumnValue {
 	var fields []*ModelField
 	if len(t.FieldsSelector[mode]) > 0 {
 		fields = t.FieldsSelector[mode]
@@ -868,10 +811,7 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []
 		fields = t.model.SqlFields
 		useIgnoreMode = record.IsVariableContainer() == false
 	}
-	var pairs []struct {
-		Field *ModelField
-		Value reflect.Value
-	}
+	var columnValues []ColumnValue
 	if useIgnoreMode {
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField); fieldValue.IsValid() {
@@ -879,10 +819,7 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []
 					if mField.PrimaryKey && IsZero(fieldValue) {
 
 					} else {
-						pairs = append(pairs, struct {
-							Field *ModelField
-							Value reflect.Value
-						}{mField, fieldValue})
+						columnValues = append(columnValues, &modelFieldValue{mField, fieldValue})
 					}
 				}
 			}
@@ -890,14 +827,11 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []
 	} else {
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField); fieldValue.IsValid() {
-				pairs = append(pairs, struct {
-					Field *ModelField
-					Value reflect.Value
-				}{mField, fieldValue})
+				columnValues = append(columnValues, &modelFieldValue{mField, fieldValue})
 			}
 		}
 	}
-	return pairs
+	return columnValues
 }
 
 func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) []*ModelField {
@@ -925,8 +859,9 @@ func (t *ToyBrick) getScanFields(records ModelRecordFieldTypes) []*ModelField {
 }
 
 // use for order by
-func (t *ToyBrick) ToDesc(v interface{}) *ModelField {
+func (t *ToyBrick) ToDesc(v interface{}) Column {
 	field := t.model.fieldSelect(v)
+
 	newField := *field
 	newField.Name = field.Name + " DESC"
 	return &newField

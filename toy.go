@@ -80,7 +80,7 @@ func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
 	vType := LoopTypeIndirect(reflect.ValueOf(v).Type())
 	svType := LoopTypeIndirect(reflect.ValueOf(sv).Type())
 	model, subModel := t.GetModel(vType), t.GetModel(svType)
-	middleModel := NewMiddleModel(model, subModel, t.Dialect)
+	middleModel := NewMiddleModel(model, subModel)
 	return NewToyBrick(t, middleModel)
 }
 
@@ -153,7 +153,7 @@ func (t *Toy) ManyToManyPreload(model *Model, field *ModelField, isRight bool) *
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
-			middleModel := NewMiddleModel(model, subModel, t.Dialect)
+			middleModel := NewMiddleModel(model, subModel)
 			relationField := GetMiddleField(model, middleModel, isRight)
 			subRelationField := GetMiddleField(subModel, middleModel, !isRight)
 			return t.ManyToManyPreloadBind(model, subModel, middleModel, field, relationField, subRelationField)

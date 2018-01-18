@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"time"
 )
 
 type NilType struct{}
@@ -83,9 +84,13 @@ func GetStructFields(_type reflect.Type) []reflect.StructField {
 	return fieldList
 }
 
-type SelectField struct {
-	ModelField
-	Value interface{}
+type modelFieldValue struct {
+	*ModelField
+	value reflect.Value
+}
+
+func (s *modelFieldValue) Value() reflect.Value {
+	return s.value
 }
 
 func LoopTypeIndirect(_type reflect.Type) reflect.Type {
@@ -234,47 +239,38 @@ func getFieldsWithRecords(fields []*ModelField, records ModelRecordFieldTypes) [
 	return selectFields
 }
 
-// use for insert/update/
-func getModelFieldAndValues(ignoreMode IgnoreMode, record ModelRecord, currentFields, defaultFields, sqlFields []*ModelField) []struct {
-	Field *ModelField
-	Value reflect.Value
-} {
-	var fields []*ModelField
-	if len(currentFields) > 0 {
-		fields = defaultFields
-	} else if len(defaultFields) > 0 {
-		fields = defaultFields
-	}
-
-	var useIgnoreMode bool
-	if len(fields) == 0 {
-		fields = sqlFields
-		useIgnoreMode = record.IsVariableContainer() == false
-	}
-	var pairs []struct {
-		Field *ModelField
-		Value reflect.Value
-	}
-	if useIgnoreMode {
-		for _, mField := range fields {
-			if fieldValue := record.Field(mField); fieldValue.IsValid() {
-				if ignoreMode.Ignore(fieldValue) == false {
-					pairs = append(pairs, struct {
-						Field *ModelField
-						Value reflect.Value
-					}{mField, fieldValue})
-				}
-			}
+func ToSqlType(_type reflect.Type) (sqlType string) {
+	switch _type.Kind() {
+	case reflect.Ptr:
+		sqlType = ToSqlType(_type.Elem())
+	case reflect.Bool:
+		sqlType = "BOOLEAN"
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Uint8, reflect.Uint16, reflect.Uint32:
+		sqlType = "INTEGER"
+	case reflect.Int64, reflect.Uint64, reflect.Int, reflect.Uint:
+		sqlType = "BIGINT"
+	case reflect.Float32, reflect.Float64:
+		sqlType = "FLOAT"
+	case reflect.String:
+		sqlType = "VARCHAR(255)"
+	case reflect.Struct:
+		if _, ok := reflect.New(_type).Elem().Interface().(time.Time); ok {
+			sqlType = "TIMESTAMP"
+		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullBool); ok {
+			sqlType = "BOOLEAN"
+		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullInt64); ok {
+			sqlType = "BIGINT"
+		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullString); ok {
+			sqlType = "VARCHAR(255)"
+		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.NullFloat64); ok {
+			sqlType = "FLOAT"
+		} else if _, ok := reflect.New(_type).Elem().Interface().(sql.RawBytes); ok {
+			sqlType = "VARCHAR(255)"
 		}
-	} else {
-		for _, mField := range fields {
-			if fieldValue := record.Field(mField); fieldValue.IsValid() {
-				pairs = append(pairs, struct {
-					Field *ModelField
-					Value reflect.Value
-				}{mField, fieldValue})
-			}
+	default:
+		if _, ok := reflect.New(_type).Elem().Interface().([]byte); ok {
+			sqlType = "VARCHAR(255)"
 		}
 	}
-	return pairs
+	return
 }
