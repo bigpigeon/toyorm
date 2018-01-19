@@ -2,7 +2,6 @@ package toyorm
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 )
 
