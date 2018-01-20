@@ -12,7 +12,7 @@ type NilType struct{}
 type QueryFunc func(string, ...interface{}) (*sql.Rows, error)
 
 /*
-Name convert rule:
+column convert rule:
 User => user
 UserName => user_name
 UserID => user_id
@@ -82,15 +82,6 @@ func GetStructFields(_type reflect.Type) []reflect.StructField {
 		}
 	}
 	return fieldList
-}
-
-type modelFieldValue struct {
-	*ModelField
-	value reflect.Value
-}
-
-func (s *modelFieldValue) Value() reflect.Value {
-	return s.value
 }
 
 func LoopTypeIndirect(_type reflect.Type) reflect.Type {
@@ -181,38 +172,16 @@ func SafeAppend(l reflect.Value, x ...reflect.Value) reflect.Value {
 	return reflect.Append(l, canAppend...)
 }
 
-//func GetBindFields(model *Model, _type reflect.Type) []*ModelField {
-//	var fields []*ModelField
-//	if _type == model.ReflectType {
-//		for _, mField := range model.SqlFields {
-//			fields = append(fields, mField)
-//		}
-//	} else if _type.Kind() == reflect.Struct {
-//		structFieldList := GetStructFields(_type)
-//		for i := 0; i < len(structFieldList); i++ {
-//			field := structFieldList[i]
-//			idx, ok := model.NameFields[field.Name]
-//			if ok && model.GetPosField(i).Ignore == false {
-//				// process with preload or field
-//				fields = append(fields, idx)
-//			}
-//		}
-//	} else {
-//		panic("cannot bind fields with a not struct type")
-//	}
-//	return fields
-//}
-
 // generate a default field name with relation model
 func GetRelationFieldName(subModel *Model) string {
-	return subModel.ReflectType.Name() + subModel.GetOnePrimary().Field.Name
+	return subModel.ReflectType.Name() + subModel.GetOnePrimary().Name()
 }
 
-func GetBelongsIDFieldName(subModel *Model, containerField *ModelField) string {
-	return containerField.Field.Name + subModel.GetOnePrimary().Field.Name
+func GetBelongsIDFieldName(subModel *Model, containerField Field) string {
+	return containerField.Name() + subModel.GetOnePrimary().Name()
 }
 
-func GetMiddleField(model, middleModel *Model, leftOrRight bool) *ModelField {
+func GetMiddleField(model, middleModel *Model, leftOrRight bool) Field {
 	// try to find field with name
 	if modelField := middleModel.GetFieldWithName(GetRelationFieldName(model)); modelField != nil {
 		return modelField
@@ -229,10 +198,10 @@ func makeRange(min, max int) (l []int) {
 	return
 }
 
-func getFieldsWithRecords(fields []*ModelField, records ModelRecordFieldTypes) []*ModelField {
-	var selectFields []*ModelField
+func getFieldsWithRecords(fields []Field, records ModelRecordFieldTypes) []Field {
+	var selectFields []Field
 	for _, field := range fields {
-		if _type := records.GetFieldType(field); _type != nil {
+		if _type := records.GetFieldType(field.Name()); _type != nil {
 			selectFields = append(selectFields, field)
 		}
 	}

@@ -5,25 +5,25 @@ import (
 )
 
 type ModelRecordFieldTypes interface {
-	GetFieldType(*ModelField) reflect.Type
+	GetFieldType(field string) reflect.Type
 }
 
 type ModelRecord interface {
-	AllField() map[*ModelField]reflect.Value
-	SetField(field *ModelField, v reflect.Value)
-	Field(field *ModelField) reflect.Value
-	FieldAddress(field *ModelField) reflect.Value
+	AllField() map[string]reflect.Value
+	SetField(field string, v reflect.Value)
+	Field(field string) reflect.Value
+	FieldAddress(field string) reflect.Value
 	IsVariableContainer() bool
 	Source() reflect.Value
-	GetFieldType(*ModelField) reflect.Type
+	GetFieldType(string) reflect.Type
 }
 
 type ModelRecords interface {
 	GetRecord(int) ModelRecord
 	GetRecords() []ModelRecord
 	Add(v reflect.Value) ModelRecord
-	GetFieldType(*ModelField) reflect.Type
-	GetFieldAddressType(*ModelField) reflect.Type
+	GetFieldType(string) reflect.Type
+	GetFieldAddressType(string) reflect.Type
 	IsVariableContainer() bool
 	ElemType() reflect.Type
 	Len() int

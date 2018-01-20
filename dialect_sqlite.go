@@ -21,17 +21,17 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	fieldStrList := []string{}
 
 	// for strange auto_increment syntax to do strange codition
-	isSinglePrimary := len(model.PrimaryFields) == 1
-	for _, sqlField := range model.SqlFields {
+	isSinglePrimary := len(model.GetPrimary()) == 1
+	for _, sqlField := range model.GetSqlFields() {
 
-		s := fmt.Sprintf("%s %s", sqlField.Name, sqlField.sqlType)
+		s := fmt.Sprintf("%s %s", sqlField.Column(), sqlField.SqlType())
 		if isSinglePrimary && sqlField == model.PrimaryFields[0] {
 			s += " PRIMARY KEY"
 		}
-		if sqlField.AutoIncrement {
+		if sqlField.AutoIncrement() {
 			s += " AUTOINCREMENT"
 		}
-		for k, v := range sqlField.CommonAttr {
+		for k, v := range sqlField.Attrs() {
 			if v == "" {
 				s += " " + k
 			} else {
@@ -45,7 +45,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	if isSinglePrimary == false {
 		primaryStrList := []string{}
 		for _, p := range model.GetPrimary() {
-			primaryStrList = append(primaryStrList, p.Name)
+			primaryStrList = append(primaryStrList, p.Column())
 		}
 		sqlStr := fmt.Sprintf("CREATE TABLE %s (%s, PRIMARY KEY(%s))",
 			model.Name,
@@ -65,7 +65,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	for key, fieldList := range model.GetIndexMap() {
 		fieldStrList := []string{}
 		for _, f := range fieldList {
-			fieldStrList = append(fieldStrList, f.Name)
+			fieldStrList = append(fieldStrList, f.Column())
 		}
 		indexStrList = append(indexStrList, fmt.Sprintf("CREATE INDEX %s ON %s(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
 	}
@@ -73,7 +73,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	for key, fieldList := range model.GetUniqueIndexMap() {
 		fieldStrList := []string{}
 		for _, f := range fieldList {
-			fieldStrList = append(fieldStrList, f.Name)
+			fieldStrList = append(fieldStrList, f.Column())
 		}
 		uniqueIndexStrList = append(uniqueIndexStrList, fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
 	}

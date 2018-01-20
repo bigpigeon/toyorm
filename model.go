@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -13,7 +12,7 @@ type tabler interface {
 }
 
 // table struct used to save all sql attribute with struct
-// Name is table name attribute
+// column is table name attribute
 // AllFields is all struct field and it's Anonymous struct
 // SqlFields is all about sql field
 // OffsetFields is map field offset
@@ -25,59 +24,102 @@ type tabler interface {
 type Model struct {
 	Name              string
 	ReflectType       reflect.Type
-	AllFields         []*ModelField
-	SqlFields         []*ModelField
-	FieldsPos         map[*ModelField]int
-	OffsetFields      map[uintptr]*ModelField
-	NameFields        map[string]*ModelField
-	LowerNameFields   map[string]*ModelField
-	PrimaryFields     []*ModelField
-	IndexFields       map[string][]*ModelField
-	UniqueIndexFields map[string][]*ModelField
-	StructFieldFields map[reflect.Type][]*ModelField
+	AllFields         []*modelField
+	SqlFields         []*modelField
+	FieldsPos         map[*modelField]int
+	OffsetFields      map[uintptr]*modelField
+	NameFields        map[string]*modelField
+	PrimaryFields     []*modelField
+	IndexFields       map[string][]*modelField
+	UniqueIndexFields map[string][]*modelField
+	StructFieldFields map[reflect.Type][]*modelField
 }
 
-func (t *Model) GetPosFields(pos []int) []*ModelField {
-	fields := make([]*ModelField, 0, len(pos))
+func (m *Model) GetPosFields(pos []int) []Field {
+	fields := make([]Field, 0, len(pos))
 	for _, i := range pos {
-		fields = append(fields, t.AllFields[i])
+		fields = append(fields, m.AllFields[i])
 	}
 	return fields
 }
 
-func (t *Model) GetPosField(pos int) *ModelField {
-	return t.AllFields[pos]
+func (m *Model) GetPosField(pos int) Field {
+	return m.AllFields[pos]
 }
 
-func (t *Model) GetSqlFields() []*ModelField {
-	return t.SqlFields
-}
-
-func (t *Model) GetOffsetField(offset uintptr) *ModelField {
-	return t.OffsetFields[offset]
-}
-
-func (t *Model) GetFieldWithName(name string) *ModelField {
-	return t.NameFields[name]
-}
-
-func (t *Model) GetPrimary() []*ModelField {
-	return t.PrimaryFields
-}
-
-func (t *Model) GetOnePrimary() *ModelField {
-	if len(t.PrimaryFields) > 1 {
-		panic(errors.New(fmt.Sprintf("%s have more than 1 primary", t.Name)))
+func (m *Model) GetSqlFields() []Field {
+	fields := make([]Field, len(m.SqlFields))
+	for i, f := range m.SqlFields {
+		fields[i] = f
 	}
-	return t.PrimaryFields[0]
+	return fields
 }
 
-func (t *Model) GetIndexMap() map[string][]*ModelField {
-	return t.IndexFields
+func (m *Model) GetNameFieldMap() map[string]Field {
+	fields := make(map[string]Field, len(m.NameFields))
+	for n, f := range m.NameFields {
+		fields[n] = f
+	}
+	return fields
 }
 
-func (t *Model) GetUniqueIndexMap() map[string][]*ModelField {
-	return t.UniqueIndexFields
+func (m *Model) GetOffsetFieldMap() map[uintptr]Field {
+	fields := make(map[uintptr]Field, len(m.OffsetFields))
+	for o, f := range m.OffsetFields {
+		fields[o] = f
+	}
+	return fields
+}
+
+func (m *Model) GetOffsetField(offset uintptr) Field {
+	if field, ok := m.OffsetFields[offset]; ok {
+		return field
+	}
+	return nil
+}
+
+func (m *Model) GetFieldWithName(name string) Field {
+	if field, ok := m.NameFields[name]; ok {
+		return field
+	}
+	return nil
+}
+
+func (m *Model) GetPrimary() []Field {
+	fields := make([]Field, len(m.PrimaryFields))
+	for i, f := range m.PrimaryFields {
+		fields[i] = f
+	}
+	return fields
+}
+
+func (m *Model) GetOnePrimary() Field {
+	if len(m.PrimaryFields) > 1 {
+		panic(errors.New(fmt.Sprintf("%s have more than 1 primary", m.Name)))
+	}
+	return m.PrimaryFields[0]
+}
+
+func (m *Model) GetIndexMap() map[string][]Field {
+	fieldMap := make(map[string][]Field, len(m.IndexFields))
+	for s, fields := range m.IndexFields {
+		fieldMap[s] = make([]Field, 0, len(fields))
+		for _, f := range fields {
+			fieldMap[s] = append(fieldMap[s], f)
+		}
+	}
+	return fieldMap
+}
+
+func (m *Model) GetUniqueIndexMap() map[string][]Field {
+	fieldMap := make(map[string][]Field, len(m.UniqueIndexFields))
+	for s, fields := range m.UniqueIndexFields {
+		fieldMap[s] = make([]Field, 0, len(fields))
+		for _, f := range fields {
+			fieldMap[s] = append(fieldMap[s], f)
+		}
+	}
+	return fieldMap
 }
 
 func NewModel(_type reflect.Type, dia Dialect) *Model {
@@ -105,7 +147,7 @@ func NewMiddleModel(model, subModel *Model) *Model {
 		sortdModel = [2]*Model{subModel, model}
 	}
 	for i, model := range sortdModel {
-		field := model.GetOnePrimary().Field
+		field := model.GetOnePrimary().StructField()
 		field.Tag = `toyorm:"primary key"`
 		field.Name = GetRelationFieldName(model)
 		fields[i] = field
@@ -121,14 +163,13 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	model := &Model{
 		Name:              modelName,
 		ReflectType:       _type,
-		FieldsPos:         map[*ModelField]int{},
-		OffsetFields:      map[uintptr]*ModelField{},
-		NameFields:        map[string]*ModelField{},
-		LowerNameFields:   map[string]*ModelField{},
-		PrimaryFields:     []*ModelField{},
-		IndexFields:       map[string][]*ModelField{},
-		UniqueIndexFields: map[string][]*ModelField{},
-		StructFieldFields: map[reflect.Type][]*ModelField{},
+		FieldsPos:         map[*modelField]int{},
+		OffsetFields:      map[uintptr]*modelField{},
+		NameFields:        map[string]*modelField{},
+		PrimaryFields:     []*modelField{},
+		IndexFields:       map[string][]*modelField{},
+		UniqueIndexFields: map[string][]*modelField{},
+		StructFieldFields: map[reflect.Type][]*modelField{},
 	}
 
 	for i := 0; i < _type.NumField(); i++ {
@@ -136,7 +177,7 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		if field.Anonymous && field.Type.Kind() == reflect.Struct {
 			embedTable := newModel(field.Type, model.Name)
 			for _, tabField := range embedTable.AllFields {
-				tabField.Offset += field.Offset
+				tabField.offset += field.Offset
 				model.AllFields = append(model.AllFields, tabField)
 			}
 		} else {
@@ -146,44 +187,41 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	}
 	// cache field attribute with model
 	for i := 0; i < len(model.AllFields); i++ {
-		field := model.GetPosField(i)
+		field := model.AllFields[i]
 		model.FieldsPos[field] = i
-		model.OffsetFields[field.Offset] = field
-		if _, ok := model.NameFields[field.Field.Name]; ok {
+		model.OffsetFields[field.offset] = field
+		if _, ok := model.NameFields[field.field.Name]; ok {
 			panic(ErrRepeatFieldName)
 		}
-		if _, ok := model.LowerNameFields[strings.ToLower(field.Field.Name)]; ok {
-			panic(ErrRepeatFieldName)
-		}
-		model.NameFields[field.Field.Name] = field
-		model.LowerNameFields[strings.ToLower(field.Field.Name)] = field
-		if field.PrimaryKey {
+
+		model.NameFields[field.field.Name] = field
+		if field.isPrimary {
 			model.PrimaryFields = append(model.PrimaryFields, field)
 		}
-		if field.Index != "" {
-			if _, ok := model.IndexFields[field.Index]; ok == false {
-				model.IndexFields[field.Index] = []*ModelField{}
+		if field.index != "" {
+			if _, ok := model.IndexFields[field.index]; ok == false {
+				model.IndexFields[field.index] = []*modelField{}
 			}
-			model.IndexFields[field.Index] = append(model.IndexFields[field.Index], field)
+			model.IndexFields[field.index] = append(model.IndexFields[field.index], field)
 		}
-		if field.UniqueIndex != "" {
-			if _, ok := model.UniqueIndexFields[field.UniqueIndex]; ok == false {
-				model.UniqueIndexFields[field.UniqueIndex] = []*ModelField{}
+		if field.uniqueIndex != "" {
+			if _, ok := model.UniqueIndexFields[field.uniqueIndex]; ok == false {
+				model.UniqueIndexFields[field.uniqueIndex] = []*modelField{}
 			}
-			model.UniqueIndexFields[field.UniqueIndex] = append(model.UniqueIndexFields[field.UniqueIndex], field)
+			model.UniqueIndexFields[field.uniqueIndex] = append(model.UniqueIndexFields[field.uniqueIndex], field)
 		}
-		if field.Ignore == false {
+		if field.ignore == false {
 			model.SqlFields = append(model.SqlFields, field)
 		} else {
 			// preload
-			var fieldType = LoopTypeIndirectSliceAndPtr(field.Field.Type)
+			var fieldType = LoopTypeIndirectSliceAndPtr(field.field.Type)
 			model.StructFieldFields[fieldType] = append(model.StructFieldFields[fieldType], field)
 		}
 	}
 	return model
 }
 
-func (m *Model) fieldSelect(v interface{}) *ModelField {
+func (m *Model) fieldSelect(v interface{}) Field {
 	switch v := v.(type) {
 	case int:
 		return m.SqlFields[v]
@@ -191,7 +229,7 @@ func (m *Model) fieldSelect(v interface{}) *ModelField {
 		return m.OffsetFields[v]
 	case string:
 		return m.NameFields[v]
-	case *ModelField:
+	case Field:
 		return v
 	default:
 		panic("invalid field value")
@@ -203,16 +241,4 @@ type ModelDefault struct {
 	CreatedAt time.Time  `toyorm:"NULL"`
 	UpdatedAt time.Time  `toyorm:"NULL"`
 	DeletedAt *time.Time `toyorm:"index;NULL"`
-}
-
-var StarField = &ModelField{
-	Name:          "*",
-	Offset:        0,
-	Ignore:        false,
-	CommonAttr:    map[string]string{},
-	AutoIncrement: false,
-	Field: reflect.StructField{
-		Name: "*",
-		Type: reflect.TypeOf(struct{}{}),
-	},
 }

@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"reflect"
-	"strings"
 )
 
 type Toy struct {
@@ -14,9 +13,9 @@ type Toy struct {
 	CacheMiddleModels        map[reflect.Type]*Model
 	CacheReverseMiddleModels map[reflect.Type]*Model
 	// map[model][container_field]
-	oneToOnePreload          map[*Model]map[*ModelField]*OneToOnePreload
-	oneToManyPreload         map[*Model]map[*ModelField]*OneToManyPreload
-	manyToManyPreload        map[*Model]map[*ModelField]*ManyToManyPreload
+	oneToOnePreload          map[*Model]map[string]*OneToOnePreload
+	oneToManyPreload         map[*Model]map[string]*OneToManyPreload
+	manyToManyPreload        map[*Model]map[string]*ManyToManyPreload
 	Dialect                  Dialect
 	DefaultHandlerChain      map[string]HandlersChain
 	DefaultModelHandlerChain map[string]map[*Model]HandlersChain
@@ -46,9 +45,9 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		db:                db,
 		CacheModels:       map[reflect.Type]*Model{},
 		CacheMiddleModels: map[reflect.Type]*Model{},
-		oneToOnePreload:   map[*Model]map[*ModelField]*OneToOnePreload{},
-		oneToManyPreload:  map[*Model]map[*ModelField]*OneToManyPreload{},
-		manyToManyPreload: map[*Model]map[*ModelField]*ManyToManyPreload{},
+		oneToOnePreload:   map[*Model]map[string]*OneToOnePreload{},
+		oneToManyPreload:  map[*Model]map[string]*OneToManyPreload{},
+		manyToManyPreload: map[*Model]map[string]*ManyToManyPreload{},
 		Dialect:           dialect,
 		DefaultHandlerChain: map[string]HandlersChain{
 			"CreateTable":           {HandlerNotRecordPreload("CreateTable"), HandlerCreateTable},
@@ -101,20 +100,20 @@ func (t *Toy) GetMiddleModel(_type reflect.Type) *Model {
 	return t.CacheModels[_type]
 }
 
-func (t *Toy) OneToOnePreload(model *Model, field *ModelField) *OneToOnePreload {
+func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	// try to find cache data
-	if t.oneToOnePreload[model] != nil && t.oneToOnePreload[model][field] != nil {
-		return t.oneToOnePreload[model][field]
+	if t.oneToOnePreload[model] != nil && t.oneToOnePreload[model][field.Name()] != nil {
+		return t.oneToOnePreload[model][field.Name()]
 	}
-	_type := LoopTypeIndirect(field.Field.Type)
+	_type := LoopTypeIndirect(field.StructField().Type)
 	if _type.Kind() != reflect.Struct {
 		return nil
 	}
 	if subModel := t.CacheModels[_type]; subModel != nil {
-		if relationField, ok := subModel.LowerNameFields[strings.ToLower(GetRelationFieldName(model))]; ok {
+		if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
 			return t.OneToOneBind(model, subModel, field, relationField, false)
 
-		} else if relationField, ok := model.LowerNameFields[strings.ToLower(GetBelongsIDFieldName(subModel, field))]; ok {
+		} else if relationField := model.GetFieldWithName(GetBelongsIDFieldName(subModel, field)); relationField != nil {
 			return t.OneToOneBind(model, subModel, field, relationField, true)
 		}
 	}
@@ -122,17 +121,17 @@ func (t *Toy) OneToOnePreload(model *Model, field *ModelField) *OneToOnePreload 
 	return nil
 }
 
-func (t *Toy) OneToManyPreload(model *Model, field *ModelField) *OneToManyPreload {
+func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 	// try to find cache data
-	if t.oneToManyPreload[model] != nil && t.oneToManyPreload[model][field] != nil {
-		return t.oneToManyPreload[model][field]
+	if t.oneToManyPreload[model] != nil && t.oneToManyPreload[model][field.Name()] != nil {
+		return t.oneToManyPreload[model][field.Name()]
 	}
 
-	_type := LoopTypeIndirect(field.Field.Type)
+	_type := LoopTypeIndirect(field.StructField().Type)
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
-			if relationField, ok := subModel.LowerNameFields[strings.ToLower(GetRelationFieldName(model))]; ok {
+			if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
 				return t.OneToManyBind(model, subModel, field, relationField)
 			}
 		}
@@ -140,16 +139,16 @@ func (t *Toy) OneToManyPreload(model *Model, field *ModelField) *OneToManyPreloa
 	return nil
 }
 
-func (t *Toy) ManyToManyPreload(model *Model, field *ModelField, isRight bool) *ManyToManyPreload {
+func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyToManyPreload {
 	// try to find cache data
-	if t.manyToManyPreload[model] != nil && t.manyToManyPreload[model][field] != nil {
-		return t.manyToManyPreload[model][field]
+	if t.manyToManyPreload[model] != nil && t.manyToManyPreload[model][field.Name()] != nil {
+		return t.manyToManyPreload[model][field.Name()]
 	}
 	if v := t.manyToManyPreload[model]; v == nil {
-		t.manyToManyPreload[model] = map[*ModelField]*ManyToManyPreload{}
+		t.manyToManyPreload[model] = map[string]*ManyToManyPreload{}
 	}
 
-	_type := LoopTypeIndirect(field.Field.Type)
+	_type := LoopTypeIndirect(field.StructField().Type)
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
@@ -162,38 +161,38 @@ func (t *Toy) ManyToManyPreload(model *Model, field *ModelField, isRight bool) *
 	return nil
 }
 
-func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField *ModelField, isBelongTo bool) *OneToOnePreload {
+func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field, isBelongTo bool) *OneToOnePreload {
 	if v := t.oneToOnePreload[model]; v == nil {
-		t.oneToOnePreload[model] = map[*ModelField]*OneToOnePreload{}
+		t.oneToOnePreload[model] = map[string]*OneToOnePreload{}
 	}
-	t.oneToOnePreload[model][containerField] = &OneToOnePreload{
+	t.oneToOnePreload[model][containerField.Name()] = &OneToOnePreload{
 		IsBelongTo:     isBelongTo,
 		Model:          model,
 		SubModel:       subModel,
 		RelationField:  relationField,
 		ContainerField: containerField,
 	}
-	return t.oneToOnePreload[model][containerField]
+	return t.oneToOnePreload[model][containerField.Name()]
 }
-func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField *ModelField) *OneToManyPreload {
+func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
 	if v := t.oneToManyPreload[model]; v == nil {
-		t.oneToManyPreload[model] = map[*ModelField]*OneToManyPreload{}
+		t.oneToManyPreload[model] = map[string]*OneToManyPreload{}
 	}
-	t.oneToManyPreload[model][containerField] = &OneToManyPreload{
+	t.oneToManyPreload[model][containerField.Name()] = &OneToManyPreload{
 		Model:          model,
 		SubModel:       subModel,
 		RelationField:  relationField,
 		ContainerField: containerField,
 	}
-	return t.oneToManyPreload[model][containerField]
+	return t.oneToManyPreload[model][containerField.Name()]
 }
 
-func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField *ModelField) *ManyToManyPreload {
+func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
 	if v := t.manyToManyPreload[model]; v == nil {
-		t.manyToManyPreload[model] = map[*ModelField]*ManyToManyPreload{}
+		t.manyToManyPreload[model] = map[string]*ManyToManyPreload{}
 	}
 	t.CacheMiddleModels[middleModel.ReflectType] = middleModel
-	t.manyToManyPreload[model][containerField] = &ManyToManyPreload{
+	t.manyToManyPreload[model][containerField.Name()] = &ManyToManyPreload{
 		Model:            model,
 		SubModel:         subModel,
 		MiddleModel:      middleModel,
@@ -201,7 +200,7 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 		RelationField:    relationField,
 		SubRelationField: subRelationField,
 	}
-	return t.manyToManyPreload[model][containerField]
+	return t.manyToManyPreload[model][containerField.Name()]
 }
 
 func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {

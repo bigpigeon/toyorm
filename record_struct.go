@@ -9,10 +9,10 @@ type ModelStructRecords struct {
 	model                  *Model
 	Type                   reflect.Type
 	source                 reflect.Value
-	RelationFieldPos       map[*ModelField]int
-	FieldTypes             map[*ModelField]reflect.Type
-	FieldValuesList        []map[*ModelField]reflect.Value
-	VirtualFieldValuesList []map[*ModelField]reflect.Value
+	RelationFieldPos       map[string]int
+	FieldTypes             map[string]reflect.Type
+	FieldValuesList        []map[string]reflect.Value
+	VirtualFieldValuesList []map[string]reflect.Value
 }
 
 func NewStructRecords(model *Model, value reflect.Value) *ModelStructRecords {
@@ -21,25 +21,25 @@ func NewStructRecords(model *Model, value reflect.Value) *ModelStructRecords {
 		model,
 		vElemType,
 		value,
-		map[*ModelField]int{},
-		map[*ModelField]reflect.Type{},
-		[]map[*ModelField]reflect.Value{},
-		[]map[*ModelField]reflect.Value{},
+		map[string]int{},
+		map[string]reflect.Type{},
+		[]map[string]reflect.Value{},
+		[]map[string]reflect.Value{},
 	}
 	vIndirectElemType := LoopTypeIndirectSliceAndPtr(vElemType)
 	if vIndirectElemType == model.ReflectType {
 		for i := 0; i < len(model.AllFields); i++ {
 			f := model.GetPosField(i)
-			records.FieldTypes[f] = f.Field.Type
-			records.RelationFieldPos[f] = i
+			records.FieldTypes[f.Name()] = f.StructField().Type
+			records.RelationFieldPos[f.Name()] = i
 		}
 	} else {
 		structFieldList := GetStructFields(vIndirectElemType)
 		// RelationFieldPos[model_field]->struct_field_pos
 		for si, field := range structFieldList {
-			if mField, ok := model.NameFields[field.Name]; ok {
-				records.FieldTypes[mField] = field.Type
-				records.RelationFieldPos[mField] = si
+			if mField := model.GetFieldWithName(field.Name); mField != nil {
+				records.FieldTypes[field.Name] = field.Type
+				records.RelationFieldPos[field.Name] = si
 			}
 		}
 	}
@@ -52,31 +52,31 @@ func NewStructRecord(model *Model, value reflect.Value) ModelRecord {
 	fieldValueList := GetStructValueFields(value)
 	structFieldList := GetStructFields(vtype)
 
-	record := map[*ModelField]reflect.Value{}
+	record := map[string]reflect.Value{}
 	if vtype == model.ReflectType {
 		for i := 0; i < len(model.AllFields); i++ {
-			record[model.GetPosField(i)] = fieldValueList[i]
+			record[model.GetPosField(i).Name()] = fieldValueList[i]
 		}
 	} else {
 		for i, field := range structFieldList {
-			if mField, ok := model.NameFields[field.Name]; ok {
-				record[mField] = fieldValueList[i]
+			if mField := model.GetFieldWithName(field.Name); mField != nil {
+				record[field.Name] = fieldValueList[i]
 			}
 		}
 	}
 	return &ModelStructRecord{
 		FieldValues:        record,
-		VirtualFieldValues: map[*ModelField]reflect.Value{},
+		VirtualFieldValues: map[string]reflect.Value{},
 		source:             value,
 		model:              model,
 	}
 }
 
-func (m *ModelStructRecords) GetFieldType(field *ModelField) reflect.Type {
+func (m *ModelStructRecords) GetFieldType(field string) reflect.Type {
 	return m.FieldTypes[field]
 }
 
-func (m *ModelStructRecords) GetFieldAddressType(field *ModelField) reflect.Type {
+func (m *ModelStructRecords) GetFieldAddressType(field string) reflect.Type {
 	return reflect.PtrTo(m.FieldTypes[field])
 }
 
@@ -106,11 +106,11 @@ func (m *ModelStructRecords) reallocate() {
 	m.FieldValuesList = nil
 	for i := 0; i < m.source.Len(); i++ {
 		// why need loop indirect? because data type can be []*ModelData{} or []**ModelData{}
-		c := map[*ModelField]reflect.Value{}
+		c := map[string]reflect.Value{}
 
 		fieldList := GetStructValueFields(LoopIndirectAndNew(m.source.Index(i)))
-		for mField, si := range m.RelationFieldPos {
-			c[mField] = fieldList[si]
+		for name, si := range m.RelationFieldPos {
+			c[name] = fieldList[si]
 		}
 		m.FieldValuesList = append(m.FieldValuesList, c)
 	}
@@ -141,13 +141,13 @@ func (m *ModelStructRecords) Add(v reflect.Value) ModelRecord {
 
 func (m *ModelStructRecords) sync() {
 	for i := len(m.FieldValuesList); i < m.source.Len(); i++ {
-		c := map[*ModelField]reflect.Value{}
+		c := map[string]reflect.Value{}
 
 		fieldList := GetStructValueFields(LoopIndirectAndNew(m.source.Index(i)))
-		for mField, si := range m.RelationFieldPos {
-			c[mField] = fieldList[si]
+		for name, si := range m.RelationFieldPos {
+			c[name] = fieldList[si]
 		}
-		vc := map[*ModelField]reflect.Value{}
+		vc := map[string]reflect.Value{}
 		m.FieldValuesList = append(m.FieldValuesList, c)
 		m.VirtualFieldValuesList = append(m.VirtualFieldValuesList, vc)
 	}
@@ -170,52 +170,52 @@ func (m *ModelStructRecords) Source() reflect.Value {
 }
 
 type ModelStructRecord struct {
-	FieldValues        map[*ModelField]reflect.Value
-	VirtualFieldValues map[*ModelField]reflect.Value
+	FieldValues        map[string]reflect.Value
+	VirtualFieldValues map[string]reflect.Value
 	source             reflect.Value
 	model              *Model
 }
 
 // set field to field value map or virtual field value map
 // but if value is invalid delete it on map
-func (m *ModelStructRecord) SetField(field *ModelField, value reflect.Value) {
-	if field == nil {
+func (m *ModelStructRecord) SetField(name string, value reflect.Value) {
+	if name == "" {
 		return
 	}
-	fieldValue := m.FieldValues[field]
+	fieldValue := m.FieldValues[name]
 	if value.Kind() == reflect.Ptr {
 		panic("RecordFieldSetError: value cannot be a ptr")
 	}
 	if fieldValue.IsValid() == false {
-		m.VirtualFieldValues[field] = reflect.New(field.Field.Type).Elem()
-		fieldValue = m.VirtualFieldValues[field]
+		m.VirtualFieldValues[name] = reflect.New(m.model.GetFieldWithName(name).StructField().Type).Elem()
+		fieldValue = m.VirtualFieldValues[name]
 	}
 	fieldValue = LoopIndirectAndNew(fieldValue)
 	SafeSet(fieldValue, value)
 	//fmt.Printf("source :%#v\n", m.source)
 }
 
-func (m *ModelStructRecord) Field(field *ModelField) reflect.Value {
-	if v := m.FieldValues[field]; v.IsValid() {
+func (m *ModelStructRecord) Field(name string) reflect.Value {
+	if v := m.FieldValues[name]; v.IsValid() {
 		return v
 	}
-	return m.VirtualFieldValues[field]
+	return m.VirtualFieldValues[name]
 }
 
-func (m *ModelStructRecord) FieldAddress(field *ModelField) reflect.Value {
-	if v := m.FieldValues[field]; v.IsValid() {
+func (m *ModelStructRecord) FieldAddress(name string) reflect.Value {
+	if v := m.FieldValues[name]; v.IsValid() {
 		return v.Addr()
 	}
-	return m.VirtualFieldValues[field].Addr()
+	return m.VirtualFieldValues[name].Addr()
 }
 
-func (m *ModelStructRecord) AllField() map[*ModelField]reflect.Value {
-	fieldValues := map[*ModelField]reflect.Value{}
-	for field, fieldValue := range m.FieldValues {
-		fieldValues[field] = fieldValue
+func (m *ModelStructRecord) AllField() map[string]reflect.Value {
+	fieldValues := map[string]reflect.Value{}
+	for name, fieldValue := range m.FieldValues {
+		fieldValues[name] = fieldValue
 	}
-	for field, fieldValue := range m.VirtualFieldValues {
-		fieldValues[field] = fieldValue
+	for name, fieldValue := range m.VirtualFieldValues {
+		fieldValues[name] = fieldValue
 	}
 	return fieldValues
 }
@@ -228,8 +228,8 @@ func (m *ModelStructRecord) Source() reflect.Value {
 	return m.source
 }
 
-func (m *ModelStructRecord) GetFieldType(field *ModelField) reflect.Type {
-	if fieldValue := m.FieldValues[field]; fieldValue.IsValid() {
+func (m *ModelStructRecord) GetFieldType(name string) reflect.Type {
+	if fieldValue := m.FieldValues[name]; fieldValue.IsValid() {
 		return fieldValue.Type()
 	}
 	return nil

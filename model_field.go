@@ -8,42 +8,82 @@ import (
 
 type Field interface {
 	Column
+	Name() string
+	Offset() uintptr
 	IsPrimary() bool
+	AutoIncrement() bool
 	Index() string
 	UniqueIndex() string
-	Type() reflect.Type
 	Attr(string) string
+	Attrs() map[string]string
 	SqlType() string
+	StructField() reflect.StructField
 }
 
-type ModelField struct {
-	Name          string
+type modelField struct {
+	column        string
 	sqlType       string
-	Offset        uintptr
-	PrimaryKey    bool
-	Index         string
-	UniqueIndex   string
-	Ignore        bool
-	CommonAttr    map[string]string
-	AutoIncrement bool
-	Field         reflect.StructField
+	offset        uintptr
+	isPrimary     bool
+	index         string
+	uniqueIndex   string
+	ignore        bool
+	attrs         map[string]string
+	autoIncrement bool
+	field         reflect.StructField
 }
 
-func (m *ModelField) Column() string {
-	return m.Name
+func (m *modelField) Column() string {
+	return m.column
 }
 
-func (m *ModelField) IsPrimary() bool {
-	return m.PrimaryKey
+func (m *modelField) Name() string {
+	return m.field.Name
 }
 
-func NewField(f *reflect.StructField, table_name string) *ModelField {
-	field := &ModelField{
-		Field:      *f,
-		CommonAttr: map[string]string{},
-		Name:       SqlNameConvert(f.Name),
-		Offset:     f.Offset,
-		sqlType:    ToSqlType(f.Type),
+func (m *modelField) Offset() uintptr {
+	return m.offset
+}
+
+func (m *modelField) IsPrimary() bool {
+	return m.isPrimary
+}
+
+func (m *modelField) AutoIncrement() bool {
+	return m.autoIncrement
+}
+
+func (m *modelField) Index() string {
+	return m.index
+}
+
+func (m *modelField) UniqueIndex() string {
+	return m.uniqueIndex
+}
+
+func (m *modelField) StructField() reflect.StructField {
+	return m.field
+}
+
+func (m *modelField) Attr(s string) string {
+	return m.attrs[s]
+}
+
+func (m *modelField) Attrs() map[string]string {
+	return m.attrs
+}
+
+func (m *modelField) SqlType() string {
+	return m.sqlType
+}
+
+func NewField(f *reflect.StructField, table_name string) *modelField {
+	field := &modelField{
+		field:   *f,
+		attrs:   map[string]string{},
+		column:  SqlNameConvert(f.Name),
+		offset:  f.Offset,
+		sqlType: ToSqlType(f.Type),
 	}
 
 	// set attribute by tag
@@ -63,33 +103,33 @@ func NewField(f *reflect.StructField, table_name string) *ModelField {
 		}
 		switch strings.ToLower(key) {
 		case "auto_increment", "autoincrement":
-			field.AutoIncrement = true
+			field.autoIncrement = true
 		case "primary key":
-			field.PrimaryKey = true
+			field.isPrimary = true
 		case "type":
 			field.sqlType = val
 		case "index":
 			if val == "" {
-				field.Index = fmt.Sprintf("idx_%s_%s", table_name, strings.ToLower(f.Name))
+				field.index = fmt.Sprintf("idx_%s_%s", table_name, strings.ToLower(f.Name))
 			} else {
-				field.Index = val
+				field.index = val
 			}
 		case "unique index":
 			if val == "" {
-				field.UniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, strings.ToLower(f.Name))
+				field.uniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, strings.ToLower(f.Name))
 			} else {
-				field.UniqueIndex = val
+				field.uniqueIndex = val
 			}
 		case "column":
-			field.Name = val
+			field.column = val
 		case "-":
-			field.Ignore = true
+			field.ignore = true
 		default:
-			field.CommonAttr[key] = val
+			field.attrs[key] = val
 		}
 	}
-	if field.Name == "" || field.sqlType == "" {
-		field.Ignore = true
+	if field.column == "" || field.sqlType == "" {
+		field.ignore = true
 	}
 	return field
 }

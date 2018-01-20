@@ -12,9 +12,9 @@ type OneToOnePreload struct {
 	IsBelongTo    bool
 	Model         *Model
 	SubModel      *Model
-	RelationField *ModelField
+	RelationField Field
 	// used to save other table value
-	ContainerField *ModelField
+	ContainerField Field
 }
 
 // this is describe one to many relationship with table and its sub table
@@ -22,8 +22,8 @@ type OneToOnePreload struct {
 type OneToManyPreload struct {
 	Model          *Model
 	SubModel       *Model
-	RelationField  *ModelField
-	ContainerField *ModelField
+	RelationField  Field
+	ContainerField Field
 }
 
 // this is describe many to many relationship with table and its sub table
@@ -32,7 +32,7 @@ type ManyToManyPreload struct {
 	MiddleModel      *Model
 	Model            *Model
 	SubModel         *Model
-	ContainerField   *ModelField
-	RelationField    *ModelField
-	SubRelationField *ModelField
+	ContainerField   Field
+	RelationField    Field
+	SubRelationField Field
 }

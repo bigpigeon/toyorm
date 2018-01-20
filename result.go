@@ -10,9 +10,9 @@ type Result struct {
 	Records        ModelRecords
 	ActionFlow     []SqlAction
 	RecordsActions map[int][]SqlAction
-	Preload        map[*ModelField]*Result
+	Preload        map[string]*Result
 	// in many-to-many model, have a middle model query need to record
-	MiddleModelPreload map[*ModelField]*Result
+	MiddleModelPreload map[string]*Result
 }
 
 func (r *Result) Err() error {
@@ -36,16 +36,16 @@ func (r *Result) Err() error {
 			}
 		}
 	}
-	for mField, preload := range r.Preload {
+	for name, preload := range r.Preload {
 		err := preload.Err()
 		if err != nil {
-			errStr += fmt.Sprintf("Preload %s errors:\n%s", mField.Field.Name, err)
+			errStr += fmt.Sprintf("Preload %s errors:\n%s", name, err)
 		}
 	}
-	for mField, preload := range r.MiddleModelPreload {
+	for name, preload := range r.MiddleModelPreload {
 		err := preload.Err()
 		if err != nil {
-			errStr += fmt.Sprintf("Middle Preload %s errors:\n%s", mField.Field.Name, err)
+			errStr += fmt.Sprintf("Middle Preload %s errors:\n%s", name, err)
 		}
 	}
 	if errStr != "" {

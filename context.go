@@ -24,9 +24,9 @@ func NewContext(handlers HandlersChain, brick *ToyBrick, columns ModelRecords) *
 		Brick:    brick,
 		Result: &Result{
 			Records:            columns,
-			Preload:            map[*ModelField]*Result{},
+			Preload:            map[string]*Result{},
 			RecordsActions:     map[int][]SqlAction{},
-			MiddleModelPreload: map[*ModelField]*Result{},
+			MiddleModelPreload: map[string]*Result{},
 		},
 	}
 }
@@ -39,7 +39,7 @@ func (c *Context) Next() error {
 	c.index++
 	//handlerNames := make([]string, len(c.handlers))
 	//for i, h := range c.handlers {
-	//	handlerNames[i] = runtime.FuncForPC(reflect.ValueOf(h).Pointer()).Name()
+	//	handlerNames[i] = runtime.FuncForPC(reflect.ValueOf(h).Pointer()).column()
 	//}
 	var err error
 	for s := int8(len(c.handlers)); c.index < s; c.index++ {

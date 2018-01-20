@@ -9,7 +9,7 @@ type ModelOffsetMapRecords struct {
 	model           *Model
 	elemType        reflect.Type
 	source          reflect.Value
-	FieldValuesList []map[*ModelField]reflect.Value
+	FieldValuesList []map[string]reflect.Value
 }
 
 func NewOffsetMapRecords(model *Model, m reflect.Value) *ModelOffsetMapRecords {
@@ -17,17 +17,17 @@ func NewOffsetMapRecords(model *Model, m reflect.Value) *ModelOffsetMapRecords {
 		model,
 		m.Type().Elem(),
 		m,
-		[]map[*ModelField]reflect.Value{},
+		[]map[string]reflect.Value{},
 	}
 
 	for i := 0; i < records.source.Len(); i++ {
 		// why need LoopIndirect? because m could be []*map[uintptr]interface{}
 		elem := LoopIndirect(records.source.Index(i))
-		c := map[*ModelField]reflect.Value{}
-		for offset, field := range model.OffsetFields {
+		c := map[string]reflect.Value{}
+		for offset, field := range model.GetOffsetFieldMap() {
 			if elemField := elem.MapIndex(reflect.ValueOf(offset)); elemField.IsValid() {
 				elemField = elemField.Elem()
-				c[field] = elemField
+				c[field.Name()] = elemField
 			}
 		}
 		records.FieldValuesList = append(records.FieldValuesList, c)
@@ -37,15 +37,15 @@ func NewOffsetMapRecords(model *Model, m reflect.Value) *ModelOffsetMapRecords {
 
 func NewOffsetMapRecord(model *Model, v reflect.Value) *ModelOffsetMapRecord {
 	record := &ModelOffsetMapRecord{
-		map[*ModelField]reflect.Value{},
+		map[string]reflect.Value{},
 		v,
 		model,
 	}
 
-	for offset, mField := range model.OffsetFields {
+	for offset, mField := range model.GetOffsetFieldMap() {
 		if fieldValue := v.MapIndex(reflect.ValueOf(offset)); fieldValue.IsValid() {
 			fieldValue = fieldValue.Elem()
-			record.FieldValues[mField] = fieldValue
+			record.FieldValues[mField.Name()] = fieldValue
 		}
 	}
 	return record
@@ -77,11 +77,11 @@ func (m *ModelOffsetMapRecords) Add(v reflect.Value) ModelRecord {
 	}
 	m.source.Set(reflect.Append(m.source, v))
 	v = LoopIndirectAndNew(v)
-	c := map[*ModelField]reflect.Value{}
+	c := map[string]reflect.Value{}
 	for offset, field := range m.model.OffsetFields {
 		if elemField := v.MapIndex(reflect.ValueOf(offset)); elemField.IsValid() {
 			elemField = elemField.Elem()
-			c[field] = elemField
+			c[field.Name()] = elemField
 		}
 	}
 
@@ -93,10 +93,11 @@ func (m *ModelOffsetMapRecords) Add(v reflect.Value) ModelRecord {
 	}
 }
 
-func (m *ModelOffsetMapRecords) GetFieldType(field *ModelField) reflect.Type {
-	t := LoopTypeIndirect(field.Field.Type)
+func (m *ModelOffsetMapRecords) GetFieldType(name string) reflect.Type {
+	fieldType := m.model.GetFieldWithName(name).StructField().Type
+	t := LoopTypeIndirect(fieldType)
 	if _, ok := reflect.Zero(t).Interface().(time.Time); ok {
-		return field.Field.Type
+		return fieldType
 	}
 	switch t.Kind() {
 	case reflect.Struct:
@@ -104,12 +105,12 @@ func (m *ModelOffsetMapRecords) GetFieldType(field *ModelField) reflect.Type {
 	case reflect.Slice:
 		return reflect.TypeOf([]map[uintptr]interface{}{})
 	default:
-		return field.Field.Type
+		return fieldType
 	}
 }
 
-func (m *ModelOffsetMapRecords) GetFieldAddressType(field *ModelField) reflect.Type {
-	return m.GetFieldType(field)
+func (m *ModelOffsetMapRecords) GetFieldAddressType(name string) reflect.Type {
+	return m.GetFieldType(name)
 }
 
 func (m *ModelOffsetMapRecords) IsVariableContainer() bool {
@@ -129,35 +130,37 @@ func (m *ModelOffsetMapRecords) Source() reflect.Value {
 }
 
 type ModelOffsetMapRecord struct {
-	FieldValues map[*ModelField]reflect.Value
+	FieldValues map[string]reflect.Value
 	source      reflect.Value
 	model       *Model
 }
 
-func (m *ModelOffsetMapRecord) SetField(field *ModelField, value reflect.Value) {
-	if field == nil {
+func (m *ModelOffsetMapRecord) SetField(name string, value reflect.Value) {
+	if name == "" {
 		return
 	}
-	offset := reflect.ValueOf(field.Offset)
-	if fieldValue := m.source.MapIndex(offset); fieldValue.IsValid() {
-		SafeMapSet(m.source, offset, value)
-	} else if value.IsValid() {
-		elem := reflect.New(field.Field.Type).Elem()
-		SafeSet(elem, value)
-		m.source.SetMapIndex(offset, elem)
-		m.FieldValues[field] = m.source.MapIndex(offset).Elem()
+	if field := m.model.GetFieldWithName(name); field != nil {
+		offset := reflect.ValueOf(field.Offset())
+		if fieldValue := m.source.MapIndex(offset); fieldValue.IsValid() {
+			SafeMapSet(m.source, offset, value)
+		} else if value.IsValid() {
+			elem := reflect.New(field.StructField().Type).Elem()
+			SafeSet(elem, value)
+			m.source.SetMapIndex(offset, elem)
+		}
+		m.FieldValues[name] = m.source.MapIndex(offset).Elem()
 	}
 }
 
-func (m *ModelOffsetMapRecord) Field(field *ModelField) reflect.Value {
-	return m.FieldValues[field]
+func (m *ModelOffsetMapRecord) Field(name string) reflect.Value {
+	return m.FieldValues[name]
 }
 
-func (m *ModelOffsetMapRecord) FieldAddress(field *ModelField) reflect.Value {
-	return m.FieldValues[field]
+func (m *ModelOffsetMapRecord) FieldAddress(name string) reflect.Value {
+	return m.FieldValues[name]
 }
 
-func (m *ModelOffsetMapRecord) AllField() map[*ModelField]reflect.Value {
+func (m *ModelOffsetMapRecord) AllField() map[string]reflect.Value {
 	return m.FieldValues
 }
 
@@ -169,10 +172,11 @@ func (m *ModelOffsetMapRecord) Source() reflect.Value {
 	return m.source
 }
 
-func (m *ModelOffsetMapRecord) GetFieldType(field *ModelField) reflect.Type {
-	t := LoopTypeIndirect(field.Field.Type)
+func (m *ModelOffsetMapRecord) GetFieldType(name string) reflect.Type {
+	fieldType := m.model.GetFieldWithName(name).StructField().Type
+	t := LoopTypeIndirect(fieldType)
 	if _, ok := reflect.Zero(t).Interface().(time.Time); ok {
-		return field.Field.Type
+		return fieldType
 	}
 	switch t.Kind() {
 	case reflect.Struct:
@@ -180,6 +184,6 @@ func (m *ModelOffsetMapRecord) GetFieldType(field *ModelField) reflect.Type {
 	case reflect.Slice:
 		return reflect.TypeOf([]map[uintptr]interface{}{})
 	default:
-		return field.Field.Type
+		return fieldType
 	}
 }

@@ -20,10 +20,10 @@ func TestStructRecord(t *testing.T) {
 	}}
 	records := NewRecords(model, reflect.ValueOf(&data).Elem())
 
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)), reflect.Value{})
-	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), int32(1))
-	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0).Name()), reflect.Value{})
+	records.GetRecord(0).SetField(model.GetPosField(0).Name(), reflect.ValueOf(1))
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0).Name()).Interface(), int32(1))
+	records.GetRecord(0).SetField(model.GetPosField(1).Name(), reflect.ValueOf("verybigpigeon"))
 	assert.Equal(t, data[0].Name, "verybigpigeon")
 	t.Log(data)
 	// test add
@@ -49,11 +49,12 @@ func TestNameMapRecord(t *testing.T) {
 		"Value":    20,
 	}}
 	records := NewRecords(model, reflect.ValueOf(&data).Elem())
-	//t.Log(records.GetRecord(0).Field(0))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)), reflect.Value{})
-	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), int32(1))
-	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
+
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0).Name()), reflect.Value{})
+	records.GetRecord(0).SetField(model.GetPosField(0).Name(), reflect.ValueOf(1))
+	t.Log(records.GetRecord(0).Source())
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0).Name()).Interface(), int32(1))
+	records.GetRecord(0).SetField(model.GetPosField(1).Name(), reflect.ValueOf("verybigpigeon"))
 	t.Log(data)
 	assert.Equal(t, data[0]["Name"], "verybigpigeon")
 	// test add
@@ -75,11 +76,11 @@ func TestOffsetMapRecord(t *testing.T) {
 		Offsetof(TestCreateTable3{}.Value):    20,
 	}}
 	records := NewRecords(model, reflect.ValueOf(&data).Elem())
-	//t.Log(records.GetRecord(0).Field(0))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)), reflect.Value{})
-	records.GetRecord(0).SetField(model.GetPosField(0), reflect.ValueOf(1))
-	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0)).Interface(), int32(1))
-	records.GetRecord(0).SetField(model.GetPosField(1), reflect.ValueOf("verybigpigeon"))
+
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0).Name()), reflect.Value{})
+	records.GetRecord(0).SetField(model.GetPosField(0).Name(), reflect.ValueOf(1))
+	assert.Equal(t, records.GetRecord(0).Field(model.GetPosField(0).Name()).Interface(), int32(1))
+	records.GetRecord(0).SetField(model.GetPosField(1).Name(), reflect.ValueOf("verybigpigeon"))
 	assert.Equal(t, data[0][Offsetof(TestCreateTable3{}.Name)], "verybigpigeon")
 	t.Log(data)
 	// test add

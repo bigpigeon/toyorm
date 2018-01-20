@@ -34,7 +34,7 @@ func (op SearchExpr) IsBranch() bool {
 }
 
 type SearchObjVal struct {
-	Field *ModelField
+	Field *modelField
 	Val   interface{}
 }
 
