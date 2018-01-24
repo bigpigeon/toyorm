@@ -29,6 +29,7 @@ type Model struct {
 	FieldsPos         map[*modelField]int
 	OffsetFields      map[uintptr]*modelField
 	NameFields        map[string]*modelField
+	SqlFieldMap       map[string]*modelField
 	PrimaryFields     []*modelField
 	IndexFields       map[string][]*modelField
 	UniqueIndexFields map[string][]*modelField
@@ -122,20 +123,14 @@ func (m *Model) GetUniqueIndexMap() map[string][]Field {
 	return fieldMap
 }
 
-func NewModel(_type reflect.Type, dia Dialect) *Model {
+func NewModel(_type reflect.Type) *Model {
 	if _type.Kind() != reflect.Struct {
 		panic(ErrInvalidModelType(_type.Name()))
 	}
 	if _type.Name() == "" {
 		panic(ErrInvalidModelName{})
 	}
-	var modelName string
-	if v, ok := reflect.New(_type).Interface().(tabler); ok {
-		modelName = v.TableName()
-	} else {
-		modelName = SqlNameConvert(_type.Name())
-	}
-	return newModel(_type, modelName)
+	return newModel(_type, ModelName(_type))
 }
 
 func NewMiddleModel(model, subModel *Model) *Model {
@@ -166,6 +161,7 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		FieldsPos:         map[*modelField]int{},
 		OffsetFields:      map[uintptr]*modelField{},
 		NameFields:        map[string]*modelField{},
+		SqlFieldMap:       map[string]*modelField{},
 		PrimaryFields:     []*modelField{},
 		IndexFields:       map[string][]*modelField{},
 		UniqueIndexFields: map[string][]*modelField{},
@@ -191,10 +187,10 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		model.FieldsPos[field] = i
 		model.OffsetFields[field.offset] = field
 		if _, ok := model.NameFields[field.field.Name]; ok {
-			panic(ErrRepeatFieldName)
+			panic(ErrRepeatField{model.Name, field.field.Name})
 		}
-
 		model.NameFields[field.field.Name] = field
+
 		if field.isPrimary {
 			model.PrimaryFields = append(model.PrimaryFields, field)
 		}
@@ -211,6 +207,10 @@ func newModel(_type reflect.Type, modelName string) *Model {
 			model.UniqueIndexFields[field.uniqueIndex] = append(model.UniqueIndexFields[field.uniqueIndex], field)
 		}
 		if field.ignore == false {
+			if oldField, ok := model.SqlFieldMap[field.column]; ok {
+				panic(ErrSameColumnName{model.Name, field.column, oldField.field.Name, field.field.Name})
+			}
+			model.SqlFieldMap[field.column] = field
 			model.SqlFields = append(model.SqlFields, field)
 		} else {
 			// preload
@@ -230,6 +230,21 @@ func (m *Model) fieldSelect(v interface{}) Field {
 	case string:
 		return m.NameFields[v]
 	case Field:
+		return v
+	default:
+		panic("invalid field value")
+	}
+}
+
+func (m *Model) columnSelect(v interface{}) Column {
+	switch v := v.(type) {
+	case int:
+		return m.SqlFields[v]
+	case uintptr:
+		return m.OffsetFields[v]
+	case string:
+		return m.NameFields[v]
+	case Column:
 		return v
 	default:
 		panic("invalid field value")

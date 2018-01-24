@@ -28,13 +28,14 @@ type ToyBrick struct {
 	Search  SearchList
 	offset  int
 	limit   int
+	groupBy []Column
 
 	// use by find/scan/insert/update/replace/where ,if FieldsSelector[Mode] is set,then ignoreModeSelector will failure
 	// FieldsSelector[ModeDefault] can work on all Mode when they specified Mode not set
-	FieldsSelector map[Mode][]Field
+	FieldsSelector [ModeEnd][]Field
 	// use by insert/update/replace/where  when source value is struct
 	// ignoreMode IgnoreMode
-	ignoreModeSelector map[Mode]IgnoreMode
+	ignoreModeSelector [ModeEnd]IgnoreMode
 }
 
 func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
@@ -45,11 +46,11 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 		OneToOnePreload:   map[string]*OneToOnePreload{},
 		OneToManyPreload:  map[string]*OneToManyPreload{},
 		ManyToManyPreload: map[string]*ManyToManyPreload{},
-		ignoreModeSelector: map[Mode]IgnoreMode{
+		ignoreModeSelector: [ModeEnd]IgnoreMode{
 			ModeInsert:    IgnoreNo,
 			ModeReplace:   IgnoreNo,
-			ModeCondition: IgnoreZero,
 			ModeUpdate:    IgnoreZero,
+			ModeCondition: IgnoreZero,
 		},
 	}
 }
@@ -78,10 +79,8 @@ func (t *ToyBrick) CopyStatus(statusBrick *ToyBrick) *ToyBrick {
 	newt := *t
 	newt.tx = statusBrick.tx
 	newt.debug = statusBrick.debug
-	newt.ignoreModeSelector = map[Mode]IgnoreMode{}
-	for k, v := range t.ignoreModeSelector {
-		newt.ignoreModeSelector[k] = v
-	}
+	newt.ignoreModeSelector = t.ignoreModeSelector
+
 	return &newt
 }
 
@@ -297,18 +296,15 @@ func (t *ToyBrick) CustomManyToManyPreload(container, middleStruct, relation, su
 	return newSubt
 }
 
-func (t *ToyBrick) BindFields(mode string, args ...interface{}) *ToyBrick {
+func (t *ToyBrick) BindFields(mode Mode, args ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		var fields []Field
 		for _, v := range args {
 			fields = append(fields, t.model.fieldSelect(v))
 		}
 		newt := *t
-		newt.FieldsSelector = map[Mode][]Field{}
-		for k, v := range t.FieldsSelector {
-			newt.FieldsSelector[k] = v
-		}
-		newt.FieldsSelector[Mode(mode)] = fields
+
+		newt.FieldsSelector[mode] = fields
 		return &newt
 	})
 }
@@ -325,10 +321,6 @@ func (t *ToyBrick) BindDefaultFields(args ...interface{}) *ToyBrick {
 func (t *ToyBrick) bindDefaultFields(fields ...Field) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
-		newt.FieldsSelector = map[Mode][]Field{}
-		for k, v := range t.FieldsSelector {
-			newt.FieldsSelector[k] = v
-		}
 		newt.FieldsSelector[ModeDefault] = fields
 		return &newt
 	})
@@ -337,11 +329,8 @@ func (t *ToyBrick) bindDefaultFields(fields ...Field) *ToyBrick {
 func (t *ToyBrick) bindFields(mode Mode, fields ...Field) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
-		newt.FieldsSelector = map[Mode][]Field{}
-		for k, v := range t.FieldsSelector {
-			newt.FieldsSelector[k] = v
-		}
-		newt.FieldsSelector[Mode(mode)] = fields
+
+		newt.FieldsSelector[mode] = fields
 		return &newt
 	})
 }
@@ -421,7 +410,19 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 		newt := *t
 		newt.orderBy = nil
 		for _, v := range vList {
-			newt.orderBy = append(newt.orderBy, newt.model.fieldSelect(v))
+			newt.orderBy = append(newt.orderBy, newt.model.columnSelect(v))
+		}
+		return &newt
+	})
+}
+
+func (t *ToyBrick) GroupBy(vList ...interface{}) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		newt.groupBy = nil
+		for _, v := range vList {
+			field := newt.model.fieldSelect(v)
+			newt.groupBy = append(newt.groupBy, field)
 		}
 		return &newt
 	})
@@ -455,13 +456,9 @@ func (t *ToyBrick) Debug() *ToyBrick {
 	})
 }
 
-func (t *ToyBrick) IgnoreMode(s string, ignore IgnoreMode) *ToyBrick {
+func (t *ToyBrick) IgnoreMode(s Mode, ignore IgnoreMode) *ToyBrick {
 	newt := *t
-	newt.ignoreModeSelector = map[Mode]IgnoreMode{}
-	for k, v := range t.ignoreModeSelector {
-		newt.ignoreModeSelector[k] = v
-	}
-	newt.ignoreModeSelector[Mode(s)] = ignore
+	newt.ignoreModeSelector[s] = ignore
 	return &newt
 }
 
@@ -744,6 +741,10 @@ func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
+
+	gExec := t.Toy.Dialect.GroupByExec(t.model, t.groupBy)
+	exec.Query += " " + gExec.Query
+	exec.Args = append(exec.Args, gExec.Args...)
 	return exec
 }
 
@@ -850,9 +851,8 @@ func (t *ToyBrick) ToDesc(v interface{}) Column {
 }
 
 // count for
-func (t *ToyBrick) CountFor(v interface{}) Column {
+func (t *ToyBrick) CountFor(v interface{}) ColumnName {
 	field := t.model.fieldSelect(v)
-
-	column := StrColumn(fmt.Sprintf("count(%s)", field.Name()))
+	column := ScanField{"CountWith" + field.Name(), fmt.Sprintf("count(%s)", field.Column())}
 	return column
 }

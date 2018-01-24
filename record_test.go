@@ -8,7 +8,7 @@ import (
 )
 
 func TestStructRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type(), MySqlDialect{})
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
 	data := []struct {
 		Name     string
 		Category string
@@ -42,7 +42,7 @@ func TestStructRecord(t *testing.T) {
 }
 
 func TestNameMapRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type(), MySqlDialect{})
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
 	data := []map[string]interface{}{{
 		"Name":     "bigpigeon",
 		"Category": "user",
@@ -69,7 +69,7 @@ func TestNameMapRecord(t *testing.T) {
 }
 
 func TestOffsetMapRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type(), MySqlDialect{})
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
 	data := []map[uintptr]interface{}{{
 		Offsetof(TestCreateTable3{}.Name):     "bigpigeon",
 		Offsetof(TestCreateTable3{}.Category): "user",

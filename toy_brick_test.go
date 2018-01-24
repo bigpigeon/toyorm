@@ -1192,3 +1192,54 @@ func TestFlow(t *testing.T) {
 	t.Logf("\n%v", string(jsonBytes))
 	brick.Delete(&newProducts)
 }
+
+func TestGroupBy(t *testing.T) {
+	//create table and insert data
+	{
+		brick := TestDB.Model(&TestGroupByTable{}).Debug()
+		result, err := brick.DropTableIfExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		result, err = brick.CreateTable()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		result, err = brick.Insert([]TestGroupByTable{
+			{Name: "pigeon", Address: "aaa", Age: 1},
+			{Name: "pigeon", Address: "aaa", Age: 2},
+			{Name: "pigeon", Address: "aaa", Age: 3},
+			{Name: "pigeon", Address: "aaa", Age: 4},
+			{Name: "pigeon", Address: "bbb", Age: 2},
+			{Name: "pigeon", Address: "bbb", Age: 4},
+			{Name: "pigeon", Address: "bbb", Age: 1},
+			{Name: "bigpigeon", Address: "aaa", Age: 1},
+			{Name: "bigpigeon", Address: "bbb", Age: 1},
+			{Name: "bigpigeon", Address: "bbb", Age: 2},
+		})
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+	}
+	{
+		var tab TestGroupByTableGroup
+		brick := TestDB.Model(&tab).Debug()
+
+		brick = brick.GroupBy(Offsetof(tab.Name), Offsetof(tab.Address))
+		var data []TestGroupByTableGroup
+		result, err := brick.Find(&data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		for _, d := range data {
+			t.Logf("%#v\n", d)
+		}
+
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -206,6 +207,24 @@ type TestSoftDeleteTableOneToMany struct {
 type TestSoftDeleteTableManyToMany struct {
 	ModelDefault
 	Data string
+}
+
+type TestGroupByTable struct {
+	ModelDefault
+	Name    string `toyorm:"index"`
+	Address string `toyorm:"index"`
+	Age     int
+}
+
+type TestGroupByTableGroup struct {
+	Name     string `toyorm:"index"`
+	Address  string `toyorm:"index"`
+	MaxAge   int    `toyorm:"column:MAX(age)"`
+	CountNum int    `toyorm:"column:COUNT(*)"`
+}
+
+func (t *TestGroupByTableGroup) TableName() string {
+	return ModelName(reflect.TypeOf(TestGroupByTable{}))
 }
 
 type Product struct {

@@ -243,3 +243,14 @@ func ToSqlType(_type reflect.Type) (sqlType string) {
 	}
 	return
 }
+
+// get model name with type
+func ModelName(_type reflect.Type) string {
+	var modelName string
+	if v, ok := reflect.New(_type).Interface().(tabler); ok {
+		modelName = v.TableName()
+	} else {
+		modelName = SqlNameConvert(_type.Name())
+	}
+	return modelName
+}

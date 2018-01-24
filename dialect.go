@@ -14,6 +14,7 @@ type Dialect interface {
 	DeleteExec(*Model) ExecValue
 	InsertExec(*Model, []ColumnValue) ExecValue
 	ReplaceExec(*Model, []ColumnValue) ExecValue
+	GroupByExec(*Model, []Column) ExecValue
 }
 
 type DefaultDialect struct{}
@@ -100,5 +101,17 @@ func (dia DefaultDialect) ReplaceExec(model *Model, columnValues []ColumnValue) 
 	qStr += strings.Join(qList, ",")
 
 	exec.Query = fmt.Sprintf("Replace INTO %s(%s) VALUES(%s)", model.Name, fieldStr, qStr)
+	return
+}
+
+func (dia DefaultDialect) GroupByExec(model *Model, columns []Column) (exec ExecValue) {
+	if len(columns) > 0 {
+		exec.Query = "GROUP BY "
+		var list []string
+		for _, column := range columns {
+			list = append(list, column.Column())
+		}
+		exec.Query += strings.Join(list, ",")
+	}
 	return
 }

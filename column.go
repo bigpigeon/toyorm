@@ -14,7 +14,27 @@ func (d StrColumn) Column() string {
 	return string(d)
 }
 
-const StarColumn StrColumn = "*"
+type ColumnName interface {
+	Column() string
+	Name() string
+}
+
+type ScanField struct {
+	name   string
+	column string
+}
+
+func (s ScanField) Name() string {
+	return s.name
+}
+
+func (s ScanField) Column() string {
+	return s.column
+}
+
+var (
+	StarColumn = ScanField{"All", "*"}
+)
 
 type ColumnValue interface {
 	Column

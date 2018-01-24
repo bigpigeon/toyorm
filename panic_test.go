@@ -5,6 +5,46 @@ import (
 	. "unsafe"
 )
 
+func TestPanicRepeatField(t *testing.T) {
+	type SomeEmbedFields struct {
+		ID   uint
+		Data string
+	}
+	type RepeatStruct struct {
+		SomeEmbedFields
+		Data string
+	}
+	defer func() {
+		err := recover()
+		t.Log(err)
+		if _, ok := err.(ErrRepeatField); ok == false {
+			t.Log("non panic when model struct is error")
+			t.Fail()
+		}
+	}()
+	TestDB.Model(&RepeatStruct{})
+}
+
+func TestPanicSameColumnName(t *testing.T) {
+	type SomeEmbedFields struct {
+		ID     uint
+		DataSS string
+	}
+	type SameColumnStruct struct {
+		SomeEmbedFields
+		Data_ss string
+	}
+	defer func() {
+		err := recover()
+		t.Log(err)
+		if _, ok := err.(ErrSameColumnName); ok == false {
+			t.Log("non panic when model struct is error")
+			t.Fail()
+		}
+	}()
+	TestDB.Model(&SameColumnStruct{})
+}
+
 func TestPanicModelStruct(t *testing.T) {
 	ErrorModelStruct := 2
 	defer func() {

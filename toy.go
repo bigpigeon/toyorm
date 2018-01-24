@@ -12,7 +12,7 @@ type Toy struct {
 	CacheModels              map[reflect.Type]*Model
 	CacheMiddleModels        map[reflect.Type]*Model
 	CacheReverseMiddleModels map[reflect.Type]*Model
-	// map[model][container_field]
+	// map[model][container_field_name]
 	oneToOnePreload          map[*Model]map[string]*OneToOnePreload
 	oneToManyPreload         map[*Model]map[string]*OneToManyPreload
 	manyToManyPreload        map[*Model]map[string]*ManyToManyPreload
@@ -86,7 +86,7 @@ func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
 // TODO testing thread safe? if not add lock
 func (t *Toy) GetModel(_type reflect.Type) *Model {
 	if model, ok := t.CacheModels[_type]; ok == false {
-		model = NewModel(_type, t.Dialect)
+		model = NewModel(_type)
 		t.CacheModels[_type] = model
 	}
 	return t.CacheModels[_type]
@@ -94,7 +94,7 @@ func (t *Toy) GetModel(_type reflect.Type) *Model {
 
 func (t *Toy) GetMiddleModel(_type reflect.Type) *Model {
 	if model, ok := t.CacheModels[_type]; ok == false {
-		model = NewModel(_type, t.Dialect)
+		model = NewModel(_type)
 		t.CacheModels[_type] = model
 	}
 	return t.CacheModels[_type]

@@ -1,13 +1,14 @@
 package toyorm
 
-type Mode string
+type Mode int8
 
 const (
-	ModeDefault   Mode = "Default"
-	ModeInsert         = "Insert"
-	ModeReplace        = "Replace"
-	ModeUpdate         = "Update"
-	ModeCondition      = "Condition"
-	ModeScan           = "Scan"
-	ModeSelect         = "Select"
+	ModeDefault Mode = iota
+	ModeInsert
+	ModeReplace
+	ModeUpdate
+	ModeScan
+	ModeSelect
+	ModeCondition
+	ModeEnd
 )

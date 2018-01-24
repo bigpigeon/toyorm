@@ -7,7 +7,7 @@ import (
 
 func TestSearchToExecValue(t *testing.T) {
 	{
-		model := NewModel(reflect.TypeOf(TestSearchTable{}), TestDB.Dialect)
+		model := NewModel(reflect.TypeOf(TestSearchTable{}))
 		t1 := NewSearchTree(NewSearchBranch(ExprOr)).Fill(
 			NewSearchTree(NewSearchBranch(ExprAnd)).Fill(
 				NewSearchTree(NewSearchLeaf(ExprEqual, &modelFieldValue{model.GetFieldWithName("A"), reflect.ValueOf("22")})),
@@ -21,7 +21,7 @@ func TestSearchToExecValue(t *testing.T) {
 		t.Log(t1.ToStack().ToExecValue())
 	}
 	{
-		model := NewModel(reflect.TypeOf(TestSearchTable{}), TestDB.Dialect)
+		model := NewModel(reflect.TypeOf(TestSearchTable{}))
 		t2 := NewSearchTree(NewSearchBranch(ExprOr)).Fill(
 			NewSearchTree(NewSearchBranch(ExprNot)).Fill(
 				NewSearchTree(NewSearchLeaf(ExprEqual, &modelFieldValue{model.GetFieldWithName("A"), reflect.ValueOf("22")})),

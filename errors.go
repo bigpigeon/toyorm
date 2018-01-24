@@ -9,11 +9,6 @@ var (
 	ErrInvalidTag        = errors.New("invalid tag")
 	ErrInvalidSearchTree = errors.New("invalid search tree")
 	ErrNotMatchDialect   = errors.New("not match dialect")
-	ErrNeedSourceTable   = errors.New("this function need set table")
-	ErrCannotSetValue    = errors.New("unable to set value")
-	ErrZeroRecord        = errors.New("zero record found")
-	ErrBindFieldsFailure = errors.New("bind fields failure")
-	ErrRepeatFieldName   = errors.New("this table have repeat name field")
 )
 
 type ErrInvalidModelType string
@@ -42,4 +37,24 @@ type ErrInvalidRecordType struct {
 
 func (e ErrInvalidRecordType) Error() string {
 	return fmt.Sprintf("record type must be the struct or map[string]interface{} or map[uintptr]interface{}")
+}
+
+type ErrRepeatField struct {
+	ModelName string
+	FieldName string
+}
+
+func (e ErrRepeatField) Error() string {
+	return fmt.Sprintf("model '%s' have repeat field '%s'", e.ModelName, e.FieldName)
+}
+
+type ErrSameColumnName struct {
+	ModelName    string
+	Same         string
+	OldFieldName string
+	NewFieldName string
+}
+
+func (e ErrSameColumnName) Error() string {
+	return fmt.Sprintf("model '%s' have same sql column %s in field '%s', '%s'", e.ModelName, e.Same, e.OldFieldName, e.NewFieldName)
 }
