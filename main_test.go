@@ -227,6 +227,45 @@ func (t *TestGroupByTableGroup) TableName() string {
 	return ModelName(reflect.TypeOf(TestGroupByTable{}))
 }
 
+type TestForeignKeyTable struct {
+	ModelDefault
+	Data     string
+	BelongTo *TestForeignKeyTableBelongTo
+	// foreign key cannot set to 0
+	BelongToID *uint32 `toyorm:"foreign key"`
+
+	OneToOne   *TestForeignKeyTableOneToOne
+	OneToMany  []TestForeignKeyTableOneToMany
+	ManyToMany []TestForeignKeyTableManyToMany
+}
+
+type TestForeignKeyTableBelongTo struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
+type TestForeignKeyTableOneToOne struct {
+	ID                    uint32 `toyorm:"primary key;auto_increment"`
+	TestForeignKeyTableID uint32 `toyorm:"foreign key"`
+	Data                  string
+}
+
+type TestForeignKeyTableOneToMany struct {
+	ID                    uint32 `toyorm:"primary key;auto_increment"`
+	TestForeignKeyTableID uint32 `toyorm:"foreign key"`
+	Data                  string
+}
+
+type TestForeignKeyTableMiddle struct {
+	TestForeignKeyTableID           uint32 `toyorm:"primary key;foreign key"`
+	TestForeignKeyTableManyToManyID uint32 `toyorm:"primary key;foreign key"`
+}
+
+type TestForeignKeyTableManyToMany struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
 type Product struct {
 	ModelDefault
 	Detail    *ProductDetail

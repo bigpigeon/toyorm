@@ -412,13 +412,26 @@ func HandlerSave(ctx *Context) error {
 }
 
 func HandlerSaveTimeGenerate(ctx *Context) error {
-	createdAtField := ctx.Brick.model.NameFields["CreatedAt"]
+	createdAtField := ctx.Brick.model.GetFieldWithName("CreatedAt")
 	// TODO process a exist deleted_at time
-	//deletedAtField := ctx.Brick.model.NameFields["DeletedAt"]
+	deletedAtField := ctx.Brick.model.GetFieldWithName("DeletedAt")
 	now := reflect.ValueOf(time.Now())
-	if ctx.Result.Records.Len() > 0 && createdAtField != nil {
+
+	var timeFields []Field
+	var defaultFieldValue []reflect.Value
+	if createdAtField != nil {
+
+		timeFields = append(timeFields, createdAtField)
+		defaultFieldValue = append(defaultFieldValue, now)
+	}
+	if deletedAtField != nil {
+		timeFields = append(timeFields, deletedAtField)
+		defaultFieldValue = append(defaultFieldValue, reflect.Zero(deletedAtField.StructField().Type))
+	}
+
+	if ctx.Result.Records.Len() > 0 && len(timeFields) > 0 {
 		primaryField := ctx.Brick.model.GetOnePrimary()
-		brick := ctx.Brick.bindFields(ModeDefault, primaryField, createdAtField)
+		brick := ctx.Brick.bindFields(ModeDefault, append([]Field{primaryField}, timeFields...)...)
 		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.StructField().Type), 0, ctx.Result.Records.Len())
 		action := QueryAction{}
 		var tryFindTimeIndex []int
@@ -439,31 +452,58 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 				ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
 				return nil
 			}
-			primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.StructField().Type, createdAtField.field.Type))
+			var mapElemTypeFields []reflect.StructField
+			{
+				for _, f := range timeFields {
+					mapElemTypeFields = append(mapElemTypeFields, f.StructField())
+				}
+			}
+			mapElemType := reflect.StructOf(mapElemTypeFields)
+			primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.StructField().Type, mapElemType))
 
 			// find all createtime
 			for rows.Next() {
 				id := reflect.New(primaryField.StructField().Type)
-				createAt := reflect.New(createdAtField.field.Type)
-				err := rows.Scan(id.Interface(), createAt.Interface())
+				timeFieldValues := reflect.New(mapElemType).Elem()
+				scaners := []interface{}{id.Interface()}
+				for i := 0; i < timeFieldValues.NumField(); i++ {
+					scaners = append(scaners, timeFieldValues.Field(i).Addr().Interface())
+				}
+				err := rows.Scan(scaners...)
 				if err != nil {
 					action.Error = append(action.Error, err)
 				}
-				primaryKeysMap.SetMapIndex(id.Elem(), createAt.Elem())
+				primaryKeysMap.SetMapIndex(id.Elem(), timeFieldValues)
 			}
 
 			ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
 			for _, record := range ctx.Result.Records.GetRecords() {
 				pri := record.Field(primaryField.Name())
-				if createAt := primaryKeysMap.MapIndex(pri); createAt.IsValid() && IsZero(createAt) == false {
-					record.SetField(createdAtField.Name(), createAt)
+				fields := primaryKeysMap.MapIndex(pri)
+				if fields.IsValid() {
+					for i := 0; i < fields.NumField(); i++ {
+						field := fields.Field(i)
+						if field.IsValid() && IsZero(field) == false {
+							record.SetField(timeFields[i].Name(), field)
+						} else if IsZero(record.Field(timeFields[i].Name())) {
+							record.SetField(timeFields[i].Name(), defaultFieldValue[i])
+						}
+					}
 				} else {
-					record.SetField(createdAtField.Name(), now)
+					for i := 0; i < len(timeFields); i++ {
+						if IsZero(record.Field(timeFields[i].Name())) {
+							record.SetField(timeFields[i].Name(), defaultFieldValue[i])
+						}
+					}
 				}
 			}
 		} else {
 			for _, record := range ctx.Result.Records.GetRecords() {
-				record.SetField(createdAtField.Name(), now)
+				for i := 0; i < len(timeFields); i++ {
+					if IsZero(record.Field(timeFields[i].Name())) {
+						record.SetField(timeFields[i].Name(), defaultFieldValue[i])
+					}
+				}
 			}
 		}
 	}
@@ -475,16 +515,34 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 	return nil
 }
 
-func HandlerNotRecordPreload(option string) func(ctx *Context) error {
+// preload schedule belongTo -> Next() -> oneToOne -> oneToMany -> manyToMany(sub -> middle)
+func HandlerSimplePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
-		for fieldName, _ := range ctx.Brick.OneToOnePreload {
-			brick := ctx.Brick.MapPreloadBrick[fieldName]
-			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
-			ctx.Result.Preload[fieldName] = subCtx.Result
-			if err := subCtx.Next(); err != nil {
-				return err
+		for fieldName, p := range ctx.Brick.OneToOnePreload {
+			if p.IsBelongTo {
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err := subCtx.Next(); err != nil {
+					return err
+				}
 			}
 		}
+		err = ctx.Next()
+		if err != nil {
+			return err
+		}
+		for fieldName, p := range ctx.Brick.OneToOnePreload {
+			if p.IsBelongTo == false {
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err := subCtx.Next(); err != nil {
+					return err
+				}
+			}
+		}
+
 		for fieldName, _ := range ctx.Brick.OneToManyPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
@@ -509,6 +567,67 @@ func HandlerNotRecordPreload(option string) func(ctx *Context) error {
 				middleCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 				ctx.Result.MiddleModelPreload[fieldName] = middleCtx.Result
 				if err := middleCtx.Next(); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+}
+
+// preload schedule oneToOne -> oneToMany -> manyToMany(middle -> sub) -> current model -> belongTo -> current model
+func HandlerReversePreload(option string) func(ctx *Context) error {
+	return func(ctx *Context) (err error) {
+		for fieldName, p := range ctx.Brick.OneToOnePreload {
+			if !p.IsBelongTo {
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err := subCtx.Next(); err != nil {
+					return err
+				}
+			}
+		}
+		for fieldName, _ := range ctx.Brick.OneToManyPreload {
+			brick := ctx.Brick.MapPreloadBrick[fieldName]
+			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
+			}
+		}
+		for fieldName, preload := range ctx.Brick.ManyToManyPreload {
+			// process middle model
+			{
+				middleModel := preload.MiddleModel
+				brick := NewToyBrick(ctx.Brick.Toy, middleModel).CopyStatus(ctx.Brick)
+				middleCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+				ctx.Result.MiddleModelPreload[fieldName] = middleCtx.Result
+				if err := middleCtx.Next(); err != nil {
+					return err
+				}
+			}
+			// process sub model
+			{
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err := subCtx.Next(); err != nil {
+					return err
+				}
+			}
+
+		}
+		err = ctx.Next()
+		if err != nil {
+			return err
+		}
+		for fieldName, p := range ctx.Brick.OneToOnePreload {
+			if p.IsBelongTo {
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err := subCtx.Next(); err != nil {
 					return err
 				}
 			}
@@ -655,8 +774,6 @@ func HandlerPreloadDelete(ctx *Context) error {
 			}
 			offset += rField.Len()
 		}
-		conditions := middleBrick.Search
-		middleBrick = middleBrick.Conditions(nil)
 
 		// delete middle model data
 		var primaryFields []Field
@@ -667,6 +784,8 @@ func HandlerPreloadDelete(ctx *Context) error {
 			primaryFields = append(primaryFields, middleBrick.model.GetPrimary()[1])
 		}
 		if len(primaryFields) != 0 {
+			conditions := middleBrick.Search
+			middleBrick = middleBrick.Conditions(nil)
 			for _, primaryField := range primaryFields {
 				primarySetType := reflect.MapOf(primaryField.StructField().Type, reflect.TypeOf(struct{}{}))
 				primarySet := reflect.MakeMap(primarySetType)
@@ -694,6 +813,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 			return err
 		}
 	}
+
 	if err := ctx.Next(); err != nil {
 		return err
 	}
@@ -746,7 +866,18 @@ func HandlerSoftDelete(ctx *Context) error {
 	value := reflect.New(ctx.Brick.model.ReflectType).Elem()
 	record := NewStructRecord(ctx.Brick.model, value)
 	record.SetField("DeletedAt", reflect.ValueOf(now))
-
+	bindFields := []interface{}{"DeletedAt"}
+	for _, preload := range ctx.Brick.OneToOnePreload {
+		if preload.IsBelongTo {
+			subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+			if subSoftDelete == false {
+				rField := preload.RelationField
+				bindFields = append(bindFields, rField.Name())
+				record.SetField(rField.Name(), reflect.Zero(rField.StructField().Type))
+			}
+		}
+	}
+	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
 	action.Exec = ctx.Brick.UpdateExec(record)
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 	ctx.Result.AddExecRecord(action)

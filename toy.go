@@ -50,10 +50,10 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		manyToManyPreload: map[*Model]map[string]*ManyToManyPreload{},
 		Dialect:           dialect,
 		DefaultHandlerChain: map[string]HandlersChain{
-			"CreateTable":           {HandlerNotRecordPreload("CreateTable"), HandlerCreateTable},
-			"CreateTableIfNotExist": {HandlerNotRecordPreload("CreateTableIfNotExist"), HandlerExistTableAbort, HandlerCreateTable},
-			"DropTableIfExist":      {HandlerNotRecordPreload("DropTableIfExist"), HandlerNotExistTableAbort, HandlerDropTable},
-			"DropTable":             {HandlerNotRecordPreload("DropTable"), HandlerDropTable},
+			"CreateTable":           {HandlerSimplePreload("CreateTable"), HandlerCreateTable},
+			"CreateTableIfNotExist": {HandlerSimplePreload("CreateTableIfNotExist"), HandlerExistTableAbort, HandlerCreateTable},
+			"DropTableIfExist":      {HandlerReversePreload("DropTableIfExist"), HandlerNotExistTableAbort, HandlerDropTable},
+			"DropTable":             {HandlerReversePreload("DropTable"), HandlerDropTable},
 			"Insert":                {HandlerPreloadInsertOrSave("Insert"), HandlerInsertTimeGenerate, HandlerInsert},
 			"Find":                  {HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadFind},
 			"Update":                {HandlerSoftDeleteCheck, HandlerUpdateTimeGenerate, HandlerUpdate},
@@ -111,9 +111,10 @@ func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	}
 	if subModel := t.CacheModels[_type]; subModel != nil {
 		if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
-			return t.OneToOneBind(model, subModel, field, relationField, false)
 
+			return t.OneToOneBind(model, subModel, field, relationField, false)
 		} else if relationField := model.GetFieldWithName(GetBelongsIDFieldName(subModel, field)); relationField != nil {
+
 			return t.OneToOneBind(model, subModel, field, relationField, true)
 		}
 	}
@@ -132,6 +133,7 @@ func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
 			if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
+
 				return t.OneToManyBind(model, subModel, field, relationField)
 			}
 		}
@@ -162,6 +164,16 @@ func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyTo
 }
 
 func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field, isBelongTo bool) *OneToOnePreload {
+	if isBelongTo {
+		if realField := model.NameFields[relationField.Name()]; realField.isForeign {
+			realField.foreignModel = subModel
+		}
+	} else {
+		if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
+			realField.foreignModel = model
+		}
+	}
+
 	if v := t.oneToOnePreload[model]; v == nil {
 		t.oneToOnePreload[model] = map[string]*OneToOnePreload{}
 	}
@@ -175,6 +187,9 @@ func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField
 	return t.oneToOnePreload[model][containerField.Name()]
 }
 func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
+	if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
+		realField.foreignModel = model
+	}
 	if v := t.oneToManyPreload[model]; v == nil {
 		t.oneToManyPreload[model] = map[string]*OneToManyPreload{}
 	}
@@ -188,6 +203,13 @@ func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationFiel
 }
 
 func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
+	if realField := middleModel.NameFields[relationField.Name()]; realField.isForeign {
+		realField.foreignModel = model
+	}
+	if realField := middleModel.NameFields[subRelationField.Name()]; realField.isForeign {
+		realField.foreignModel = subModel
+	}
+
 	if v := t.manyToManyPreload[model]; v == nil {
 		t.manyToManyPreload[model] = map[string]*ManyToManyPreload{}
 	}

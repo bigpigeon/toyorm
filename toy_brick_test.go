@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+	"time"
 	. "unsafe"
 )
 
@@ -765,6 +766,15 @@ func TestPreloadSave(t *testing.T) {
 			t.Error(err)
 			t.Failed()
 		}
+		// try to update soft delete
+		now := time.Now()
+		table[0].DeletedAt = &now
+		result, err = brick.Save(&table)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Failed()
+		}
 	}
 
 }
@@ -1005,6 +1015,7 @@ func TestPreloadSoftDelete(t *testing.T) {
 }
 
 func TestCustomPreload(t *testing.T) {
+	// TODO insert update delete
 	table := TestCustomPreloadTable{}
 	tableOne := TestCustomPreloadOneToOne{}
 	tableThree := TestCustomPreloadOneToMany{}
@@ -1013,7 +1024,7 @@ func TestCustomPreload(t *testing.T) {
 		CustomOneToOnePreload(Offsetof(table.ChildOne), Offsetof(tableOne.ParentID)).Enter().
 		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
 		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
-		CustomManyToManyPreload(Offsetof(table.OtherChildren), middleTable, Offsetof(middleTable.ParentID), Offsetof(middleTable.ChildID)).Enter()
+		CustomManyToManyPreload(middleTable, Offsetof(table.OtherChildren), Offsetof(middleTable.ParentID), Offsetof(middleTable.ChildID)).Enter()
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
 	assert.Nil(t, err)
@@ -1243,3 +1254,73 @@ func TestGroupBy(t *testing.T) {
 
 	}
 }
+
+// TODO add foreign key test
+func TestForeignKey(t *testing.T) {
+	var tab TestForeignKeyTable
+	var middleTab TestForeignKeyTableMiddle
+
+	brick := TestDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter().
+		Preload(Offsetof(tab.OneToMany)).Enter()
+	brick = brick.CustomManyToManyPreload(
+		&middleTab, Offsetof(tab.ManyToMany),
+		Offsetof(middleTab.TestForeignKeyTableID),
+		Offsetof(middleTab.TestForeignKeyTableManyToManyID),
+	).Enter()
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := TestForeignKeyTable{
+		Data: "test foreign key",
+		BelongTo: &TestForeignKeyTableBelongTo{
+			Data: "belong to data",
+		},
+		OneToOne: &TestForeignKeyTableOneToOne{
+			Data: "one to one data",
+		},
+		OneToMany: []TestForeignKeyTableOneToMany{
+			{Data: "one to many 1"},
+			{Data: "one to mant 2"},
+		},
+		ManyToMany: []TestForeignKeyTableManyToMany{
+			{Data: "many to many 1"},
+			{Data: "many to many 2"},
+		},
+	}
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	assert.NotZero(t, data.ID)
+	assert.NotZero(t, data.BelongTo.ID)
+	assert.NotZero(t, data.OneToMany[0].ID)
+	assert.NotZero(t, data.OneToMany[1].ID)
+
+	assert.Equal(t, *data.BelongToID, data.BelongTo.ID)
+	assert.Equal(t, data.ID, data.OneToOne.TestForeignKeyTableID)
+	assert.Equal(t, data.ID, data.OneToMany[0].TestForeignKeyTableID)
+	assert.Equal(t, data.ID, data.OneToMany[1].TestForeignKeyTableID)
+
+	result, err = brick.Delete(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+}
+
+// TODO add id lose test

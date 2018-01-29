@@ -4,6 +4,8 @@ import (
 	"reflect"
 )
 
+// TODO all custom hard to use for OffsetOf
+
 type Column interface {
 	Column() string
 }

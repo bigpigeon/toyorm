@@ -14,6 +14,7 @@ type Field interface {
 	AutoIncrement() bool
 	Index() string
 	UniqueIndex() string
+	ForeignModel() *Model
 	Attr(string) string
 	Attrs() map[string]string
 	SqlType() string
@@ -30,6 +31,8 @@ type modelField struct {
 	ignore        bool
 	attrs         map[string]string
 	autoIncrement bool
+	isForeign     bool
+	foreignModel  *Model
 	field         reflect.StructField
 }
 
@@ -59,6 +62,14 @@ func (m *modelField) Index() string {
 
 func (m *modelField) UniqueIndex() string {
 	return m.uniqueIndex
+}
+
+func (m *modelField) SetForeignModel(model *Model) {
+	m.foreignModel = model
+}
+
+func (m *modelField) ForeignModel() *Model {
+	return m.foreignModel
 }
 
 func (m *modelField) StructField() reflect.StructField {
@@ -110,16 +121,18 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 			field.sqlType = val
 		case "index":
 			if val == "" {
-				field.index = fmt.Sprintf("idx_%s_%s", table_name, strings.ToLower(f.Name))
+				field.index = fmt.Sprintf("idx_%s_%s", table_name, field.column)
 			} else {
 				field.index = val
 			}
 		case "unique index":
 			if val == "" {
-				field.uniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, strings.ToLower(f.Name))
+				field.uniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, field.column)
 			} else {
 				field.uniqueIndex = val
 			}
+		case "foreign key":
+			field.isForeign = true
 		case "column":
 			field.column = val
 		case "-":

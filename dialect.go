@@ -15,6 +15,8 @@ type Dialect interface {
 	InsertExec(*Model, []ColumnValue) ExecValue
 	ReplaceExec(*Model, []ColumnValue) ExecValue
 	GroupByExec(*Model, []Column) ExecValue
+	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
+	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 }
 
 type DefaultDialect struct{}
@@ -113,5 +115,21 @@ func (dia DefaultDialect) GroupByExec(model *Model, columns []Column) (exec Exec
 		}
 		exec.Query += strings.Join(list, ",")
 	}
+	return
+}
+
+func (dia DefaultDialect) AddForeignKey(model, relationModel *Model, ForeignKeyField Field) (exec ExecValue) {
+	exec.Query = fmt.Sprintf(
+		"ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(%s)",
+		model.Name, ForeignKeyField.Column(),
+		relationModel.Name, relationModel.GetOnePrimary().Column(),
+	)
+	return
+}
+
+func (dia DefaultDialect) DropForeignKey(model *Model, ForeignKeyField Field) (exec ExecValue) {
+	exec.Query = fmt.Sprintf(
+		"ALTER TABLE %s DROP FOREIGN KEY (%s)", model.Name, ForeignKeyField.Column(),
+	)
 	return
 }

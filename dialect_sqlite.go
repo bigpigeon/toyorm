@@ -18,12 +18,16 @@ func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
 
 func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 	// lazy init model
-	fieldStrList := []string{}
+	strList := []string{}
 
 	// for strange auto_increment syntax to do strange codition
 	isSinglePrimary := len(model.GetPrimary()) == 1
+	// use to create foreign definition
+	var foreignKeyList []Field
 	for _, sqlField := range model.GetSqlFields() {
-
+		if sqlField.ForeignModel() != nil {
+			foreignKeyList = append(foreignKeyList, sqlField)
+		}
 		s := fmt.Sprintf("%s %s", sqlField.Column(), sqlField.SqlType())
 		if isSinglePrimary && sqlField == model.PrimaryFields[0] {
 			s += " PRIMARY KEY"
@@ -39,7 +43,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 			}
 		}
 
-		fieldStrList = append(fieldStrList, s)
+		strList = append(strList, s)
 	}
 
 	if isSinglePrimary == false {
@@ -47,19 +51,21 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 		for _, p := range model.GetPrimary() {
 			primaryStrList = append(primaryStrList, p.Column())
 		}
-		sqlStr := fmt.Sprintf("CREATE TABLE %s (%s, PRIMARY KEY(%s))",
-			model.Name,
-			strings.Join(fieldStrList, ","),
-			strings.Join(primaryStrList, ","),
-		)
-		execlist = append(execlist, ExecValue{sqlStr, nil})
-	} else {
-		sqlStr := fmt.Sprintf("CREATE TABLE %s (%s)",
-			model.Name,
-			strings.Join(fieldStrList, ","),
-		)
-		execlist = append(execlist, ExecValue{sqlStr, nil})
+		strList = append(strList, fmt.Sprintf("PRIMARY KEY(%s)", strings.Join(primaryStrList, ",")))
+
 	}
+
+	for _, f := range foreignKeyList {
+		strList = append(strList,
+			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(%s)", f.Column(), f.ForeignModel().Name, f.ForeignModel().GetOnePrimary().Column()),
+		)
+	}
+
+	sqlStr := fmt.Sprintf("CREATE TABLE %s (%s)",
+		model.Name,
+		strings.Join(strList, ","),
+	)
+	execlist = append(execlist, ExecValue{sqlStr, nil})
 
 	indexStrList := []string{}
 	for key, fieldList := range model.GetIndexMap() {

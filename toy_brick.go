@@ -229,7 +229,7 @@ func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, ar
 	} else {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
 	}
-	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, false)
+	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, true)
 	if preload == nil {
 		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
 	}
@@ -270,7 +270,7 @@ func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, a
 	return newSubt
 }
 
-func (t *ToyBrick) CustomManyToManyPreload(container, middleStruct, relation, subRelation interface{}, args ...interface{}) *ToyBrick {
+func (t *ToyBrick) CustomManyToManyPreload(middleStruct, container, relation, subRelation interface{}, args ...interface{}) *ToyBrick {
 	containerField := t.model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
@@ -410,7 +410,11 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 		newt := *t
 		newt.orderBy = nil
 		for _, v := range vList {
-			newt.orderBy = append(newt.orderBy, newt.model.columnSelect(v))
+			if column, ok := v.(Column); ok {
+				newt.orderBy = append(newt.orderBy, column)
+			} else {
+				newt.orderBy = append(newt.orderBy, t.model.fieldSelect(v))
+			}
 		}
 		return &newt
 	})

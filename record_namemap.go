@@ -19,18 +19,7 @@ func NewNameMapRecords(model *Model, v reflect.Value) *ModelNameMapRecords {
 		v,
 		[]map[string]reflect.Value{},
 	}
-	for i := 0; i < records.source.Len(); i++ {
-		// why need LoopIndirect? because m could be []*map[string]interface{}
-		elem := LoopIndirect(records.source.Index(i))
-		c := map[string]reflect.Value{}
-		for name, _ := range model.GetNameFieldMap() {
-			if elemField := elem.MapIndex(reflect.ValueOf(name)); elemField.IsValid() {
-				elemField = elemField.Elem()
-				c[name] = elemField
-			}
-		}
-		records.FieldValuesList = append(records.FieldValuesList, c)
-	}
+	records.sync()
 	return records
 }
 
@@ -48,6 +37,21 @@ func NewNameMapRecord(model *Model, v reflect.Value) *ModelNameMapRecord {
 		}
 	}
 	return record
+}
+
+func (m *ModelNameMapRecords) sync() {
+	for i := len(m.FieldValuesList); i < m.source.Len(); i++ {
+		// why need LoopIndirect? because m could be []*map[string]interface{}
+		elem := LoopIndirect(m.source.Index(i))
+		c := map[string]reflect.Value{}
+		for name, _ := range m.model.GetNameFieldMap() {
+			if elemField := elem.MapIndex(reflect.ValueOf(name)); elemField.IsValid() {
+				elemField = elemField.Elem()
+				c[name] = elemField
+			}
+		}
+		m.FieldValuesList = append(m.FieldValuesList, c)
+	}
 }
 
 func (m *ModelNameMapRecords) GetRecords() []ModelRecord {
@@ -74,21 +78,12 @@ func (m *ModelNameMapRecords) Add(v reflect.Value) ModelRecord {
 	if m.source.CanSet() == false {
 		panic("Add need can set permission")
 	}
+	last := len(m.FieldValuesList)
 	m.source.Set(reflect.Append(m.source, v))
-	v = LoopIndirectAndNew(v)
-	c := map[string]reflect.Value{}
-
-	for name, _ := range m.model.GetNameFieldMap() {
-		if elemField := v.MapIndex(reflect.ValueOf(name)); elemField.IsValid() {
-			elemField = elemField.Elem()
-			c[name] = elemField
-		}
-	}
-
-	m.FieldValuesList = append(m.FieldValuesList, c)
+	m.sync()
 	return &ModelNameMapRecord{
-		FieldValues: c,
-		source:      LoopIndirect(m.source.Index(m.source.Len() - 1)),
+		FieldValues: m.FieldValuesList[last],
+		source:      LoopIndirect(m.source.Index(last)),
 		model:       m.model,
 	}
 }
@@ -145,7 +140,7 @@ func (m *ModelNameMapRecord) SetField(name string, value reflect.Value) {
 			SafeMapSet(m.source, nameValue, value)
 		} else if value.IsValid() {
 			elem := reflect.New(field.StructField().Type).Elem()
-			SafeSet(elem, value)
+			safeSet(elem, value)
 			m.source.SetMapIndex(nameValue, elem)
 		}
 		m.FieldValues[name] = m.source.MapIndex(nameValue).Elem()

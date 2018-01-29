@@ -134,6 +134,10 @@ func NewModel(_type reflect.Type) *Model {
 }
 
 func NewMiddleModel(model, subModel *Model) *Model {
+	return newMiddleModel(model, subModel, `toyorm:"primary key"`)
+}
+
+func newMiddleModel(model, subModel *Model, tag reflect.StructTag) *Model {
 	var fields [2]reflect.StructField
 	var sortdModel [2]*Model
 	if model.Name < subModel.Name {
@@ -143,7 +147,7 @@ func NewMiddleModel(model, subModel *Model) *Model {
 	}
 	for i, model := range sortdModel {
 		field := model.GetOnePrimary().StructField()
-		field.Tag = `toyorm:"primary key"`
+		field.Tag = tag
 		field.Name = GetRelationFieldName(model)
 		fields[i] = field
 	}
@@ -184,6 +188,7 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	// cache field attribute with model
 	for i := 0; i < len(model.AllFields); i++ {
 		field := model.AllFields[i]
+
 		model.FieldsPos[field] = i
 		model.OffsetFields[field.offset] = field
 		if _, ok := model.NameFields[field.field.Name]; ok {
@@ -230,21 +235,6 @@ func (m *Model) fieldSelect(v interface{}) Field {
 	case string:
 		return m.NameFields[v]
 	case Field:
-		return v
-	default:
-		panic("invalid field value")
-	}
-}
-
-func (m *Model) columnSelect(v interface{}) Column {
-	switch v := v.(type) {
-	case int:
-		return m.SqlFields[v]
-	case uintptr:
-		return m.OffsetFields[v]
-	case string:
-		return m.NameFields[v]
-	case Column:
 		return v
 	default:
 		panic("invalid field value")

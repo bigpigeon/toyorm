@@ -35,8 +35,12 @@ func NewStructRecords(model *Model, value reflect.Value) *ModelStructRecords {
 		}
 	} else {
 		structFieldList := GetStructFields(vIndirectElemType)
+		repeatName := map[string]struct{}{}
 		// RelationFieldPos[model_field]->struct_field_pos
 		for si, field := range structFieldList {
+			if _, ok := repeatName[field.Name]; ok {
+
+			}
 			if mField := model.GetFieldWithName(field.Name); mField != nil {
 				records.FieldTypes[field.Name] = field.Type
 				records.RelationFieldPos[field.Name] = si
@@ -183,15 +187,15 @@ func (m *ModelStructRecord) SetField(name string, value reflect.Value) {
 		return
 	}
 	fieldValue := m.FieldValues[name]
-	if value.Kind() == reflect.Ptr {
-		panic("RecordFieldSetError: value cannot be a ptr")
-	}
+	//if value.Kind() == reflect.Ptr {
+	//	panic("RecordFieldSetError: value cannot be a ptr")
+	//}
 	if fieldValue.IsValid() == false {
 		m.VirtualFieldValues[name] = reflect.New(m.model.GetFieldWithName(name).StructField().Type).Elem()
 		fieldValue = m.VirtualFieldValues[name]
 	}
-	fieldValue = LoopIndirectAndNew(fieldValue)
-	SafeSet(fieldValue, value)
+	//fieldValue = LoopIndirectAndNew(fieldValue)
+	safeSet(fieldValue, value)
 	//fmt.Printf("source :%#v\n", m.source)
 }
 

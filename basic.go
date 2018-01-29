@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-type NilType struct{}
-
-type QueryFunc func(string, ...interface{}) (*sql.Rows, error)
-
 /*
 column convert rule:
 User => user
@@ -54,6 +50,7 @@ func SqlNameConvert(name string) string {
 	return string(convert)
 }
 
+// get all Value with struct field and its embed struct field
 func GetStructValueFields(value reflect.Value) []reflect.Value {
 	vtype := value.Type()
 	fieldList := []reflect.Value{}
@@ -70,6 +67,7 @@ func GetStructValueFields(value reflect.Value) []reflect.Value {
 	return fieldList
 }
 
+// get all StructField with struct field and its embed field
 func GetStructFields(_type reflect.Type) []reflect.StructField {
 	fieldList := []reflect.StructField{}
 	for i := 0; i < _type.NumField(); i++ {
@@ -84,6 +82,7 @@ func GetStructFields(_type reflect.Type) []reflect.StructField {
 	return fieldList
 }
 
+// loop to get ptr type elem when its type is not ptr/slice
 func LoopTypeIndirect(_type reflect.Type) reflect.Type {
 	for _type.Kind() == reflect.Ptr {
 		_type = _type.Elem()
@@ -91,6 +90,7 @@ func LoopTypeIndirect(_type reflect.Type) reflect.Type {
 	return _type
 }
 
+// loop to get ptr/slice type elem when its type is not ptr/slice
 func LoopTypeIndirectSliceAndPtr(_type reflect.Type) reflect.Type {
 	for _type.Kind() == reflect.Ptr || _type.Kind() == reflect.Slice {
 		_type = _type.Elem()
@@ -98,6 +98,7 @@ func LoopTypeIndirectSliceAndPtr(_type reflect.Type) reflect.Type {
 	return _type
 }
 
+// loop to get ptr value elem when its type is not ptr
 func LoopIndirect(vValue reflect.Value) reflect.Value {
 	for vValue.Kind() == reflect.Ptr {
 		vValue = vValue.Elem()
@@ -105,6 +106,7 @@ func LoopIndirect(vValue reflect.Value) reflect.Value {
 	return vValue
 }
 
+// loop to get ptr value elem when its type is not ptr and if value is zero, set a new one
 func LoopIndirectAndNew(vValue reflect.Value) reflect.Value {
 	for vValue.Kind() == reflect.Ptr {
 		if vValue.IsNil() {
@@ -115,10 +117,12 @@ func LoopIndirectAndNew(vValue reflect.Value) reflect.Value {
 	return vValue
 }
 
+// to check value is zero
 func IsZero(v reflect.Value) bool {
 	return v.Interface() == reflect.Zero(v.Type()).Interface()
 }
 
+// if map value type is different with current value type ,try to convert it
 func SafeMapSet(m, k, x reflect.Value) {
 	eType, xType := m.Type().Elem(), x.Type()
 	if eType != xType {
@@ -128,15 +132,25 @@ func SafeMapSet(m, k, x reflect.Value) {
 	}
 }
 
-func SafeSet(v, x reflect.Value) {
+// if value type is different with current value type ,try to convert it
+func safeSet(v, x reflect.Value) {
 	vType, xType := v.Type(), x.Type()
+
 	if vType != xType {
+		// try to convert v
+
+		if vType.Kind() == reflect.Ptr && xType.Kind() != reflect.Ptr {
+			v = LoopIndirectAndNew(v)
+			vType = v.Type()
+		}
 		v.Set(x.Convert(vType))
 	} else {
 		v.Set(x)
 	}
 }
 
+// if value type is ptr to l elem type , try to get its elem and append to l
+// if l elem type is ptr to x type , try to  make x ptr and append to l
 //TODO performance optimize
 func SafeAppend(l reflect.Value, x ...reflect.Value) reflect.Value {
 	tPtrElem := l.Type().Elem()
