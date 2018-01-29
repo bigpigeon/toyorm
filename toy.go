@@ -52,8 +52,8 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		DefaultHandlerChain: map[string]HandlersChain{
 			"CreateTable":           {HandlerSimplePreload("CreateTable"), HandlerCreateTable},
 			"CreateTableIfNotExist": {HandlerSimplePreload("CreateTableIfNotExist"), HandlerExistTableAbort, HandlerCreateTable},
-			"DropTableIfExist":      {HandlerReversePreload("DropTableIfExist"), HandlerNotExistTableAbort, HandlerDropTable},
-			"DropTable":             {HandlerReversePreload("DropTable"), HandlerDropTable},
+			"DropTableIfExist":      {HandlerDropTablePreload("DropTableIfExist"), HandlerNotExistTableAbort, HandlerDropTable},
+			"DropTable":             {HandlerDropTablePreload("DropTable"), HandlerDropTable},
 			"Insert":                {HandlerPreloadInsertOrSave("Insert"), HandlerInsertTimeGenerate, HandlerInsert},
 			"Find":                  {HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadFind},
 			"Update":                {HandlerSoftDeleteCheck, HandlerUpdateTimeGenerate, HandlerUpdate},
@@ -142,6 +142,10 @@ func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 }
 
 func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyToManyPreload {
+	return t.manyToManyPreloadWithTag(model, field, isRight, `toyorm:"primary key"`)
+}
+
+func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
 	// try to find cache data
 	if t.manyToManyPreload[model] != nil && t.manyToManyPreload[model][field.Name()] != nil {
 		return t.manyToManyPreload[model][field.Name()]
@@ -154,7 +158,7 @@ func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyTo
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
-			middleModel := NewMiddleModel(model, subModel)
+			middleModel := newMiddleModel(model, subModel, tag)
 			relationField := GetMiddleField(model, middleModel, isRight)
 			subRelationField := GetMiddleField(subModel, middleModel, !isRight)
 			return t.ManyToManyPreloadBind(model, subModel, middleModel, field, relationField, subRelationField)

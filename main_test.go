@@ -99,13 +99,13 @@ type TestHardDeleteTable struct {
 	BelongTo   *TestHardDeleteTableBelongTo
 	OneToOne   *TestHardDeleteTableOneToOne
 	OneToMany  []TestHardDeleteTableOneToMany
-	ManyToMany []TestHardDeleteTableManyToMany
+	ManyToMany []TestHardDeleteManyToMany
 
 	SoftBelongToID uint32 `toyorm:"unique index"`
 	SoftBelongTo   *TestSoftDeleteTableBelongTo
 	SoftOneToOne   *TestSoftDeleteTableOneToOne
 	SoftOneToMany  []TestSoftDeleteTableOneToMany
-	SoftManyToMany []TestSoftDeleteTableManyToMany
+	SoftManyToMany []TestSoftDeleteManyToMany
 }
 
 type TestSoftDeleteTable struct {
@@ -115,13 +115,13 @@ type TestSoftDeleteTable struct {
 	BelongTo   *TestHardDeleteTableBelongTo
 	OneToOne   *TestHardDeleteTableOneToOne
 	OneToMany  []TestHardDeleteTableOneToMany
-	ManyToMany []TestHardDeleteTableManyToMany
+	ManyToMany []TestHardDeleteManyToMany
 
 	SoftBelongToID uint32 `toyorm:"unique index"`
 	SoftBelongTo   *TestSoftDeleteTableBelongTo
 	SoftOneToOne   *TestSoftDeleteTableOneToOne
 	SoftOneToMany  []TestSoftDeleteTableOneToMany
-	SoftManyToMany []TestSoftDeleteTableManyToMany
+	SoftManyToMany []TestSoftDeleteManyToMany
 }
 
 type TestCustomPreloadTable struct {
@@ -136,19 +136,19 @@ type TestCustomPreloadTable struct {
 
 type TestCustomPreloadOneToOne struct {
 	ID       uint32 `toyorm:"primary key;auto_increment"`
-	Data     string
+	OneData  string
 	ParentID uint32 `toyorm:"index"`
 }
 
 type TestCustomPreloadBelongTo struct {
-	ID   uint32 `toyorm:"primary key;auto_increment"`
-	Data string
+	ID      uint32 `toyorm:"primary key;auto_increment"`
+	TwoData string
 }
 
 type TestCustomPreloadOneToMany struct {
-	ID       uint32 `toyorm:"primary key;auto_increment"`
-	Data     string
-	ParentID uint32 `toyorm:"index"`
+	ID        uint32 `toyorm:"primary key;auto_increment"`
+	ThreeData string
+	ParentID  uint32 `toyorm:"index"`
 }
 
 type TestCustomPreloadManyToManyMiddle struct {
@@ -157,8 +157,8 @@ type TestCustomPreloadManyToManyMiddle struct {
 }
 
 type TestCustomPreloadManyToMany struct {
-	ID   uint32 `toyorm:"primary key;auto_increment"`
-	Data string
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	FourData string
 }
 
 type TestHardDeleteTableBelongTo struct {
@@ -169,18 +169,18 @@ type TestHardDeleteTableBelongTo struct {
 type TestHardDeleteTableOneToOne struct {
 	ID                    uint32 `toyorm:"primary key;auto_increment"`
 	Data                  string
-	TestHardDeleteTableID uint32 `toyorm:"index"`
-	TestSoftDeleteTableID uint32 `toyorm:"index"`
+	TestHardDeleteTableID *uint32 `toyorm:"index;foreign key"`
+	TestSoftDeleteTableID *uint32 `toyorm:"index;foreign key"`
 }
 
 type TestHardDeleteTableOneToMany struct {
 	ID                    uint32 `toyorm:"primary key;auto_increment"`
 	Data                  string
-	TestHardDeleteTableID uint32 `toyorm:"index"`
-	TestSoftDeleteTableID uint32 `toyorm:"index"`
+	TestHardDeleteTableID *uint32 `toyorm:"index;foreign key"`
+	TestSoftDeleteTableID *uint32 `toyorm:"index;foreign key"`
 }
 
-type TestHardDeleteTableManyToMany struct {
+type TestHardDeleteManyToMany struct {
 	ID   uint32 `toyorm:"primary key"`
 	Data string
 }
@@ -193,18 +193,18 @@ type TestSoftDeleteTableBelongTo struct {
 type TestSoftDeleteTableOneToOne struct {
 	ModelDefault
 	Data                  string
-	TestHardDeleteTableID uint32 `toyorm:"index"`
-	TestSoftDeleteTableID uint32 `toyorm:"index"`
+	TestHardDeleteTableID *uint32 `toyorm:"index;foreign key"`
+	TestSoftDeleteTableID *uint32 `toyorm:"index;foreign key"`
 }
 
 type TestSoftDeleteTableOneToMany struct {
 	ModelDefault
 	Data                  string
-	TestHardDeleteTableID uint32 `toyorm:"index"`
-	TestSoftDeleteTableID uint32 `toyorm:"index"`
+	TestHardDeleteTableID *uint32 `toyorm:"index;foreign key"`
+	TestSoftDeleteTableID *uint32 `toyorm:"index;foreign key"`
 }
 
-type TestSoftDeleteTableManyToMany struct {
+type TestSoftDeleteManyToMany struct {
 	ModelDefault
 	Data string
 }
@@ -314,6 +314,30 @@ type SqlTypeTable struct {
 	Age   sql.NullInt64
 	Sex   sql.NullBool
 	Money sql.NullFloat64
+}
+
+// use to create many to many preload which have foreign key
+func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
+	return func(t *ToyBrick) *ToyBrick {
+		field := t.model.fieldSelect(v)
+		if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
+			return subBrick
+		}
+		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
+		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+
+		newt := *t
+		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+		newt.MapPreloadBrick[field.Name()] = newSubt
+		newSubt.relationship = ToyBrickRelationship{&newt, field}
+		if preload := newt.Toy.manyToManyPreloadWithTag(newt.model, field, false, `toyorm:"primary key;foreign key"`); preload != nil {
+			newt.ManyToManyPreload = t.CopyManyToManyPreload()
+			newt.ManyToManyPreload[field.Name()] = preload
+		} else {
+			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Name()})
+		}
+		return newSubt
+	}
 }
 
 func TestMain(m *testing.M) {

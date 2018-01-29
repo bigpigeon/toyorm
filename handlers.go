@@ -575,8 +575,8 @@ func HandlerSimplePreload(option string) func(ctx *Context) error {
 	}
 }
 
-// preload schedule oneToOne -> oneToMany -> manyToMany(middle -> sub) -> current model -> belongTo -> current model
-func HandlerReversePreload(option string) func(ctx *Context) error {
+// preload schedule oneToOne -> oneToMany -> current model -> manyToMany(sub -> middle) -> Next() -> belongTo
+func HandlerDropTablePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
 		for fieldName, p := range ctx.Brick.OneToOnePreload {
 			if !p.IsBelongTo {
@@ -616,7 +616,6 @@ func HandlerReversePreload(option string) func(ctx *Context) error {
 					return err
 				}
 			}
-
 		}
 		err = ctx.Next()
 		if err != nil {
@@ -632,6 +631,7 @@ func HandlerReversePreload(option string) func(ctx *Context) error {
 				}
 			}
 		}
+
 		return nil
 	}
 }
