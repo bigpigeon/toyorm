@@ -266,6 +266,38 @@ type TestForeignKeyTableManyToMany struct {
 	Data string
 }
 
+type TestMissTable struct {
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Data       string
+	BelongToID uint32
+	BelongTo   *TestMissBelongTo
+	OneToOne   *TestMissOneToOne
+	OneToMany  []TestMissOneToMany
+	ManyToMany []TestMissManyToMany
+}
+
+type TestMissBelongTo struct {
+	ID           uint32 `toyorm:"primary key;auto_increment"`
+	BelongToData string
+}
+
+type TestMissOneToOne struct {
+	ID              uint32 `toyorm:"primary key;auto_increment"`
+	OneToOneData    string
+	TestMissTableID uint32
+}
+
+type TestMissOneToMany struct {
+	ID              uint32 `toyorm:"primary key;auto_increment"`
+	OneToManyData   string
+	TestMissTableID uint32
+}
+
+type TestMissManyToMany struct {
+	ID             uint32 `toyorm:"primary key;auto_increment"`
+	ManyToManyData string
+}
+
 type Product struct {
 	ModelDefault
 	Detail    *ProductDetail

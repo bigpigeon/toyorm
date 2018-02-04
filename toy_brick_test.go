@@ -1432,7 +1432,76 @@ func TestForeignKey(t *testing.T) {
 
 }
 
-// TODO add id lose test
-func TestLoseDataPreload(t *testing.T) {
+func TestMissPreload(t *testing.T) {
+	var tab TestMissTable
+	var belongTab TestMissBelongTo
+	var manyToManyTab TestMissManyToMany
+	brick := TestDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
 
+	missData := []TestMissTable{
+		{
+			Data: " miss data 1",
+			BelongTo: &TestMissBelongTo{
+				BelongToData: "miss data 1 belong to",
+			},
+			ManyToMany: []TestMissManyToMany{
+				{ManyToManyData: "miss data 1 many to many 1"},
+				{ManyToManyData: "miss data 1 many to many 2"},
+			},
+		},
+		{
+			Data: "miss data 2",
+			BelongTo: &TestMissBelongTo{
+				BelongToData: "miss data 2 belong to",
+			},
+			ManyToMany: []TestMissManyToMany{
+				{ManyToManyData: "miss data 2 many to many 1"},
+				{ManyToManyData: "miss data 2 many to many 2"},
+			},
+		},
+	}
+	// insert some data
+	result, err = brick.Insert(&missData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	// remove belong to data and many to many data
+	result, err = TestDB.Model(&belongTab).Debug().
+		Delete([]TestMissBelongTo{*missData[0].BelongTo, *missData[1].BelongTo})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	result, err = TestDB.Model(&manyToManyTab).Debug().
+		Delete([]TestMissManyToMany{missData[0].ManyToMany[0], missData[1].ManyToMany[0]})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	// find again
+	var scanMissData []TestMissTable
+
+	result, err = brick.Find(&scanMissData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	t.Logf("%#v\n", scanMissData)
+	// TODO miss data need warning or error
 }

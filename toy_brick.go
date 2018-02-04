@@ -709,7 +709,6 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 	return stmt, err
 }
 
-// TODO all exec method move to dialect
 func (t *ToyBrick) DropTableExec() (exec ExecValue) {
 	return ExecValue{fmt.Sprintf("DROP TABLE %s", t.model.Name), nil}
 }

@@ -151,7 +151,6 @@ func safeSet(v, x reflect.Value) {
 
 // if value type is ptr to l elem type , try to get its elem and append to l
 // if l elem type is ptr to x type , try to  make x ptr and append to l
-//TODO performance optimize
 func SafeAppend(l reflect.Value, x ...reflect.Value) reflect.Value {
 	tPtrElem := l.Type().Elem()
 	canAppend := make([]reflect.Value, 0, len(x))

@@ -4,7 +4,9 @@ this is powerful sql orm library for Golang, it has few dependencies and high pe
 
 [![Build Status](https://travis-ci.org/bigpigeon/toyorm.svg)](https://travis-ci.org/bigpigeon/toyorm)
 [![codecov](https://codecov.io/gh/bigpigeon/toyorm/branch/master/graph/badge.svg)](https://codecov.io/gh/bigpigeon/toyorm)
- [![Go Report Card](https://goreportcard.com/badge/github.com/bigpigeon/toyorm)](https://goreportcard.com/report/github.com/bigpigeon/toyorm)
+[![Go Report Card](https://goreportcard.com/badge/github.com/bigpigeon/toyorm)](https://goreportcard.com/report/github.com/bigpigeon/toyorm)
+[![GoDoc](https://godoc.org/github.com/bigpigeon/toyorm?status.svg)](https://godoc.org/github.com/bigpigeon/toyorm)
+[![Join the chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/toyorm/toyorm)
 
 ### A Simple Example
 

@@ -413,7 +413,6 @@ func HandlerSave(ctx *Context) error {
 
 func HandlerSaveTimeGenerate(ctx *Context) error {
 	createdAtField := ctx.Brick.model.GetFieldWithName("CreatedAt")
-	// TODO process a exist deleted_at time
 	deletedAtField := ctx.Brick.model.GetFieldWithName("DeletedAt")
 	now := reflect.ValueOf(time.Now())
 
