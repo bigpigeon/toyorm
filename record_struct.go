@@ -84,6 +84,24 @@ func (m *ModelStructRecords) GetFieldAddressType(field string) reflect.Type {
 	return reflect.PtrTo(m.FieldTypes[field])
 }
 
+func (m *ModelStructRecords) GroupBy(key string) ModelGroupBy {
+	field := m.model.GetFieldWithName(key)
+	if field.StructField().Type.Comparable() == false {
+		panic(fmt.Sprintf("%s is not compareable field", field.Name()))
+	}
+	result := ModelGroupBy{}
+	for i := 0; i < len(m.FieldValuesList); i++ {
+		keyValue := m.FieldValuesList[i][key].Interface()
+		result[keyValue] = append(result[keyValue], &ModelStructRecord{
+			FieldValues:        m.FieldValuesList[i],
+			VirtualFieldValues: m.VirtualFieldValuesList[i],
+			source:             LoopIndirect(m.source.Index(i)),
+			model:              m.model,
+		})
+	}
+	return result
+}
+
 func (m *ModelStructRecords) GetRecords() []ModelRecord {
 	var records []ModelRecord
 	for i := 0; i < len(m.FieldValuesList); i++ {

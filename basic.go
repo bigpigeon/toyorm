@@ -119,7 +119,11 @@ func LoopIndirectAndNew(vValue reflect.Value) reflect.Value {
 
 // to check value is zero
 func IsZero(v reflect.Value) bool {
-	return v.Interface() == reflect.Zero(v.Type()).Interface()
+	if v.Kind() == reflect.Struct && v.Type().Comparable() == false {
+		return reflect.Zero(v.Type()).String() == v.String()
+	} else {
+		return v.Interface() == reflect.Zero(v.Type()).Interface()
+	}
 }
 
 // if map value type is different with current value type ,try to convert it

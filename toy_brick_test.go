@@ -711,7 +711,7 @@ func TestPreloadSave(t *testing.T) {
 				Name: "test save 1 many_to_many 2",
 			},
 		}
-		table := []TestPreloadTable{
+		tables := []TestPreloadTable{
 			{
 				Name: "test save 1",
 				BelongTo: &TestPreloadTableBelongTo{
@@ -757,19 +757,36 @@ func TestPreloadSave(t *testing.T) {
 		assert.NotZero(t, manyToMany[0].ID)
 		assert.NotZero(t, manyToMany[1].ID)
 		// now many to many object have id information
-		table[0].ManyToMany = manyToMany
-		table[1].ManyToMany = manyToMany
+		tables[0].ManyToMany = manyToMany
+		tables[1].ManyToMany = manyToMany
 
-		result, err = brick.Save(&table)
+		result, err = brick.Save(&tables)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Failed()
 		}
+		for _, tab := range tables {
+			t.Logf("main id %v, belong id %v, one to one id %v, one to many id [%v,%v], many to many id [%v, %v]", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, tab.OneToMany[0].ID, tab.OneToMany[1].ID, tab.ManyToMany[0].ID, tab.ManyToMany[1].ID)
+			assert.NotZero(t, tab.ID)
+			assert.NotZero(t, tab.CreatedAt)
+			assert.NotZero(t, tab.UpdatedAt)
+			assert.NotZero(t, tab.BelongTo.ID)
+			assert.NotZero(t, tab.OneToOne.ID)
+			assert.NotZero(t, tab.OneToMany[0].ID)
+			assert.NotZero(t, tab.OneToMany[1].ID)
+			assert.NotZero(t, tab.ManyToMany[0].ID)
+			assert.NotZero(t, tab.ManyToMany[1].ID)
+
+			assert.Equal(t, tab.BelongToID, tab.BelongTo.ID)
+			assert.Equal(t, tab.ID, tab.OneToOne.TestPreloadTableID)
+			assert.Equal(t, tab.ID, tab.OneToMany[0].TestPreloadTableID)
+			assert.Equal(t, tab.ID, tab.OneToMany[1].TestPreloadTableID)
+		}
 		// try to update soft delete
 		now := time.Now()
-		table[0].DeletedAt = &now
-		result, err = brick.Save(&table)
+		tables[0].DeletedAt = &now
+		result, err = brick.Save(&tables)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -797,7 +814,7 @@ func TestPreloadFind(t *testing.T) {
 			for _, sub := range tab.ManyToMany {
 				manyToManyIds = append(manyToManyIds, sub.ID)
 			}
-
+			t.Logf("%#v\n", tab)
 			t.Logf("main id %v, belong id %v, one to one id %v, one to many id list %v, many to many id list %v", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, oneToManyIds, manyToManyIds)
 			assert.NotZero(t, tab.ID)
 			assert.NotZero(t, tab.CreatedAt)
@@ -1432,7 +1449,42 @@ func TestForeignKey(t *testing.T) {
 
 }
 
-func TestMissPreload(t *testing.T) {
+func TestIgnorePreloadInsert(t *testing.T) {
+	var tab TestPreloadIgnoreTable
+	brick := TestDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter()
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := []TestPreloadIgnoreTable{
+		{Data: "ignore preload 1"},
+		{
+			Data:     "ignore preload 2",
+			BelongTo: TestPreloadIgnoreBelongTo{Data: "ignore preload 2 belong to"},
+			OneToOne: TestPreloadIgnoreOneToOne{Data: "ignore preload 2 one to one"},
+		},
+	}
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	assert.Zero(t, data[0].BelongToID)
+	assert.Equal(t, data[1].OneToOne.TestPreloadIgnoreTableID, data[1].ID)
+}
+
+func TestMissPreloadFind(t *testing.T) {
 	var tab TestMissTable
 	var belongTab TestMissBelongTo
 	var manyToManyTab TestMissManyToMany
@@ -1504,4 +1556,11 @@ func TestMissPreload(t *testing.T) {
 
 	t.Logf("%#v\n", scanMissData)
 	// TODO miss data need warning or error
+}
+
+// TODO test multi same belong to id test
+// TODO test point to list container field
+
+func TestReport(t *testing.T) {
+
 }

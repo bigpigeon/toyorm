@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Result struct {
 	Records        ModelRecords
 	ActionFlow     []SqlAction
-	RecordsActions map[int][]SqlAction
+	RecordsActions map[int][]int
 	Preload        map[string]*Result
 	// in many-to-many model, have a middle model query need to record
 	MiddleModelPreload map[string]*Result
@@ -54,23 +55,29 @@ func (r *Result) Err() error {
 	return nil
 }
 
-func (r *Result) AddExecRecord(e ExecAction, index ...int) {
+func (r *Result) AddExecRecord(e ExecAction) {
+	last := len(r.ActionFlow)
 	r.ActionFlow = append(r.ActionFlow, SqlAction{e})
-	for _, i := range index {
-		r.RecordsActions[i] = append(r.RecordsActions[i], SqlAction{e})
+	for _, i := range e.affectData {
+		r.RecordsActions[i] = append(r.RecordsActions[i], last)
+	}
+}
+
+func (r *Result) AddQueryRecord(q QueryAction) {
+	last := len(r.ActionFlow)
+	r.ActionFlow = append(r.ActionFlow, SqlAction{q})
+	for _, i := range q.affectData {
+		r.RecordsActions[i] = append(r.RecordsActions[i], last)
 	}
 }
 
 // TODO a report log
 func (r *Result) Report() string {
-	return ""
-}
-
-func (r *Result) AddQueryRecord(q QueryAction, index ...int) {
-	r.ActionFlow = append(r.ActionFlow, SqlAction{q})
-	for _, i := range index {
-		r.RecordsActions[i] = append(r.RecordsActions[i], SqlAction{q})
+	var flowStrList []string
+	for _, action := range r.ActionFlow {
+		flowStrList = append(flowStrList, fmt.Sprintf("%v %s", action.AffectData(), action.String()))
 	}
+	return strings.Join(flowStrList, "\n")
 }
 
 type SqlActionType int
@@ -95,32 +102,43 @@ func (r SqlAction) ToQuery() QueryAction {
 type sqlAction interface {
 	String() string
 	Type() SqlActionType
+	AffectData() []int
 }
 
 type ExecAction struct {
 	//Type   ResultType
-	Exec   ExecValue
-	Result sql.Result
-	Error  error
+	Exec       ExecValue
+	Result     sql.Result
+	affectData []int
+	Error      error
 }
 
 func (r ExecAction) String() string {
-	return fmt.Sprintf("%s %s error(%s)", r.Exec.Query, r.Exec.Args, r.Error)
+	return fmt.Sprintf("%s %s error(%s)", r.Exec.Query, r.Exec.JsonArgs(), r.Error)
 }
 
 func (r ExecAction) Type() SqlActionType {
 	return ResultActionExec
 }
 
+func (r ExecAction) AffectData() []int {
+	return r.affectData
+}
+
 type QueryAction struct {
-	Exec  ExecValue
-	Error []error
+	Exec       ExecValue
+	affectData []int
+	Error      []error
 }
 
 func (r QueryAction) String() string {
-	return fmt.Sprintf("%s %s error(%s)", r.Exec.Query, r.Exec.Args, r.Error)
+	return fmt.Sprintf("%s %s error(%s)", r.Exec.Query, r.Exec.JsonArgs(), r.Error)
 }
 
 func (r QueryAction) Type() SqlActionType {
 	return ResultActionQuery
+}
+
+func (r QueryAction) AffectData() []int {
+	return r.affectData
 }

@@ -10,5 +10,6 @@ const (
 	ModeScan
 	ModeSelect
 	ModeCondition
+	ModePreload
 	ModeEnd
 )

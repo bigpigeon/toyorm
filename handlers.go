@@ -14,8 +14,13 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 				mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
 				preloadBrick := ctx.Brick.Preload(fieldName)
 				subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
-				for _, record := range ctx.Result.Records.GetRecords() {
-					subRecords.Add(record.FieldAddress(fieldName))
+
+				bindMap := map[int]int{}
+				for i, record := range ctx.Result.Records.GetRecords() {
+					if ctx.Brick.ignoreModeSelector[ModePreload].Ignore(record.Field(fieldName)) == false {
+						bindMap[i] = subRecords.Len()
+						subRecords.Add(record.FieldAddress(fieldName))
+					}
 				}
 				subCtx := preloadBrick.GetContext(option, subRecords)
 				ctx.Result.Preload[fieldName] = subCtx.Result
@@ -23,9 +28,11 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 					return err
 				}
 				// set model relation field
-				for jdx, record := range ctx.Result.Records.GetRecords() {
-					subRecord := subRecords.GetRecord(jdx)
-					record.SetField(mainField.Name(), subRecord.Field(subField.Name()))
+				for i, record := range ctx.Result.Records.GetRecords() {
+					if j, ok := bindMap[i]; ok {
+						subRecord := subRecords.GetRecord(j)
+						record.SetField(mainField.Name(), subRecord.Field(subField.Name()))
+					}
 				}
 			}
 		}
@@ -39,13 +46,15 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 				mainPos, subPos := preload.Model.GetOnePrimary(), preload.RelationField
 				subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
 				// set sub model relation field
-				for i, record := range ctx.Result.Records.GetRecords() {
-					// it means relation field, result[j].LastInsertId() is id value
-					subRecords.Add(record.FieldAddress(fieldName))
-					if primary := record.Field(mainPos.Name()); primary.IsValid() {
-						subRecords.GetRecord(i).SetField(subPos.Name(), primary)
-					} else {
-						panic("relation field not set")
+				for _, record := range ctx.Result.Records.GetRecords() {
+					if ctx.Brick.ignoreModeSelector[ModePreload].Ignore(record.Field(fieldName)) == false {
+						// it means relation field, result[j].LastInsertId() is id value
+						subRecord := subRecords.Add(record.FieldAddress(fieldName))
+						if primary := record.Field(mainPos.Name()); primary.IsValid() {
+							subRecord.SetField(subPos.Name(), primary)
+						} else {
+							panic("relation field not set")
+						}
 					}
 				}
 				subCtx := preloadBrick.GetContext(option, subRecords)
@@ -158,7 +167,7 @@ func HandlerInsert(ctx *Context) error {
 	// current insert
 
 	for i, record := range ctx.Result.Records.GetRecords() {
-		action := ExecAction{}
+		action := ExecAction{affectData: []int{i}}
 		action.Exec = ctx.Brick.InsertExec(record)
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 		if action.Error == nil {
@@ -171,7 +180,7 @@ func HandlerInsert(ctx *Context) error {
 				}
 			}
 		}
-		ctx.Result.AddExecRecord(action, i)
+		ctx.Result.AddExecRecord(action)
 	}
 	return nil
 }
@@ -201,12 +210,12 @@ func HandlerFind(ctx *Context) error {
 		action.Error = append(action.Error, err)
 	}
 	max := ctx.Result.Records.Len()
-	ctx.Result.AddQueryRecord(action, makeRange(min, max)...)
+	action.affectData = makeRange(min, max)
+	ctx.Result.AddQueryRecord(action)
 	return nil
 }
 
 func HandlerPreloadFind(ctx *Context) error {
-	records := ctx.Result.Records
 	for fieldName, preload := range ctx.Brick.OneToOnePreload {
 		var mainField, subField Field
 		// select fields from subtable where ... and subtable.id = table.subtableID
@@ -218,34 +227,25 @@ func HandlerPreloadFind(ctx *Context) error {
 		}
 		brick := ctx.Brick.MapPreloadBrick[fieldName]
 
-		keys := reflect.New(reflect.SliceOf(records.GetFieldType(mainField.Name()))).Elem()
-		for _, record := range records.GetRecords() {
-			keys = SafeAppend(keys, record.Field(mainField.Name()))
-		}
-		if keys.Len() != 0 {
+		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
+		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
+		if keys := mainGroup.Keys(); len(keys) != 0 {
 			// the relation condition should have lowest priority
-			brick = brick.Where(ExprIn, subField, keys.Interface()).And().Conditions(brick.Search)
-			containerList := reflect.New(reflect.SliceOf(records.GetFieldType(fieldName))).Elem()
+			brick = brick.Where(ExprIn, subField, keys).And().Conditions(brick.Search)
+			containerList := reflect.New(reflect.SliceOf(ctx.Result.Records.GetFieldType(fieldName))).Elem()
 			//var preloadRecords ModelRecords
 			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
 			ctx.Result.Preload[fieldName] = subCtx.Result
 			if err != nil {
 				return err
 			}
-			// use to map preload model relation field
-			fieldMapKeyType := LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subField.Name()))
-			fieldMapType := reflect.MapOf(fieldMapKeyType, records.GetFieldType(fieldName))
-			fieldMap := reflect.MakeMap(fieldMapType)
-			for i, pRecord := range subCtx.Result.Records.GetRecords() {
-				fieldMapKey := LoopIndirect(pRecord.Field(subField.Name()))
-				if fieldMapKey.IsValid() {
-					fieldMap.SetMapIndex(fieldMapKey, containerList.Index(i))
-				}
-			}
-			for _, record := range records.GetRecords() {
-				key := record.Field(mainField.Name())
-				if preloadMatchValue := fieldMap.MapIndex(key); preloadMatchValue.IsValid() {
-					record.Field(fieldName).Set(preloadMatchValue)
+			// set sub data to container field
+			subGroup := subCtx.Result.Records.GroupBy(subField.Name())
+			for key, records := range mainGroup {
+				if subRecords := subGroup[key]; len(subRecords) != 0 {
+					for _, record := range records {
+						record.SetField(preload.ContainerField.Name(), subRecords[0].Source())
+					}
 				}
 			}
 		}
@@ -255,39 +255,31 @@ func HandlerPreloadFind(ctx *Context) error {
 		mainField, subField := preload.Model.GetOnePrimary(), preload.RelationField
 		brick := ctx.Brick.MapPreloadBrick[fieldName]
 
-		keys := reflect.New(reflect.SliceOf(records.GetFieldType(mainField.Name()))).Elem()
-		for _, fieldValue := range records.GetRecords() {
-			keys = SafeAppend(keys, fieldValue.Field(mainField.Name()))
-		}
-		if keys.Len() != 0 {
+		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
+		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
+		if keys := mainGroup.Keys(); len(keys) != 0 {
 			// the relation condition should have lowest priority
-			brick = brick.Where(ExprIn, subField, keys.Interface()).And().Conditions(brick.Search)
-			containerList := reflect.New(records.GetFieldType(fieldName)).Elem()
-			//var preloadRecords ModelRecords
+			brick = brick.Where(ExprIn, subField, keys).And().Conditions(brick.Search)
+			containerList := reflect.New(ctx.Result.Records.GetFieldType(fieldName)).Elem()
+
 			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
 			ctx.Result.Preload[fieldName] = subCtx.Result
 			if err != nil {
 				return err
 			}
-			// fieldMap:  map[submodel.id]->submodel
-			fieldMapKeyType := LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subField.Name()))
-			fieldMapValueType := records.GetFieldType(fieldName)
-			fieldMapType := reflect.MapOf(fieldMapKeyType, fieldMapValueType)
-			fieldMap := reflect.MakeMap(fieldMapType)
-			for i, pRecord := range subCtx.Result.Records.GetRecords() {
-				fieldMapKey := LoopIndirect(pRecord.Field(subField.Name()))
-				if fieldMapKey.IsValid() {
-					currentListField := fieldMap.MapIndex(fieldMapKey)
-					if currentListField.IsValid() == false {
-						currentListField = reflect.MakeSlice(fieldMapValueType, 0, 1)
+			subGroup := subCtx.Result.Records.GroupBy(subField.Name())
+
+			for key, records := range mainGroup {
+				if subRecords := subGroup[key]; len(subRecords) != 0 {
+					//fmt.Printf("%#v\n", subRecords)
+					for _, record := range records {
+						container := reflect.New(ctx.Result.Records.GetFieldType(preload.ContainerField.Name())).Elem()
+						containerIndirect := LoopIndirectAndNew(container)
+						for _, subRecord := range subRecords {
+							containerIndirect.Set(reflect.Append(containerIndirect, subRecord.Source()))
+						}
+						record.SetField(preload.ContainerField.Name(), container)
 					}
-					fieldMap.SetMapIndex(fieldMapKey, SafeAppend(currentListField, containerList.Index(i)))
-				}
-			}
-			for _, record := range records.GetRecords() {
-				key := record.Field(mainField.Name())
-				if preloadMatchValue := fieldMap.MapIndex(key); preloadMatchValue.IsValid() {
-					record.Field(preload.ContainerField.Name()).Set(preloadMatchValue)
 				}
 			}
 		}
@@ -298,56 +290,42 @@ func HandlerPreloadFind(ctx *Context) error {
 		middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
 
 		// primaryMap: map[model.id]->the model's ModelRecord
-		primaryMap := map[interface{}]ModelRecord{}
-		keys := reflect.New(reflect.SliceOf(preload.RelationField.StructField().Type)).Elem()
-		for _, record := range records.GetRecords() {
-			keys = SafeAppend(keys, record.Field(mainPrimary.Name()))
-			primaryMap[record.Field(mainPrimary.Name()).Interface()] = record
-		}
-		// the relation condition should have lowest priority
-		middleBrick = middleBrick.Where(ExprIn, preload.RelationField, keys.Interface()).And().Conditions(middleBrick.Search)
-		middleModelElemList := reflect.New(reflect.SliceOf(preload.MiddleModel.ReflectType)).Elem()
-		//var middleModelRecords ModelRecords
-		middleCtx, err := middleBrick.find(middleModelElemList)
-		ctx.Result.MiddleModelPreload[fieldName] = middleCtx.Result
-		if err != nil {
-			return err
-		}
-		// middle model records
-		if middleCtx.Result.Records.Len() == 0 {
-			continue
-		}
-		// primaryMap
-
-		// subPrimaryMap:  map[submodel.id]->[]the model's ModelRecord
-		subPrimaryMap := map[interface{}][]ModelRecord{}
-		middlePrimary2Keys := reflect.New(reflect.SliceOf(preload.SubRelationField.StructField().Type)).Elem()
-		for _, pRecord := range middleCtx.Result.Records.GetRecords() {
-			subPrimaryMapKey := LoopIndirect(pRecord.Field(preload.SubRelationField.Name()))
-			subPrimaryMapValue := LoopIndirect(pRecord.Field(preload.RelationField.Name()))
-			subPrimaryMap[subPrimaryMapKey.Interface()] =
-				append(subPrimaryMap[subPrimaryMapKey.Interface()], primaryMap[subPrimaryMapValue.Interface()])
-		}
-		for key, _ := range subPrimaryMap {
-			middlePrimary2Keys = reflect.Append(middlePrimary2Keys, reflect.ValueOf(key))
-		}
-		brick := ctx.Brick.MapPreloadBrick[fieldName]
-		if middlePrimary2Keys.Len() != 0 {
+		//primaryMap := map[interface{}]ModelRecord{}
+		mainGroup := ctx.Result.Records.GroupBy(mainPrimary.Name())
+		if keys := mainGroup.Keys(); len(keys) != 0 {
 			// the relation condition should have lowest priority
-			brick = brick.Where(ExprIn, subPrimary, middlePrimary2Keys.Interface()).And().Conditions(brick.Search)
-			containerField := reflect.New(records.GetFieldType(fieldName)).Elem()
-			//var subRecords ModelRecords
-			subCtx, err := brick.find(LoopIndirectAndNew(containerField))
-			ctx.Result.Preload[fieldName] = subCtx.Result
+			middleBrick = middleBrick.Where(ExprIn, preload.RelationField, keys).And().Conditions(middleBrick.Search)
+			middleModelElemList := reflect.New(reflect.SliceOf(preload.MiddleModel.ReflectType)).Elem()
+			//var middleModelRecords ModelRecords
+			middleCtx, err := middleBrick.find(middleModelElemList)
+			ctx.Result.MiddleModelPreload[fieldName] = middleCtx.Result
 			if err != nil {
 				return err
 			}
-			for i, subRecord := range subCtx.Result.Records.GetRecords() {
-				records := subPrimaryMap[subRecord.Field(subPrimary.Name()).Interface()]
-				for _, record := range records {
-					record.SetField(fieldName, reflect.Append(record.Field(fieldName), containerField.Index(i)))
+			middleGroup := middleCtx.Result.Records.GroupBy(preload.SubRelationField.Name())
+			if subKeys := middleGroup.Keys(); len(subKeys) != 0 {
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				// the relation condition should have lowest priority
+				brick = brick.Where(ExprIn, subPrimary, subKeys).And().Conditions(brick.Search)
+				containerField := reflect.New(ctx.Result.Records.GetFieldType(fieldName)).Elem()
+				//var subRecords ModelRecords
+				subCtx, err := brick.find(LoopIndirectAndNew(containerField))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err != nil {
+					return err
 				}
+				for _, subRecord := range subCtx.Result.Records.GetRecords() {
+					if middleRecords := middleGroup[subRecord.Field(subPrimary.Name()).Interface()]; len(middleRecords) != 0 {
+						for _, middleRecord := range middleRecords {
+							mainRecord := mainGroup[middleRecord.Field(preload.RelationField.Name()).Interface()][0]
+							name := preload.ContainerField.Name()
+							mainRecord.SetField(name, SafeAppend(mainRecord.Field(name), subRecord.Source()))
+						}
+					}
+				}
+
 			}
+
 		}
 	}
 	return nil
@@ -366,9 +344,9 @@ func HandlerUpdateTimeGenerate(ctx *Context) error {
 
 func HandlerUpdate(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
-		action := ExecAction{Exec: ctx.Brick.UpdateExec(record)}
+		action := ExecAction{Exec: ctx.Brick.UpdateExec(record), affectData: []int{i}}
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
-		ctx.Result.AddExecRecord(action, i)
+		ctx.Result.AddExecRecord(action)
 	}
 	return nil
 }
@@ -388,7 +366,8 @@ func HandlerSave(ctx *Context) error {
 		}
 		var action ExecAction
 		if tryInsert {
-			action = ExecAction{}
+			action = ExecAction{affectData: []int{i}}
+
 			action.Exec = ctx.Brick.InsertExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 			if action.Error == nil {
@@ -402,11 +381,11 @@ func HandlerSave(ctx *Context) error {
 				}
 			}
 		} else {
-			action = ExecAction{}
+			action = ExecAction{affectData: []int{i}}
 			action.Exec = ctx.Brick.ReplaceExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 		}
-		ctx.Result.AddExecRecord(action, i)
+		ctx.Result.AddExecRecord(action)
 	}
 	return nil
 }
@@ -433,22 +412,23 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 		brick := ctx.Brick.bindFields(ModeDefault, append([]Field{primaryField}, timeFields...)...)
 		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.StructField().Type), 0, ctx.Result.Records.Len())
 		action := QueryAction{}
-		var tryFindTimeIndex []int
 
 		for i, record := range ctx.Result.Records.GetRecords() {
 			pri := record.Field(primaryField.Name())
 			if pri.IsValid() && IsZero(pri) == false {
 				primaryKeys = reflect.Append(primaryKeys, pri)
 			}
-			tryFindTimeIndex = append(tryFindTimeIndex, i)
+			action.affectData = append(action.affectData, i)
 		}
+
 		if primaryKeys.Len() > 0 {
 			action.Exec = brick.Where(ExprIn, primaryField, primaryKeys.Interface()).FindExec(ctx.Result.Records)
 
 			rows, err := brick.Query(action.Exec)
 			if err != nil {
 				action.Error = append(action.Error, err)
-				ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
+
+				ctx.Result.AddQueryRecord(action)
 				return nil
 			}
 			var mapElemTypeFields []reflect.StructField
@@ -475,7 +455,7 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 				primaryKeysMap.SetMapIndex(id.Elem(), timeFieldValues)
 			}
 
-			ctx.Result.AddQueryRecord(action, tryFindTimeIndex...)
+			ctx.Result.AddQueryRecord(action)
 			for _, record := range ctx.Result.Records.GetRecords() {
 				pri := record.Field(primaryField.Name())
 				fields := primaryKeysMap.MapIndex(pri)

@@ -266,6 +266,25 @@ type TestForeignKeyTableManyToMany struct {
 	Data string
 }
 
+type TestPreloadIgnoreTable struct {
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Data       string
+	BelongToID uint32
+	BelongTo   TestPreloadIgnoreBelongTo
+	OneToOne   TestPreloadIgnoreOneToOne
+}
+
+type TestPreloadIgnoreBelongTo struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
+type TestPreloadIgnoreOneToOne struct {
+	ID                       uint32 `toyorm:"primary key;auto_increment"`
+	Data                     string
+	TestPreloadIgnoreTableID uint32
+}
+
 type TestMissTable struct {
 	ID         uint32 `toyorm:"primary key;auto_increment"`
 	Data       string

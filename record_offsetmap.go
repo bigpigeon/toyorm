@@ -1,6 +1,7 @@
 package toyorm
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -64,6 +65,23 @@ func (m *ModelOffsetMapRecords) GetRecords() []ModelRecord {
 		})
 	}
 	return recordList
+}
+
+func (m *ModelOffsetMapRecords) GroupBy(key string) ModelGroupBy {
+	field := m.model.GetFieldWithName(key)
+	if field.StructField().Type.Comparable() == false {
+		panic(fmt.Sprintf("%s is not compareable field", field.Name()))
+	}
+	result := ModelGroupBy{}
+	for i := 0; i < len(m.FieldValuesList); i++ {
+		keyValue := m.FieldValuesList[i][key].Interface()
+		result[keyValue] = append(result[keyValue], &ModelOffsetMapRecord{
+			FieldValues: m.FieldValuesList[i],
+			source:      LoopIndirect(m.source.Index(i)),
+			model:       m.model,
+		})
+	}
+	return result
 }
 
 func (m *ModelOffsetMapRecords) GetRecord(i int) ModelRecord {

@@ -93,3 +93,151 @@ func TestOffsetMapRecord(t *testing.T) {
 	t.Log(data)
 	assert.Equal(t, data[1], elem)
 }
+
+func TestStructRecordGroupBy(t *testing.T) {
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	data := []struct {
+		Name     string
+		Category string
+		Value    float64
+	}{{
+		"bigpigeon",
+		"user",
+		20,
+	}, {
+		"fatpigeon",
+		"user",
+		21,
+	}, {
+		"pigeon",
+		"user",
+		21,
+	}}
+	records := NewRecords(model, reflect.ValueOf(&data).Elem())
+	group1 := records.GroupBy("Name")
+	for key, recordList := range group1 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Name").Interface())
+		}
+		t.Logf("group with name %s %v", key, source)
+
+	}
+
+	group2 := records.GroupBy("Category")
+	for key, recordList := range group2 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Category").Interface())
+		}
+		t.Logf("group with catetory %s %v", key, source)
+	}
+
+	group3 := records.GroupBy("Value")
+	for key, recordList := range group3 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Value").Interface())
+		}
+		t.Logf("group with value %v %v", key, source)
+	}
+}
+
+func TestNameMapRecordGroupBy(t *testing.T) {
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	data := []map[string]interface{}{{
+		"Name":     "bigpigeon",
+		"Category": "user",
+		"Value":    20,
+	}, {
+		"Name":     "fatpigeon",
+		"Category": "user",
+		"Value":    21,
+	}, {
+		"Name":     "pigeon",
+		"Category": "user",
+		"Value":    21,
+	}}
+	records := NewRecords(model, reflect.ValueOf(&data).Elem())
+	group1 := records.GroupBy("Name")
+	for key, recordList := range group1 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Name").Interface())
+		}
+		t.Logf("group with name %s %v", key, source)
+
+	}
+
+	group2 := records.GroupBy("Category")
+	for key, recordList := range group2 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Category").Interface())
+		}
+		t.Logf("group with catetory %s %v", key, source)
+	}
+
+	group3 := records.GroupBy("Value")
+	for key, recordList := range group3 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Value").Interface())
+		}
+		t.Logf("group with value %v %v", key, source)
+	}
+}
+
+func TestOffsetMapRecordGroupBy(t *testing.T) {
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	data := []map[uintptr]interface{}{{
+		Offsetof(TestCreateTable3{}.Name):     "bigpigeon",
+		Offsetof(TestCreateTable3{}.Category): "user",
+		Offsetof(TestCreateTable3{}.Value):    20,
+	}, {
+		Offsetof(TestCreateTable3{}.Name):     "fatpigeon",
+		Offsetof(TestCreateTable3{}.Category): "user",
+		Offsetof(TestCreateTable3{}.Value):    21,
+	}, {
+		Offsetof(TestCreateTable3{}.Name):     "pigeon",
+		Offsetof(TestCreateTable3{}.Category): "user",
+		Offsetof(TestCreateTable3{}.Value):    21,
+	}}
+	records := NewRecords(model, reflect.ValueOf(&data).Elem())
+	group1 := records.GroupBy("Name")
+	for key, recordList := range group1 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Name").Interface())
+		}
+		t.Logf("group with name %s %v", key, source)
+
+	}
+
+	group2 := records.GroupBy("Category")
+	for key, recordList := range group2 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Category").Interface())
+		}
+		t.Logf("group with catetory %s %v", key, source)
+	}
+
+	group3 := records.GroupBy("Value")
+	for key, recordList := range group3 {
+		var source []interface{}
+		for _, record := range recordList {
+			source = append(source, record.Source().Interface())
+			assert.Equal(t, key, record.Field("Value").Interface())
+		}
+		t.Logf("group with value %v %v", key, source)
+	}
+}

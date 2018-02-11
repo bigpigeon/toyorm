@@ -18,6 +18,16 @@ type ModelRecord interface {
 	GetFieldType(string) reflect.Type
 }
 
+type ModelGroupBy map[interface{}][]ModelRecord
+
+func (m ModelGroupBy) Keys() []interface{} {
+	l := make([]interface{}, 0, len(m))
+	for k, _ := range m {
+		l = append(l, k)
+	}
+	return l
+}
+
 type ModelRecords interface {
 	GetRecord(int) ModelRecord
 	GetRecords() []ModelRecord
@@ -28,6 +38,7 @@ type ModelRecords interface {
 	ElemType() reflect.Type
 	Len() int
 	Source() reflect.Value
+	GroupBy(key string) ModelGroupBy
 }
 
 func NewRecords(model *Model, value reflect.Value) ModelRecords {

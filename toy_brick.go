@@ -51,6 +51,7 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 			ModeReplace:   IgnoreNo,
 			ModeUpdate:    IgnoreZero,
 			ModeCondition: IgnoreZero,
+			ModePreload:   IgnoreZero,
 		},
 	}
 }
