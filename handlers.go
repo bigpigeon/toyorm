@@ -273,12 +273,11 @@ func HandlerPreloadFind(ctx *Context) error {
 				if subRecords := subGroup[key]; len(subRecords) != 0 {
 					//fmt.Printf("%#v\n", subRecords)
 					for _, record := range records {
-						container := reflect.New(ctx.Result.Records.GetFieldType(preload.ContainerField.Name())).Elem()
+						container := record.Field(preload.ContainerField.Name())
 						containerIndirect := LoopIndirectAndNew(container)
 						for _, subRecord := range subRecords {
-							containerIndirect.Set(reflect.Append(containerIndirect, subRecord.Source()))
+							containerIndirect.Set(SafeAppend(containerIndirect, subRecord.Source()))
 						}
-						record.SetField(preload.ContainerField.Name(), container)
 					}
 				}
 			}
@@ -319,7 +318,9 @@ func HandlerPreloadFind(ctx *Context) error {
 						for _, middleRecord := range middleRecords {
 							mainRecord := mainGroup[middleRecord.Field(preload.RelationField.Name()).Interface()][0]
 							name := preload.ContainerField.Name()
-							mainRecord.SetField(name, SafeAppend(mainRecord.Field(name), subRecord.Source()))
+							container := mainRecord.Field(name)
+							containerIndirect := LoopIndirectAndNew(container)
+							containerIndirect.Set(SafeAppend(containerIndirect, subRecord.Source()))
 						}
 					}
 				}

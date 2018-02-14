@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 	"time"
@@ -317,6 +318,36 @@ type TestMissManyToMany struct {
 	ManyToManyData string
 }
 
+type TestSameBelongIdTable struct {
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Data       string
+	BelongToID uint32
+	BelongTo   TestSameBelongIdBelongTo
+}
+
+type TestSameBelongIdBelongTo struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
+type TestPointContainerTable struct {
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Data       string
+	OneToMany  *[]*TestPointContainerOneToMany
+	ManyToMany *[]*TestPointContainerManyToMany
+}
+
+type TestPointContainerOneToMany struct {
+	ID                        uint32 `toyorm:"primary key;auto_increment"`
+	OneToManyData             string
+	TestPointContainerTableID uint32
+}
+
+type TestPointContainerManyToMany struct {
+	ID             uint32 `toyorm:"primary key;auto_increment"`
+	ManyToManyData string
+}
+
 type Product struct {
 	ModelDefault
 	Detail    *ProductDetail
@@ -388,6 +419,22 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Name()})
 		}
 		return newSubt
+	}
+}
+
+func createTableUnit(brick *ToyBrick) func(t *testing.T) {
+	return func(t *testing.T) {
+		result, err := brick.DropTableIfExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		result, err = brick.CreateTable()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
 	}
 }
 

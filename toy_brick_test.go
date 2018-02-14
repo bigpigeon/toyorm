@@ -1180,7 +1180,6 @@ func TestFlow(t *testing.T) {
 	// drow table if exist
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
-	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1270,7 +1269,6 @@ func TestFlow(t *testing.T) {
 	}
 	result, err = brick.Save(product)
 	assert.Nil(t, err)
-	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1278,7 +1276,6 @@ func TestFlow(t *testing.T) {
 	// add a new tag
 	tagBrick := TestDB.Model(&Tag{}).Debug()
 	result, err = tagBrick.Insert(&Tag{Code: "nice"})
-	assert.Nil(t, err)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
@@ -1290,7 +1287,6 @@ func TestFlow(t *testing.T) {
 		ProductID uint32
 		TagCode   string
 	}{product[0].ID, "nice"})
-	assert.Nil(t, err)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
@@ -1318,7 +1314,6 @@ func TestFlow(t *testing.T) {
 	// try to find
 	var newProducts []Product
 	result, err = brick.Find(&newProducts)
-	assert.Nil(t, err)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
@@ -1559,7 +1554,85 @@ func TestMissPreloadFind(t *testing.T) {
 }
 
 // TODO test multi same belong to id test
+func TestSameBelongId(t *testing.T) {
+	var tab TestSameBelongIdTable
+	brick := TestDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter()
+	brick.DropTableIfExist()
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	data := []TestSameBelongIdTable{
+		{Data: "test same belong id 1", BelongTo: TestSameBelongIdBelongTo{ID: 1, Data: "belong data"}},
+		{Data: "test same belong id 2", BelongTo: TestSameBelongIdBelongTo{ID: 1, Data: "belong data"}},
+	}
+	result, err = brick.Save(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var findData []TestSameBelongIdTable
+	result, err = brick.Find(&findData)
+	t.Logf("%#v", findData)
+}
+
 // TODO test point to list container field
+
+func TestPointContainerField(t *testing.T) {
+	var tab TestPointContainerTable
+	brick := TestDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+	createTableUnit(brick)(t)
+	data := []*TestPointContainerTable{
+		{
+			Data: "point container table 1",
+			OneToMany: &[]*TestPointContainerOneToMany{
+				{OneToManyData: "point container table 1 one to many 1"},
+				{OneToManyData: "point container table 1 one to many 2"},
+			},
+			ManyToMany: &[]*TestPointContainerManyToMany{
+				{ManyToManyData: "point container table many to many 1"},
+				{ManyToManyData: "point container table many to many 2"},
+			},
+		},
+		{
+			Data: "point container table 1",
+			OneToMany: &[]*TestPointContainerOneToMany{
+				{OneToManyData: "point container table 2 one to many 1"},
+				{OneToManyData: "point container table 2 one to many 2"},
+			},
+			ManyToMany: &[]*TestPointContainerManyToMany{
+				{ManyToManyData: "point container table many to many 3"},
+				{ManyToManyData: "point container table many to many 4"},
+			},
+		},
+	}
+	result, err := brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var findData []*TestPointContainerTable
+	result, err = brick.Find(&findData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	jsonBytes, err := json.MarshalIndent(findData, "", "  ")
+	assert.Nil(t, err)
+	t.Logf("\n%v", string(jsonBytes))
+}
 
 func TestReport(t *testing.T) {
 
