@@ -7,11 +7,21 @@ import (
 	"strings"
 )
 
+type Pair struct {
+	Main int
+	Sub  int
+}
+
 type Result struct {
 	Records        ModelRecords
 	ActionFlow     []SqlAction
 	RecordsActions map[int][]int
 	Preload        map[string]*Result
+	// container is simple object
+	SimpleRelation map[string]map[int]int
+	// container is slice object
+	MultipleRelation map[string]map[Pair]Pair
+
 	// in many-to-many model, have a middle model query need to record
 	MiddleModelPreload map[string]*Result
 }

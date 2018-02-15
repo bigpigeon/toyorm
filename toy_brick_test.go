@@ -1553,7 +1553,6 @@ func TestMissPreloadFind(t *testing.T) {
 	// TODO miss data need warning or error
 }
 
-// TODO test multi same belong to id test
 func TestSameBelongId(t *testing.T) {
 	var tab TestSameBelongIdTable
 	brick := TestDB.Model(&tab).Debug().
@@ -1584,8 +1583,6 @@ func TestSameBelongId(t *testing.T) {
 	result, err = brick.Find(&findData)
 	t.Logf("%#v", findData)
 }
-
-// TODO test point to list container field
 
 func TestPointContainerField(t *testing.T) {
 	var tab TestPointContainerTable
@@ -1632,6 +1629,8 @@ func TestPointContainerField(t *testing.T) {
 	jsonBytes, err := json.MarshalIndent(findData, "", "  ")
 	assert.Nil(t, err)
 	t.Logf("\n%v", string(jsonBytes))
+
+	assert.Equal(t, data, findData)
 }
 
 func TestReport(t *testing.T) {

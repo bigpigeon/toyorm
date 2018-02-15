@@ -13,6 +13,7 @@ type Toy struct {
 	CacheMiddleModels        map[reflect.Type]*Model
 	CacheReverseMiddleModels map[reflect.Type]*Model
 	// map[model][container_field_name]
+	belongToPreload          map[*Model]map[string]*BelongToPreload
 	oneToOnePreload          map[*Model]map[string]*OneToOnePreload
 	oneToManyPreload         map[*Model]map[string]*OneToManyPreload
 	manyToManyPreload        map[*Model]map[string]*ManyToManyPreload
@@ -45,6 +46,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		db:                db,
 		CacheModels:       map[reflect.Type]*Model{},
 		CacheMiddleModels: map[reflect.Type]*Model{},
+		belongToPreload:   map[*Model]map[string]*BelongToPreload{},
 		oneToOnePreload:   map[*Model]map[string]*OneToOnePreload{},
 		oneToManyPreload:  map[*Model]map[string]*OneToManyPreload{},
 		manyToManyPreload: map[*Model]map[string]*ManyToManyPreload{},
@@ -100,6 +102,24 @@ func (t *Toy) GetMiddleModel(_type reflect.Type) *Model {
 	return t.CacheModels[_type]
 }
 
+func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
+	// try to find cache data
+	if t.belongToPreload[model] != nil && t.belongToPreload[model][field.Name()] != nil {
+		return t.belongToPreload[model][field.Name()]
+	}
+	_type := LoopTypeIndirect(field.StructField().Type)
+	if _type.Kind() != reflect.Struct {
+		return nil
+	}
+	if subModel := t.CacheModels[_type]; subModel != nil {
+		if relationField := model.GetFieldWithName(GetBelongsIDFieldName(subModel, field)); relationField != nil {
+			return t.BelongToBind(model, subModel, field, relationField)
+		}
+	}
+
+	return nil
+}
+
 func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	// try to find cache data
 	if t.oneToOnePreload[model] != nil && t.oneToOnePreload[model][field.Name()] != nil {
@@ -111,14 +131,9 @@ func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	}
 	if subModel := t.CacheModels[_type]; subModel != nil {
 		if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
-
-			return t.OneToOneBind(model, subModel, field, relationField, false)
-		} else if relationField := model.GetFieldWithName(GetBelongsIDFieldName(subModel, field)); relationField != nil {
-
-			return t.OneToOneBind(model, subModel, field, relationField, true)
+			return t.OneToOneBind(model, subModel, field, relationField)
 		}
 	}
-
 	return nil
 }
 
@@ -167,22 +182,31 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 	return nil
 }
 
-func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field, isBelongTo bool) *OneToOnePreload {
-	if isBelongTo {
-		if realField := model.NameFields[relationField.Name()]; realField.isForeign {
-			realField.foreignModel = subModel
-		}
-	} else {
-		if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
-			realField.foreignModel = model
-		}
+func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
+	if realField := model.NameFields[relationField.Name()]; realField.isForeign {
+		realField.foreignModel = subModel
+	}
+	if v := t.belongToPreload[model]; v == nil {
+		t.belongToPreload[model] = map[string]*BelongToPreload{}
+	}
+	t.belongToPreload[model][containerField.Name()] = &BelongToPreload{
+		Model:          model,
+		SubModel:       subModel,
+		RelationField:  relationField,
+		ContainerField: containerField,
+	}
+	return t.belongToPreload[model][containerField.Name()]
+}
+
+func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field) *OneToOnePreload {
+	if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
+		realField.foreignModel = model
 	}
 
 	if v := t.oneToOnePreload[model]; v == nil {
 		t.oneToOnePreload[model] = map[string]*OneToOnePreload{}
 	}
 	t.oneToOnePreload[model][containerField.Name()] = &OneToOnePreload{
-		IsBelongTo:     isBelongTo,
 		Model:          model,
 		SubModel:       subModel,
 		RelationField:  relationField,

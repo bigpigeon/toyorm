@@ -16,6 +16,7 @@ type ToyBrick struct {
 	Toy               *Toy
 	relationship      ToyBrickRelationship
 	MapPreloadBrick   map[string]*ToyBrick
+	BelongToPreload   map[string]*BelongToPreload
 	OneToOnePreload   map[string]*OneToOnePreload
 	OneToManyPreload  map[string]*OneToManyPreload
 	ManyToManyPreload map[string]*ManyToManyPreload
@@ -43,6 +44,7 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 		Toy:               toy,
 		model:             model,
 		MapPreloadBrick:   map[string]*ToyBrick{},
+		BelongToPreload:   map[string]*BelongToPreload{},
 		OneToOnePreload:   map[string]*OneToOnePreload{},
 		OneToManyPreload:  map[string]*OneToManyPreload{},
 		ManyToManyPreload: map[string]*ManyToManyPreload{},
@@ -146,7 +148,10 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
 		newt.MapPreloadBrick[field.Name()] = newSubt
 		newSubt.relationship = ToyBrickRelationship{&newt, field}
-		if preload := newt.Toy.OneToOnePreload(newt.model, field); preload != nil {
+		if preload := newt.Toy.BelongToPreload(newt.model, field); preload != nil {
+			newt.BelongToPreload = t.CopyBelongToPreload()
+			newt.BelongToPreload[field.Name()] = preload
+		} else if preload := newt.Toy.OneToOnePreload(newt.model, field); preload != nil {
 			newt.OneToOnePreload = t.CopyOneToOnePreload()
 			newt.OneToOnePreload[field.Name()] = preload
 		} else if preload := newt.Toy.OneToManyPreload(newt.model, field); preload != nil {
@@ -171,6 +176,14 @@ func (t *ToyBrick) CopyMapPreloadBrick() map[string]*ToyBrick {
 		preloadBrick[k] = v
 	}
 	return preloadBrick
+}
+
+func (t *ToyBrick) CopyBelongToPreload() map[string]*BelongToPreload {
+	preloadMap := map[string]*BelongToPreload{}
+	for k, v := range t.BelongToPreload {
+		preloadMap[k] = v
+	}
+	return preloadMap
 }
 
 func (t *ToyBrick) CopyOneToOnePreload() map[string]*OneToOnePreload {
@@ -206,7 +219,7 @@ func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, ar
 		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
 	}
 	relationshipField := subModel.fieldSelect(relationship)
-	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, false)
+	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField)
 	if preload == nil {
 		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
 	}
@@ -230,7 +243,7 @@ func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, ar
 	} else {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
 	}
-	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField, true)
+	preload := t.Toy.BelongToBind(t.model, subModel, containerField, relationshipField)
 	if preload == nil {
 		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
 	}
@@ -241,8 +254,8 @@ func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, ar
 	newt.MapPreloadBrick[containerField.Name()] = newSubt
 	newSubt.relationship = ToyBrickRelationship{&newt, containerField}
 
-	newt.OneToOnePreload = t.CopyOneToOnePreload()
-	newt.OneToOnePreload[containerField.Name()] = preload
+	newt.BelongToPreload = t.CopyBelongToPreload()
+	newt.BelongToPreload[containerField.Name()] = preload
 	return newSubt
 }
 

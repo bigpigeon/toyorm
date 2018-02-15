@@ -9,60 +9,60 @@ import (
 
 func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 	return func(ctx *Context) error {
-		for fieldName, preload := range ctx.Brick.OneToOnePreload {
-			if preload.IsBelongTo == true {
-				mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
-				preloadBrick := ctx.Brick.Preload(fieldName)
-				subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+		for fieldName, preload := range ctx.Brick.BelongToPreload {
 
-				bindMap := map[int]int{}
-				for i, record := range ctx.Result.Records.GetRecords() {
-					if ctx.Brick.ignoreModeSelector[ModePreload].Ignore(record.Field(fieldName)) == false {
-						bindMap[i] = subRecords.Len()
-						subRecords.Add(record.FieldAddress(fieldName))
-					}
-				}
-				subCtx := preloadBrick.GetContext(option, subRecords)
-				ctx.Result.Preload[fieldName] = subCtx.Result
-				if err := subCtx.Next(); err != nil {
-					return err
-				}
-				// set model relation field
-				for i, record := range ctx.Result.Records.GetRecords() {
-					if j, ok := bindMap[i]; ok {
-						subRecord := subRecords.GetRecord(j)
-						record.SetField(mainField.Name(), subRecord.Field(subField.Name()))
-					}
+			mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
+			preloadBrick := ctx.Brick.Preload(fieldName)
+			subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+
+			bindMap := map[int]int{}
+			for i, record := range ctx.Result.Records.GetRecords() {
+				if ctx.Brick.ignoreModeSelector[ModePreload].Ignore(record.Field(fieldName)) == false {
+					bindMap[i] = subRecords.Len()
+					subRecords.Add(record.FieldAddress(fieldName))
 				}
 			}
+			subCtx := preloadBrick.GetContext(option, subRecords)
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
+			}
+			// set model relation field
+			for i, record := range ctx.Result.Records.GetRecords() {
+				if j, ok := bindMap[i]; ok {
+					subRecord := subRecords.GetRecord(j)
+					record.SetField(mainField.Name(), subRecord.Field(subField.Name()))
+				}
+			}
+
 		}
 
 		if err := ctx.Next(); err != nil {
 			return err
 		}
 		for fieldName, preload := range ctx.Brick.OneToOnePreload {
-			if preload.IsBelongTo == false {
-				preloadBrick := ctx.Brick.Preload(fieldName)
-				mainPos, subPos := preload.Model.GetOnePrimary(), preload.RelationField
-				subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
-				// set sub model relation field
-				for _, record := range ctx.Result.Records.GetRecords() {
-					if ctx.Brick.ignoreModeSelector[ModePreload].Ignore(record.Field(fieldName)) == false {
-						// it means relation field, result[j].LastInsertId() is id value
-						subRecord := subRecords.Add(record.FieldAddress(fieldName))
-						if primary := record.Field(mainPos.Name()); primary.IsValid() {
-							subRecord.SetField(subPos.Name(), primary)
-						} else {
-							panic("relation field not set")
-						}
+
+			preloadBrick := ctx.Brick.Preload(fieldName)
+			mainPos, subPos := preload.Model.GetOnePrimary(), preload.RelationField
+			subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+			// set sub model relation field
+			for _, record := range ctx.Result.Records.GetRecords() {
+				if ctx.Brick.ignoreModeSelector[ModePreload].Ignore(record.Field(fieldName)) == false {
+					// it means relation field, result[j].LastInsertId() is id value
+					subRecord := subRecords.Add(record.FieldAddress(fieldName))
+					if primary := record.Field(mainPos.Name()); primary.IsValid() {
+						subRecord.SetField(subPos.Name(), primary)
+					} else {
+						panic("relation field not set")
 					}
 				}
-				subCtx := preloadBrick.GetContext(option, subRecords)
-				ctx.Result.Preload[fieldName] = subCtx.Result
-				if err := subCtx.Next(); err != nil {
-					return err
-				}
 			}
+			subCtx := preloadBrick.GetContext(option, subRecords)
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
+			}
+
 		}
 
 		// one to many
@@ -216,15 +216,36 @@ func HandlerFind(ctx *Context) error {
 }
 
 func HandlerPreloadFind(ctx *Context) error {
+	for fieldName, preload := range ctx.Brick.BelongToPreload {
+		mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
+		brick := ctx.Brick.MapPreloadBrick[fieldName]
+
+		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
+		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
+		if keys := mainGroup.Keys(); len(keys) != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subField, keys).And().Conditions(brick.Search)
+			containerList := reflect.New(reflect.SliceOf(ctx.Result.Records.GetFieldType(fieldName))).Elem()
+			//var preloadRecords ModelRecords
+			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err != nil {
+				return err
+			}
+			// set sub data to container field
+			subGroup := subCtx.Result.Records.GroupBy(subField.Name())
+			for key, records := range mainGroup {
+				if subRecords := subGroup[key]; len(subRecords) != 0 {
+					for _, record := range records {
+						record.SetField(preload.ContainerField.Name(), subRecords[0].Source())
+					}
+				}
+			}
+		}
+	}
 	for fieldName, preload := range ctx.Brick.OneToOnePreload {
 		var mainField, subField Field
-		// select fields from subtable where ... and subtable.id = table.subtableID
-		// select fields from subtable where ... and subtable.tableID = table.ID
-		if preload.IsBelongTo {
-			mainField, subField = preload.RelationField, preload.SubModel.GetOnePrimary()
-		} else {
-			mainField, subField = preload.Model.GetOnePrimary(), preload.RelationField
-		}
+		mainField, subField = preload.Model.GetOnePrimary(), preload.RelationField
 		brick := ctx.Brick.MapPreloadBrick[fieldName]
 
 		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
@@ -498,28 +519,24 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 // preload schedule belongTo -> Next() -> oneToOne -> oneToMany -> manyToMany(sub -> middle)
 func HandlerSimplePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
-		for fieldName, p := range ctx.Brick.OneToOnePreload {
-			if p.IsBelongTo {
-				brick := ctx.Brick.MapPreloadBrick[fieldName]
-				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
-				ctx.Result.Preload[fieldName] = subCtx.Result
-				if err := subCtx.Next(); err != nil {
-					return err
-				}
+		for fieldName, _ := range ctx.Brick.BelongToPreload {
+			brick := ctx.Brick.MapPreloadBrick[fieldName]
+			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
 			}
 		}
 		err = ctx.Next()
 		if err != nil {
 			return err
 		}
-		for fieldName, p := range ctx.Brick.OneToOnePreload {
-			if p.IsBelongTo == false {
-				brick := ctx.Brick.MapPreloadBrick[fieldName]
-				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
-				ctx.Result.Preload[fieldName] = subCtx.Result
-				if err := subCtx.Next(); err != nil {
-					return err
-				}
+		for fieldName, _ := range ctx.Brick.OneToOnePreload {
+			brick := ctx.Brick.MapPreloadBrick[fieldName]
+			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
 			}
 		}
 
@@ -558,15 +575,14 @@ func HandlerSimplePreload(option string) func(ctx *Context) error {
 // preload schedule oneToOne -> oneToMany -> current model -> manyToMany(sub -> middle) -> Next() -> belongTo
 func HandlerDropTablePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
-		for fieldName, p := range ctx.Brick.OneToOnePreload {
-			if !p.IsBelongTo {
-				brick := ctx.Brick.MapPreloadBrick[fieldName]
-				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
-				ctx.Result.Preload[fieldName] = subCtx.Result
-				if err := subCtx.Next(); err != nil {
-					return err
-				}
+		for fieldName, _ := range ctx.Brick.OneToOnePreload {
+			brick := ctx.Brick.MapPreloadBrick[fieldName]
+			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
 			}
+
 		}
 		for fieldName, _ := range ctx.Brick.OneToManyPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
@@ -601,15 +617,14 @@ func HandlerDropTablePreload(option string) func(ctx *Context) error {
 		if err != nil {
 			return err
 		}
-		for fieldName, p := range ctx.Brick.OneToOnePreload {
-			if p.IsBelongTo {
-				brick := ctx.Brick.MapPreloadBrick[fieldName]
-				subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
-				ctx.Result.Preload[fieldName] = subCtx.Result
-				if err := subCtx.Next(); err != nil {
-					return err
-				}
+		for fieldName, _ := range ctx.Brick.BelongToPreload {
+			brick := ctx.Brick.MapPreloadBrick[fieldName]
+			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err := subCtx.Next(); err != nil {
+				return err
 			}
+
 		}
 
 		return nil
@@ -667,26 +682,24 @@ func HandlerNotExistTableAbort(ctx *Context) error {
 
 func HandlerPreloadDelete(ctx *Context) error {
 	for fieldName, preload := range ctx.Brick.OneToOnePreload {
-		if preload.IsBelongTo == false {
-			preloadBrick := ctx.Brick.Preload(fieldName)
-			subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
-			mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
-			subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
-			// set sub model relation field
-			for _, record := range ctx.Result.Records.GetRecords() {
-				// it means relation field, result[j].LastInsertId() is id value
-				subRecords.Add(record.FieldAddress(fieldName))
-			}
-			// if main model is hard delete need set relationship field set zero if sub model is soft delete
-			if mainSoftDelete == false && subSoftDelete == true {
-				deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
-				preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
-			}
-			result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
-			ctx.Result.Preload[fieldName] = result
-			if err != nil {
-				return err
-			}
+		preloadBrick := ctx.Brick.Preload(fieldName)
+		subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		// set sub model relation field
+		for _, record := range ctx.Result.Records.GetRecords() {
+			// it means relation field, result[j].LastInsertId() is id value
+			subRecords.Add(record.FieldAddress(fieldName))
+		}
+		// if main model is hard delete need set relationship field set zero if sub model is soft delete
+		if mainSoftDelete == false && subSoftDelete == true {
+			deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
+			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
+		}
+		result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
+		ctx.Result.Preload[fieldName] = result
+		if err != nil {
+			return err
 		}
 	}
 
@@ -798,27 +811,26 @@ func HandlerPreloadDelete(ctx *Context) error {
 		return err
 	}
 
-	for fieldName, preload := range ctx.Brick.OneToOnePreload {
-		if preload.IsBelongTo == true {
-			preloadBrick := ctx.Brick.Preload(fieldName)
-			subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
-			for _, record := range ctx.Result.Records.GetRecords() {
-				subRecords.Add(record.FieldAddress(fieldName))
-			}
-
-			mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
-			subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
-			if mainSoftDelete == false && subSoftDelete == true {
-				deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
-				preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
-			}
-
-			result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
-			ctx.Result.Preload[fieldName] = result
-			if err != nil {
-				return err
-			}
+	for fieldName, preload := range ctx.Brick.BelongToPreload {
+		preloadBrick := ctx.Brick.Preload(fieldName)
+		subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+		for _, record := range ctx.Result.Records.GetRecords() {
+			subRecords.Add(record.FieldAddress(fieldName))
 		}
+
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		if mainSoftDelete == false && subSoftDelete == true {
+			deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
+			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
+		}
+
+		result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
+		ctx.Result.Preload[fieldName] = result
+		if err != nil {
+			return err
+		}
+
 	}
 	return nil
 }
@@ -847,14 +859,12 @@ func HandlerSoftDelete(ctx *Context) error {
 	record := NewStructRecord(ctx.Brick.model, value)
 	record.SetField("DeletedAt", reflect.ValueOf(now))
 	bindFields := []interface{}{"DeletedAt"}
-	for _, preload := range ctx.Brick.OneToOnePreload {
-		if preload.IsBelongTo {
-			subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
-			if subSoftDelete == false {
-				rField := preload.RelationField
-				bindFields = append(bindFields, rField.Name())
-				record.SetField(rField.Name(), reflect.Zero(rField.StructField().Type))
-			}
+	for _, preload := range ctx.Brick.BelongToPreload {
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		if subSoftDelete == false {
+			rField := preload.RelationField
+			bindFields = append(bindFields, rField.Name())
+			record.SetField(rField.Name(), reflect.Zero(rField.StructField().Type))
 		}
 	}
 	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
