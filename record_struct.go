@@ -92,12 +92,12 @@ func (m *ModelStructRecords) GroupBy(key string) ModelGroupBy {
 	result := ModelGroupBy{}
 	for i := 0; i < len(m.FieldValuesList); i++ {
 		keyValue := m.FieldValuesList[i][key].Interface()
-		result[keyValue] = append(result[keyValue], &ModelStructRecord{
+		result[keyValue] = append(result[keyValue], ModelIndexRecord{&ModelStructRecord{
 			FieldValues:        m.FieldValuesList[i],
 			VirtualFieldValues: m.VirtualFieldValuesList[i],
 			source:             LoopIndirect(m.source.Index(i)),
 			model:              m.model,
-		})
+		}, i})
 	}
 	return result
 }

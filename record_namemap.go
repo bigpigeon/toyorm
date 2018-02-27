@@ -75,13 +75,30 @@ func (m *ModelNameMapRecords) GroupBy(key string) ModelGroupBy {
 	result := ModelGroupBy{}
 	for i := 0; i < len(m.FieldValuesList); i++ {
 		keyValue := m.FieldValuesList[i][key].Interface()
-		result[keyValue] = append(result[keyValue], &ModelNameMapRecord{
+		result[keyValue] = append(result[keyValue], ModelIndexRecord{&ModelNameMapRecord{
+			FieldValues: m.FieldValuesList[i],
+			source:      LoopIndirect(m.source.Index(i)),
+			model:       m.model,
+		}, i})
+	}
+	return result
+}
+
+func (m *ModelNameMapRecords) GroupByFunc(key string, fn func(int, ModelRecord)) {
+	field := m.model.GetFieldWithName(key)
+	if field.StructField().Type.Comparable() == false {
+		panic(fmt.Sprintf("%s is not compareable field", field.Name()))
+	}
+	//result := ModelGroupBy{}
+	for i := 0; i < len(m.FieldValuesList); i++ {
+		//keyValue := m.FieldValuesList[i][key].Interface()
+		fn(i, &ModelNameMapRecord{
 			FieldValues: m.FieldValuesList[i],
 			source:      LoopIndirect(m.source.Index(i)),
 			model:       m.model,
 		})
+
 	}
-	return result
 }
 
 func (m *ModelNameMapRecords) GetRecord(i int) ModelRecord {

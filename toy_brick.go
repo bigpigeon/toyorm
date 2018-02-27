@@ -500,13 +500,23 @@ func (t *ToyBrick) save(records ModelRecords) (*Result, error) {
 }
 
 func (t *ToyBrick) deleteWithPrimaryKey(records ModelRecords) (*Result, error) {
-	var primaryKeys []interface{}
-	primaryField := t.model.GetOnePrimary()
-	for _, record := range records.GetRecords() {
-		primaryKeys = append(primaryKeys, record.Field(primaryField.Name()).Interface())
+	if field := t.model.GetFieldWithName("DeletedAt"); field != nil {
+		return t.softDeleteWithPrimaryKey(records)
+	} else {
+		return t.hardDeleteWithPrimaryKey(records)
 	}
-	newt := t.Where(ExprIn, primaryField, primaryKeys).And().Conditions(t.Search)
-	return newt.delete(records)
+}
+
+func (t *ToyBrick) softDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
+	handlers := t.Toy.ModelHandlers("SoftDeleteWithPrimaryKey", t.model)
+	ctx := NewContext(handlers, t, records)
+	return ctx.Result, ctx.Next()
+}
+
+func (t *ToyBrick) hardDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
+	handlers := t.Toy.ModelHandlers("HardDeleteWithPrimaryKey", t.model)
+	ctx := NewContext(handlers, t, records)
+	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) delete(records ModelRecords) (*Result, error) {

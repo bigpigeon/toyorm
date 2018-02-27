@@ -18,7 +18,12 @@ type ModelRecord interface {
 	GetFieldType(string) reflect.Type
 }
 
-type ModelGroupBy map[interface{}][]ModelRecord
+type ModelIndexRecord struct {
+	ModelRecord
+	Index int
+}
+
+type ModelGroupBy map[interface{}][]ModelIndexRecord
 
 func (m ModelGroupBy) Keys() []interface{} {
 	l := make([]interface{}, 0, len(m))

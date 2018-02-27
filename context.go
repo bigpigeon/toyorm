@@ -27,6 +27,8 @@ func NewContext(handlers HandlersChain, brick *ToyBrick, columns ModelRecords) *
 			Preload:            map[string]*Result{},
 			RecordsActions:     map[int][]int{},
 			MiddleModelPreload: map[string]*Result{},
+			SimpleRelation:     map[string]map[int]int{},
+			MultipleRelation:   map[string]map[int]Pair{},
 		},
 	}
 }

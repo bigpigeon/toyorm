@@ -348,6 +348,150 @@ type TestPointContainerManyToMany struct {
 	ManyToManyData string
 }
 
+type TestReportTable struct {
+	ModelDefault
+	Data       string
+	BelongToID uint32
+	BelongTo   *TestReportSub1
+	OneToOne   *TestReportSub2
+	OneToMany  []TestReportSub3
+	ManyToMany []TestReportSub4
+}
+
+type TestReportSub1 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub1Data string
+
+	BelongToID uint32
+	BelongTo   *TestReportSub1Sub1
+	OneToOne   *TestReportSub1Sub2
+	OneToMany  []TestReportSub1Sub3
+	ManyToMany []TestReportSub1Sub4
+}
+
+type TestReportSub2 struct {
+	ID                uint32 `toyorm:"primary key;auto_increment"`
+	TestReportTableID uint32
+	Sub2Data          string
+
+	BelongToID uint32
+	BelongTo   *TestReportSub2Sub1
+	OneToOne   *TestReportSub2Sub2
+	OneToMany  []TestReportSub2Sub3
+	ManyToMany []TestReportSub2Sub4
+}
+
+type TestReportSub3 struct {
+	ID                uint32 `toyorm:"primary key;auto_increment"`
+	TestReportTableID uint32
+	Sub3Data          string
+
+	BelongToID uint32
+	BelongTo   *TestReportSub3Sub1
+	OneToOne   *TestReportSub3Sub2
+	OneToMany  []TestReportSub3Sub3
+	ManyToMany []TestReportSub3Sub4
+}
+
+type TestReportSub4 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub4Data string
+
+	BelongToID uint32
+	BelongTo   *TestReportSub4Sub1
+	OneToOne   *TestReportSub4Sub2
+	OneToMany  []TestReportSub4Sub3
+	ManyToMany []TestReportSub4Sub4
+}
+
+type TestReportSub1Sub1 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub1Data string
+}
+
+type TestReportSub1Sub2 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub1ID uint32
+	Sub2Data         string
+}
+
+type TestReportSub1Sub3 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub1ID uint32
+	Sub3Data         string
+}
+
+type TestReportSub1Sub4 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub4Data string
+}
+
+type TestReportSub2Sub1 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub1Data string
+}
+
+type TestReportSub2Sub2 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub2ID uint32
+	Sub2Data         string
+}
+
+type TestReportSub2Sub3 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub2ID uint32
+	Sub3Data         string
+}
+
+type TestReportSub2Sub4 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub4Data string
+}
+
+type TestReportSub3Sub1 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub1Data string
+}
+
+type TestReportSub3Sub2 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub3ID uint32
+	Sub2Data         string
+}
+
+type TestReportSub3Sub3 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub3ID uint32
+	Sub3Data         string
+}
+
+type TestReportSub3Sub4 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub4Data string
+}
+
+type TestReportSub4Sub1 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub1Data string
+}
+
+type TestReportSub4Sub2 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub4ID uint32
+	Sub2Data         string
+}
+
+type TestReportSub4Sub3 struct {
+	ID               uint32 `toyorm:"primary key;auto_increment"`
+	TestReportSub4ID uint32
+	Sub3Data         string
+}
+
+type TestReportSub4Sub4 struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Sub4Data string
+}
+
 type Product struct {
 	ModelDefault
 	Detail    *ProductDetail

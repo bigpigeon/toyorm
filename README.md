@@ -8,6 +8,7 @@ this is powerful sql orm library for Golang, it has few dependencies and high pe
 [![GoDoc](https://godoc.org/github.com/bigpigeon/toyorm?status.svg)](https://godoc.org/github.com/bigpigeon/toyorm)
 [![Join the chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/toyorm/toyorm)
 
+
 ### A Simple Example
 
 copy following code to a main.go file and run
@@ -409,6 +410,7 @@ type          | string                  | sql type
 column        | string                  | sql column name
 auto_increment| void                    | recommend, if your table primary key have auto_increment attribute must add it
 autoincrement | void                    | same as auto_increment
+foreign key   | void                   | to add foreign key feature when create table
 
 other custom TAG will append to end of CREATE TABLE field
 
@@ -808,7 +810,7 @@ preload need have relation field and container field
 relations field is used to link the main record and sub record
 
 
-container field is used to save sub record
+container field is used to hold sub record
 
 **one to one**
 
@@ -923,7 +925,7 @@ brick.CustomBelongToPreload(<main container>, <main relation>, [sub model struct
 // one to many
 brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model struct])
 // many to many
-brick.CustomManyToManyPreload(<main container>, <middle model struct>, <main relation>, <sub relation>, [sub model struct])
+brick.CustomManyToManyPreload(<middle model struct>, <main container>, <main relation>, <sub relation>, [sub model struct])
 ```
 
 

@@ -75,11 +75,11 @@ func (m *ModelOffsetMapRecords) GroupBy(key string) ModelGroupBy {
 	result := ModelGroupBy{}
 	for i := 0; i < len(m.FieldValuesList); i++ {
 		keyValue := m.FieldValuesList[i][key].Interface()
-		result[keyValue] = append(result[keyValue], &ModelOffsetMapRecord{
+		result[keyValue] = append(result[keyValue], ModelIndexRecord{&ModelOffsetMapRecord{
 			FieldValues: m.FieldValuesList[i],
 			source:      LoopIndirect(m.source.Index(i)),
 			model:       m.model,
-		})
+		}, i})
 	}
 	return result
 }
