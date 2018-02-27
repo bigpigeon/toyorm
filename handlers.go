@@ -216,7 +216,6 @@ func HandlerFind(ctx *Context) error {
 		}
 		err := rows.Scan(scanners...)
 		action.Error = append(action.Error, err)
-		fmt.Printf("elem %#v\n", record.Source().Interface())
 	}
 	max := ctx.Result.Records.Len()
 	action.affectData = makeRange(min, max)
@@ -253,7 +252,6 @@ func HandlerPreloadFind(ctx *Context) error {
 					}
 				}
 			}
-			fmt.Printf("map %s %v\n", fieldName, ctx.Result.SimpleRelation[fieldName])
 		}
 	}
 	for fieldName, preload := range ctx.Brick.OneToOnePreload {
@@ -318,7 +316,6 @@ func HandlerPreloadFind(ctx *Context) error {
 					}
 				}
 			}
-			fmt.Printf("map %s %v\n", fieldName, ctx.Result.MultipleRelation[fieldName])
 		}
 	}
 	// many to many
