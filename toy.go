@@ -202,7 +202,7 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 }
 
 func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
-	if relationField.StructField().Type != subModel.GetOnePrimary().StructField().Type {
+	if LoopTypeIndirect(relationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with sub model primary key")
 	}
 	if realField := model.NameFields[relationField.Name()]; realField.isForeign {
@@ -217,7 +217,7 @@ func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField
 }
 
 func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field) *OneToOnePreload {
-	if relationField.StructField().Type != model.GetOnePrimary().StructField().Type {
+	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
 	if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
@@ -232,7 +232,7 @@ func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField
 	}
 }
 func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
-	if relationField.StructField().Type != model.GetOnePrimary().StructField().Type {
+	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
 	if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
@@ -248,10 +248,10 @@ func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationFiel
 }
 
 func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
-	if relationField.StructField().Type != model.GetOnePrimary().StructField().Type {
+	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
-	if subRelationField.StructField().Type != subModel.GetOnePrimary().StructField().Type {
+	if LoopTypeIndirect(subRelationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("sub relation key must have same type with sub model primary key")
 	}
 	if realField := middleModel.NameFields[relationField.Name()]; realField.isForeign {

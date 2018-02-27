@@ -154,7 +154,7 @@ type TestCustomPreloadOneToMany struct {
 
 type TestCustomPreloadManyToManyMiddle struct {
 	ParentID uint32 `toyorm:"primary key"`
-	ChildID  int32  `toyorm:"primary key"`
+	ChildID  uint32 `toyorm:"primary key"`
 }
 
 type TestCustomPreloadManyToMany struct {
