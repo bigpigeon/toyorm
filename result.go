@@ -123,12 +123,13 @@ func (r *Result) report() (reportData []ReportData) {
 							a := NewAffectNode(relation[node.Val], IgnoreAffectNode(node.Next))
 							data.AffectData[i] = a
 						}
-					} else {
-						relation := r.MultipleRelation[name]
+					} else if relation := r.MultipleRelation[name]; relation != nil {
 						for i, node := range oldData.AffectData {
 							pair := relation[node.Val]
 							data.AffectData[i] = NewAffectNode(pair.Main, NewAffectNode(pair.Sub, node.Next))
 						}
+					} else {
+						panic("relation map not found")
 					}
 				}
 				reportData = append(reportData, data)
