@@ -17,300 +17,333 @@ copy following code to a main.go file and run
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "github.com/bigpigeon/toyorm"
-    . "unsafe"
+	"encoding/json"
+	"fmt"
+	"github.com/bigpigeon/toyorm"
+	. "unsafe"
 
-    // when database is mysql
-    _ "github.com/go-sql-driver/mysql"
-    // when database is sqlite3
-    //_ "github.com/mattn/go-sqlite3"
+	// when database is mysql
+	_ "github.com/go-sql-driver/mysql"
+	// when database is sqlite3
+	//_ "github.com/mattn/go-sqlite3"
+	"reflect"
 )
 
 func JsonEncode(v interface{}) string {
-    jsonData, err := json.MarshalIndent(v, "", "  ")
-    if err != nil {
-        panic(err)
-    }
-    return string(jsonData)
+	jsonData, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(jsonData)
 }
 
 type Product struct {
-    toyorm.ModelDefault
-    Name  string  `toyorm:"index"`
-    Price float64 `toyorm:"index"`
-    Count int
-    Tag   string `toyorm:"index"`
+	toyorm.ModelDefault
+	Name  string  `toyorm:"index"`
+	Price float64 `toyorm:"index"`
+	Count int
+	Tag   string `toyorm:"index"`
+}
+
+type ProductGroup struct {
+	Tag       string
+	KindCount int `toyorm:"column:COUNT(*)"`
+}
+
+func (p ProductGroup) TableName() string {
+	return toyorm.ModelName(reflect.TypeOf(Product{}))
 }
 
 func main() {
-    var err error
-    var toy *toyorm.Toy
-    var result *toyorm.Result
-    // when database is mysql, make sure your mysql have toyorm_example schema
-    toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
-    // when database is sqlite3
-    //toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
+	var err error
+	var toy *toyorm.Toy
+	var result *toyorm.Result
+	// when database is mysql, make sure your mysql have toyorm_example schema
+	toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
+	// when database is sqlite3
+	//toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
 
-    brick := toy.Model(&Product{}).Debug()
-    result, err = brick.DropTableIfExist()
-    if err != nil {
-        panic(err)
-    }
-    if resultErr := result.Err(); resultErr != nil {
-        fmt.Print(resultErr)
-    }
-    result, err = brick.CreateTableIfNotExist()
-    if err != nil {
-        panic(err)
-    }
-    if resultErr := result.Err(); resultErr != nil {
-        fmt.Print(resultErr)
-    }
-    // Insert will set id to source data when primary key is auto_increment
-    brick.Insert(&[]Product{
-        {Name: "food one", Price: 1, Count: 4, Tag: "food"},
-        {Name: "food two", Price: 2, Count: 3, Tag: "food"},
-        {Name: "food three", Price: 3, Count: 2, Tag: "food"},
-        {Name: "food four", Price: 4, Count: 1, Tag: "food"},
-        {Name: "toolkit one", Price: 1, Count: 8, Tag: "toolkit"},
-        {Name: "toolkit two", Price: 2, Count: 6, Tag: "toolkit"},
-        {Name: "toolkit one", Price: 3, Count: 4, Tag: "toolkit"},
-        {Name: "toolkit two", Price: 4, Count: 2, Tag: "toolkit"},
-    })
-    // find the first food
-    {
-        var product Product
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("food %s\n", JsonEncode(product))
-    }
+	brick := toy.Model(&Product{}).Debug()
+	result, err = brick.DropTableIfExist()
+	if err != nil {
+		panic(err)
+	}
+	if resultErr := result.Err(); resultErr != nil {
+		fmt.Print(resultErr)
+	}
+	result, err = brick.CreateTableIfNotExist()
+	if err != nil {
+		panic(err)
+	}
+	if resultErr := result.Err(); resultErr != nil {
+		fmt.Print(resultErr)
+	}
+	// Insert will set id to source data when primary key is auto_increment
+	result, err = brick.Insert(&[]Product{
+		{Name: "food one", Price: 1, Count: 4, Tag: "food"},
+		{Name: "food two", Price: 2, Count: 3, Tag: "food"},
+		{Name: "food three", Price: 3, Count: 2, Tag: "food"},
+		{Name: "food four", Price: 4, Count: 1, Tag: "food"},
+		{Name: "toolkit one", Price: 1, Count: 8, Tag: "toolkit"},
+		{Name: "toolkit two", Price: 2, Count: 6, Tag: "toolkit"},
+		{Name: "toolkit one", Price: 3, Count: 4, Tag: "toolkit"},
+		{Name: "toolkit two", Price: 4, Count: 2, Tag: "toolkit"},
+	})
+	if err != nil {
+		panic(err)
+	}
+	if resultErr := result.Err(); resultErr != nil {
+		fmt.Print(resultErr)
+	}
+	// find the first food
+	{
+		var product Product
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("food %s\n", JsonEncode(product))
+	}
 
-    // find all food
-    {
-        var products []Product
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("foods %s\n", JsonEncode(products))
-    }
+	// find all food
+	{
+		var products []Product
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("foods %s\n", JsonEncode(products))
+	}
 
-    // find count = 2
-    {
-        var products []Product
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("count > 2 products %s\n", JsonEncode(products))
-    }
-    // find count = 2 and price > 3
-    {
-        var products []Product
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
-            Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("count = 2 and price > 3 products %s\n", JsonEncode(products))
-    }
-    // find count = 2 and price > 3 or count = 4
-    {
-        var products []Product
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
-            Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Or().
-            Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 4).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("count = 2 and price > 3 or count = 4  products %s\n", JsonEncode(products))
-    }
-    // find price > 3 and (count = 2 or count = 1)
-    {
-        var products []Product
-        result, err := brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
-            brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
-                Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
-        ).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("price > 3 and (count = 2 or count = 1)  products %s\n", JsonEncode(products))
-    }
+	// find count = 2
+	{
+		var products []Product
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("count > 2 products %s\n", JsonEncode(products))
+	}
+	// find count = 2 and price > 3
+	{
+		var products []Product
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
+			Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("count = 2 and price > 3 products %s\n", JsonEncode(products))
+	}
+	// find count = 2 and price > 3 or count = 4
+	{
+		var products []Product
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
+			Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Or().
+			Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 4).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("count = 2 and price > 3 or count = 4  products %s\n", JsonEncode(products))
+	}
+	// find price > 3 and (count = 2 or count = 1)
+	{
+		var products []Product
+		result, err := brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
+			brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
+				Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
+		).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("price > 3 and (count = 2 or count = 1)  products %s\n", JsonEncode(products))
+	}
 
-    // find (count = 2 or count = 1) and (price = 3 or price = 4)
-    {
-        var products []Product
-        result, err := brick.Conditions(
-            brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
-                Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
-        ).And().Conditions(
-            brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Price), 3).Or().
-                Condition(toyorm.ExprEqual, Offsetof(Product{}.Price), 4).Search,
-        ).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("(count = 2 or count = 1) and (price = 3 or price = 4)  products %s\n", JsonEncode(products))
-    }
-    // find offset 2 limit 2
-    {
-        var products []Product
-        result, err := brick.Offset(2).Limit(2).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("offset 1 limit 2 products %s\n", JsonEncode(products))
-    }
-    // order by
-    {
-        var products []Product
-        result, err := brick.OrderBy(Offsetof(Product{}.Name)).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("order by name products %s\n", JsonEncode(products))
-    }
-    {
-        var products []Product
-        result, err := brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name))).Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("order by name desc products %s\n", JsonEncode(products))
-    }
-    // update to count = 4
-    {
-        result, err := brick.Update(&Product{
-            Count: 4,
-        })
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        var Counters []struct {
-            Name  string
-            Count int
-        }
-        result, err = brick.Find(&Counters)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        for _, counter := range Counters {
-            fmt.Printf("product name %s, count %d\n", counter.Name, counter.Count)
-        }
-    }
-    // use bind fields to update a zero value
-    {
-        {
-            var p Product
-            result, err := brick.BindDefaultFields(Offsetof(p.Price), Offsetof(p.UpdatedAt)).Update(&Product{
-                Price: 0,
-            })
-            if err != nil {
-                panic(err)
-            }
-            if resultErr := result.Err(); resultErr != nil {
-                fmt.Print(resultErr)
-            }
-        }
-        var products []Product
-        result, err = brick.Find(&products)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        for _, p := range products {
-            fmt.Printf("product name %s, price %v\n", p.Name, p.Price)
-        }
-    }
-    // delete with element
-    {
-        // make a transaction, because I do not really delete a data
-        brick := brick.Begin()
-        var product Product
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
+	// find (count = 2 or count = 1) and (price = 3 or price = 4)
+	{
+		var products []Product
+		result, err := brick.Conditions(
+			brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
+				Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search,
+		).And().Conditions(
+			brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Price), 3).Or().
+				Condition(toyorm.ExprEqual, Offsetof(Product{}.Price), 4).Search,
+		).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("(count = 2 or count = 1) and (price = 3 or price = 4)  products %s\n", JsonEncode(products))
+	}
+	// find offset 2 limit 2
+	{
+		var products []Product
+		result, err := brick.Offset(2).Limit(2).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("offset 1 limit 2 products %s\n", JsonEncode(products))
+	}
+	// order by
+	{
+		var products []Product
+		result, err := brick.OrderBy(Offsetof(Product{}.Name)).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("order by name products %s\n", JsonEncode(products))
+	}
+	{
+		var products []Product
+		result, err := brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name))).Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("order by name desc products %s\n", JsonEncode(products))
+	}
+	// update to count = 4
+	{
+		result, err := brick.Update(&Product{
+			Count: 4,
+		})
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		var Counters []struct {
+			Name  string
+			Count int
+		}
+		result, err = brick.Find(&Counters)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		for _, counter := range Counters {
+			fmt.Printf("product name %s, count %d\n", counter.Name, counter.Count)
+		}
+	}
+	// use bind fields to update a zero value
+	{
+		{
+			var p Product
+			result, err := brick.BindDefaultFields(Offsetof(p.Price), Offsetof(p.UpdatedAt)).Update(&Product{
+				Price: 0,
+			})
+			if err != nil {
+				panic(err)
+			}
+			if resultErr := result.Err(); resultErr != nil {
+				fmt.Print(resultErr)
+			}
+		}
+		var products []Product
+		result, err = brick.Find(&products)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		for _, p := range products {
+			fmt.Printf("product name %s, price %v\n", p.Name, p.Price)
+		}
+	}
+	// delete with element
+	{
+		// make a transaction, because I do not really delete a data
+		brick := brick.Begin()
+		var product Product
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
 
-        result, err = brick.Delete(&product)
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
+		result, err = brick.Delete(&product)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
 
-        var disappearProduct Product
-        result, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&disappearProduct)
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        fmt.Printf("error(%s)\n", err)
-        brick.Rollback()
-    }
-    // delete with condition
-    {
-        // make a transaction, because I am not really delete a data
-        brick := brick.Begin()
-        result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").DeleteWithConditions()
-        if err != nil {
-            panic(err)
-        }
-        if resultErr := result.Err(); resultErr != nil {
-            fmt.Print(resultErr)
-        }
-        var product Product
-        _, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
-        fmt.Printf("error(%s)\n", err)
-        brick.Rollback()
-    }
+		var disappearProduct Product
+		result, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&disappearProduct)
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("error(%s)\n", err)
+		brick.Rollback()
+	}
+	// delete with condition
+	{
+		// make a transaction, because I am not really delete a data
+		brick := brick.Begin()
+		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").DeleteWithConditions()
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		var product Product
+		_, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
+		fmt.Printf("error(%s)\n", err)
+		brick.Rollback()
+	}
+	// group by
+	{
+		var tab ProductGroup
+		brick := toy.Model(&tab).Debug().GroupBy(Offsetof(tab.Tag))
+		var groups []ProductGroup
+		result, err := brick.Find(&groups)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		for _, g := range groups {
+			fmt.Printf("group %#v\n", g)
+		}
+	}
 }
+
 ```
 
 ---
@@ -929,6 +962,121 @@ brick.CustomManyToManyPreload(<middle model struct>, <main container>, <main rel
 ```
 
 
+### Result
+
+**use Report to view sql action**
+
+insert
+
+```golang
+user := User{
+    Detail: &UserDetail{
+        MainPage: "some html code with you page",
+        Extra:    Extra{"title": "my blog"},
+    },
+    Blog: []Blog{
+        {Title: "how to write a blog", Content: "first ..."},
+        {Title: "blog introduction", Content: "..."},
+    },
+    Friends: []*User{
+        {
+            Detail: &UserDetail{
+                MainPage: "some html code with you page",
+                Extra:    Extra{},
+            },
+            Blog: []Blog{
+                {Title: "some python tech", Content: "first ..."},
+                {Title: "my eleme_union_meal usage", Content: "..."},
+            },
+            Name: "fatpigeon",
+            Age:  18,
+            Sex:  "male",
+        },
+    },
+    Name: "bigpigeon",
+    Age:  18,
+    Sex:  "male",
+}
+result, err = brick.Save(&user)
+// error process ...
+fmt.Printf("report:\n%s\n", result.Report())
+
+/*
+report:
+[0, ] INSERT INTO user(created_at,updated_at,deleted_at,name,age,sex) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.012285+08:00","2018-02-28T17:31:20.012285+08:00",null,"bigpigeon",18,"male"]
+	preload Detail
+	[0-, ] INSERT INTO user_detail(user_id,main_page,extra) VALUES(?,?,?)  args:[1,"some html code with you page",{"title":"my blog"}]
+	preload Blog
+	[0-0, ] INSERT INTO blog(created_at,updated_at,deleted_at,user_id,title,content) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.013968+08:00","2018-02-28T17:31:20.013968+08:00",null,1,"how to write a blog","first ..."]
+	[0-1, ] INSERT INTO blog(created_at,updated_at,deleted_at,user_id,title,content) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.013968+08:00","2018-02-28T17:31:20.013968+08:00",null,1,"blog introduction","..."]
+	preload Friends
+	[0-0, ] INSERT INTO user(created_at,updated_at,deleted_at,name,age,sex) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.015207+08:00","2018-02-28T17:31:20.015207+08:00",null,"fatpigeon",18,"male"]
+		preload Detail
+		[0-0-, ] INSERT INTO user_detail(user_id,main_page,extra) VALUES(?,?,?)  args:[2,"some html code with you page",{}]
+		preload Blog
+		[0-0-0, ] INSERT INTO blog(created_at,updated_at,deleted_at,user_id,title,content) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.016389+08:00","2018-02-28T17:31:20.016389+08:00",null,2,"some python tech","first ..."]
+		[0-0-1, ] INSERT INTO blog(created_at,updated_at,deleted_at,user_id,title,content) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.016389+08:00","2018-02-28T17:31:20.016389+08:00",null,2,"my eleme_union_meal usage","..."]
+*/
+```
+
+find
+
+```golang
+brick := brick.Preload(Offsetof(User{}.Friends)).
+    Preload(Offsetof(User{}.Detail)).Enter().
+    Preload(Offsetof(User{}.Blog)).Enter().
+    Enter()
+var users []User
+result, err = brick.Find(&users)
+// some error process
+...
+// print the report
+fmt.Printf("report:\n%s\n", result.Report())
+
+// report log
+/*
+report:
+[0, 1, ] SELECT id,created_at,updated_at,deleted_at,name,age,sex FROM user WHERE deleted_at IS NULL  args:null
+	preload Detail
+	[0-, 1-, ] SELECT id,user_id,main_page,extra FROM user_detail WHERE user_id IN (?,?)  args:[2,1]
+	preload Blog
+	[0-0, 0-1, 1-0, 1-1, ] SELECT id,created_at,updated_at,deleted_at,user_id,title,content FROM blog WHERE deleted_at IS NULL AND user_id IN (?,?)  args:[1,2]
+	preload Friends
+	[0-0, ] SELECT id,created_at,updated_at,deleted_at,name,age,sex FROM user WHERE deleted_at IS NULL AND id IN (?)  args:[2]
+		preload Detail
+		[0-0-, ] SELECT id,user_id,main_page,extra FROM user_detail WHERE user_id IN (?)  args:[2]
+		preload Blog
+		[0-0-0, 0-0-1, ] SELECT id,created_at,updated_at,deleted_at,user_id,title,content FROM blog WHERE deleted_at IS NULL AND user_id IN (?)  args:[2]
+*/
+
+```
+
+**use Err to view sql action error**
+
+```golang
+var users []struct {
+    ID     uint32
+    Age    bool
+    Detail *UserDetail
+    Blog   []Blog
+}
+result, err = brick.Find(&users)
+if err != nil {
+    panic(err)
+}
+if err := result.Err(); err != nil {
+    fmt.Printf("error:\n%s\n", err)
+}
+
+/*
+error:
+SELECT id,age FROM user WHERE deleted_at IS NULL  args:null errors(
+	[0]sql: Scan error on column index 1: sql/driver: couldn't convert "18" into type bool
+	[1]sql: Scan error on column index 1: sql/driver: couldn't convert "18" into type bool
+)
+*/
+```
+
 #### Selector
 
 toyorm support following selector
@@ -944,6 +1092,383 @@ Preload & Custom Preload | yes | yes         | no                             | 
 OrderBy             | yes      | yes         | no                             | no                       | no
 Find                | no       | no          | no                             | no                       | yes
 
+
+
+
+
 ### Full Feature Example
 
-TODO
+```golang
+package main
+
+import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/bigpigeon/toyorm"
+	"runtime"
+	. "unsafe"
+
+	// when database is mysql
+	_ "github.com/go-sql-driver/mysql"
+	// when database is sqlite3
+	//_ "github.com/mattn/go-sqlite3"
+)
+
+type Extra map[string]interface{}
+
+func (e *Extra) Scan(value interface{}) error {
+	switch v := value.(type) {
+	case string:
+		return json.Unmarshal([]byte(v), e)
+	case []byte:
+		return json.Unmarshal(v, e)
+	default:
+		return errors.New("not support type")
+	}
+}
+
+func (e Extra) Value() (driver.Value, error) {
+	return json.Marshal(e)
+}
+
+type UserDetail struct {
+	ID       int    `toyorm:"primary key;auto_increment"`
+	UserID   uint32 `toyorm:"index"`
+	MainPage string `toyorm:"type:Text"`
+	Extra    Extra  `toyorm:"type:VARCHAR(1024)"`
+}
+
+type Blog struct {
+	toyorm.ModelDefault
+	UserID  uint32 `toyorm:"index"`
+	Title   string `toyorm:"index"`
+	Content string
+}
+
+type User struct {
+	toyorm.ModelDefault
+	Name    string `toyorm:"unique index"`
+	Age     int
+	Sex     string
+	Detail  *UserDetail
+	Friends []*User
+	Blog    []Blog
+}
+
+func JsonEncode(v interface{}) string {
+	jsonData, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(jsonData)
+}
+
+func processError(result *toyorm.Result, err error) {
+	if err != nil {
+		panic(err)
+	}
+	if rErr := result.Err(); rErr != nil {
+		runtime.Caller(2)
+		fmt.Printf("%s\n", rErr)
+	}
+}
+
+func FullFeatureExample(sqlType, url string) {
+	toy, err := toyorm.Open(sqlType, url)
+	var result *toyorm.Result
+	if err != nil {
+		panic(err)
+	}
+
+	var friendUserId uint32
+	brick := toy.Model(&User{}).Debug().
+		Preload(Offsetof(User{}.Detail)).Enter().
+		Preload(Offsetof(User{}.Blog)).Enter()
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).Enter()
+		result, err = brick.DropTableIfExist()
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+
+		result, err = brick.CreateTableIfNotExist()
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+	}
+
+	// insert test
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		user := User{
+			Detail: &UserDetail{
+				MainPage: "some html code with you page",
+				Extra:    Extra{"title": "my blog"},
+			},
+			Blog: []Blog{
+				{Title: "how to write a blog", Content: "first ..."},
+				{Title: "blog introduction", Content: "..."},
+			},
+			Friends: []*User{
+				{
+					Detail: &UserDetail{
+						MainPage: "some html code with you page",
+						Extra:    Extra{},
+					},
+					Blog: []Blog{
+						{Title: "some python tech", Content: "first ..."},
+						{Title: "my eleme_union_meal usage", Content: "..."},
+					},
+					Name: "fatpigeon",
+					Age:  18,
+					Sex:  "male",
+				},
+			},
+			Name: "bigpigeon",
+			Age:  18,
+			Sex:  "male",
+		}
+		result, err = brick.Save(&user)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+		fmt.Printf("user %v\n", JsonEncode(user))
+		friendUserId = user.Friends[0].ID
+	}
+	// find one
+	{
+		brick := brick.RightValuePreload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		brick = brick.Where(toyorm.ExprEqual, Offsetof(User{}.ID), friendUserId)
+		var user User
+		result, err = brick.Find(&user)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+		fmt.Printf("user %v\n", JsonEncode(user))
+	}
+	var deleteUsers []User
+	// find
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		var users []User
+		result, err = brick.Find(&users)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+		fmt.Printf("users %v\n", JsonEncode(users))
+		deleteUsers = users
+	}
+	// report error with find
+	{
+		var users []struct {
+			ID     uint32
+			Age    bool
+			Detail *UserDetail
+			Blog   []Blog
+		}
+		result, err = brick.Find(&users)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("error:\n%s\n", err)
+		}
+	}
+	// delete
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		result, err = brick.Delete(&deleteUsers)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+	}
+}
+
+func main() {
+	var err error
+	var toy *toyorm.Toy
+	// when database is mysql, make sure your mysql have toyorm_example schema
+	toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
+	// when database is sqlite3
+	//toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
+
+	var result *toyorm.Result
+	if err != nil {
+		panic(err)
+	}
+
+	var friendUserId uint32
+	brick := toy.Model(&User{}).Debug().
+		Preload(Offsetof(User{}.Detail)).Enter().
+		Preload(Offsetof(User{}.Blog)).Enter()
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).Enter()
+		result, err = brick.DropTableIfExist()
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+
+		result, err = brick.CreateTableIfNotExist()
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+	}
+
+	// insert test
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		user := User{
+			Detail: &UserDetail{
+				MainPage: "some html code with you page",
+				Extra:    Extra{"title": "my blog"},
+			},
+			Blog: []Blog{
+				{Title: "how to write a blog", Content: "first ..."},
+				{Title: "blog introduction", Content: "..."},
+			},
+			Friends: []*User{
+				{
+					Detail: &UserDetail{
+						MainPage: "some html code with you page",
+						Extra:    Extra{},
+					},
+					Blog: []Blog{
+						{Title: "some python tech", Content: "first ..."},
+						{Title: "my eleme_union_meal usage", Content: "..."},
+					},
+					Name: "fatpigeon",
+					Age:  18,
+					Sex:  "male",
+				},
+			},
+			Name: "bigpigeon",
+			Age:  18,
+			Sex:  "male",
+		}
+		result, err = brick.Save(&user)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+		fmt.Printf("user %v\n", JsonEncode(user))
+		friendUserId = user.Friends[0].ID
+	}
+	// find one
+	{
+		brick := brick.RightValuePreload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		brick = brick.Where(toyorm.ExprEqual, Offsetof(User{}.ID), friendUserId)
+		var user User
+		result, err = brick.Find(&user)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+		fmt.Printf("user %v\n", JsonEncode(user))
+	}
+	var deleteUsers []User
+	// find
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		var users []User
+		result, err = brick.Find(&users)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+		fmt.Printf("users %v\n", JsonEncode(users))
+		deleteUsers = users
+	}
+	// report error with find
+	{
+		var users []struct {
+			ID     uint32
+			Age    bool
+			Detail *UserDetail
+			Blog   []Blog
+		}
+		result, err = brick.Find(&users)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("error:\n%s\n", err)
+		}
+	}
+	// delete
+	{
+		brick := brick.Preload(Offsetof(User{}.Friends)).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Enter().
+			Enter()
+		result, err = brick.Delete(&deleteUsers)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		fmt.Printf("report:\n%s\n", result.Report())
+	}
+}
+
+```

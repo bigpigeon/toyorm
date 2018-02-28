@@ -1785,3 +1785,185 @@ func TestReport(t *testing.T) {
 	}
 	t.Log("\n", result.Report())
 }
+
+func TestRightValuePreload(t *testing.T) {
+	var tab TestRightValuePreloadTable
+	baseBrick := TestDB.Model(&tab).Debug()
+	brick := baseBrick.Preload(Offsetof(tab.ManyToMany)).Enter()
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTableIfNotExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := TestRightValuePreloadTable{
+		Data: "test right value preload",
+		ManyToMany: []TestRightValuePreloadTable{
+			{Data: "test right value preload sub 1"},
+			{Data: "test right value preload sub 2"},
+		},
+	}
+
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var scanData TestRightValuePreloadTable
+	findBrick := baseBrick.RightValuePreload(Offsetof(tab.ManyToMany)).Enter()
+	findBrick = findBrick.Where(ExprEqual, Offsetof(tab.ID), data.ManyToMany[0].ID)
+	result, err = findBrick.Find(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, scanData.ManyToMany[0].ID, data.ID)
+	t.Logf("result:\n%s\n", result.Report())
+}
+
+func TestPreloadCheck(t *testing.T) {
+	var tab TestPreloadCheckTable
+	brick := TestDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+	createTableUnit(brick)(t)
+	type missingID struct {
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+	type missingBelongToID struct {
+		ID   uint32
+		Data string
+
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+	type missingBelongTo struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToOne struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		//OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToOneRelationship struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *struct {
+			ID   uint32
+			Data string
+		}
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToMany struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		//OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToManyRelationship struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []struct {
+			ID   uint32
+			Data string
+		}
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingManyToMany struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		//ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingManyToManyID struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []struct {
+			//ID   uint32 `toyorm:"primary key;auto_increment"`
+			Data string
+		}
+	}
+
+	_, err := brick.Find(&missingID{})
+	assert.Equal(t, err.Error(), "struct missing ID field")
+
+	_, err = brick.Find(&missingBelongToID{})
+	assert.Equal(t, err.Error(), "struct missing BelongToID field")
+
+	_, err = brick.Find(&missingBelongTo{})
+	assert.Equal(t, err.Error(), "struct missing BelongTo field")
+
+	_, err = brick.Find(&missingOneToOne{})
+	assert.Equal(t, err.Error(), "struct missing OneToOne field")
+
+	_, err = brick.Find(&missingOneToOneRelationship{})
+	assert.Equal(t, err.Error(), "struct of the OneToOne field missing TestPreloadCheckTableID field")
+
+	_, err = brick.Find(&missingOneToMany{})
+	assert.Equal(t, err.Error(), "struct missing OneToMany field")
+
+	_, err = brick.Find(&missingOneToManyRelationship{})
+	assert.Equal(t, err.Error(), "struct of the OneToMany field missing TestPreloadCheckTableID field")
+
+	_, err = brick.Find(&missingManyToMany{})
+	assert.Equal(t, err.Error(), "struct missing ManyToMany field")
+
+	_, err = brick.Find(&missingManyToManyID{})
+	assert.Equal(t, err.Error(), "struct of the ManyToMany field missing ID field")
+}

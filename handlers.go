@@ -11,7 +11,7 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 	return func(ctx *Context) error {
 		for fieldName, preload := range ctx.Brick.BelongToPreload {
 			mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
-			preloadBrick := ctx.Brick.Preload(fieldName)
+			preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
 			subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
 
 			// map[i]=>j [i]record.SubData -> [j]subRecord
@@ -43,7 +43,7 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 			return err
 		}
 		for fieldName, preload := range ctx.Brick.OneToOnePreload {
-			preloadBrick := ctx.Brick.Preload(fieldName)
+			preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
 			mainPos, subPos := preload.Model.GetOnePrimary(), preload.RelationField
 			subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
 			// set sub model relation field
@@ -70,7 +70,7 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 
 		// one to many
 		for fieldName, preload := range ctx.Brick.OneToManyPreload {
-			preloadBrick := ctx.Brick.Preload(fieldName)
+			preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
 			mainField, subField := preload.Model.GetOnePrimary(), preload.RelationField
 			elemAddressType := reflect.PtrTo(LoopTypeIndirect(ctx.Result.Records.GetFieldType(fieldName)).Elem())
 			subRecords := MakeRecordsWithElem(preload.SubModel, elemAddressType)
@@ -96,7 +96,7 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 		}
 		// many to many
 		for fieldName, preload := range ctx.Brick.ManyToManyPreload {
-			subBrick := ctx.Brick.Preload(fieldName)
+			subBrick := ctx.Brick.MapPreloadBrick[fieldName]
 			middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
 
 			mainField, subField := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
@@ -220,6 +220,65 @@ func HandlerFind(ctx *Context) error {
 	max := ctx.Result.Records.Len()
 	action.affectData = makeRange(min, max)
 	ctx.Result.AddQueryRecord(action)
+	return nil
+}
+
+func HandlerPreloadContainerCheck(ctx *Context) error {
+	for fieldName, preload := range ctx.Brick.BelongToPreload {
+		if fieldType := ctx.Result.Records.GetFieldType(fieldName); fieldType == nil {
+			return errors.New(fmt.Sprintf("struct missing %s field", fieldName))
+		} else {
+			subRecords := MakeRecordsWithElem(preload.SubModel, fieldType)
+			subPrimaryFieldName := preload.SubModel.GetOnePrimary().Name()
+			if relationFieldType := subRecords.GetFieldType(subPrimaryFieldName); relationFieldType == nil {
+				return errors.New(fmt.Sprintf("struct of the %s field missing %s field", fieldName, subPrimaryFieldName))
+			}
+		}
+		if fieldType := ctx.Result.Records.GetFieldType(preload.RelationField.Name()); fieldType == nil {
+			return errors.New(fmt.Sprintf("struct missing %s field", preload.RelationField.Name()))
+		}
+	}
+	var needPrimaryKey bool
+	for fieldName, preload := range ctx.Brick.OneToOnePreload {
+		needPrimaryKey = true
+		if fieldType := ctx.Result.Records.GetFieldType(fieldName); fieldType == nil {
+			return errors.New(fmt.Sprintf("struct missing %s field", fieldName))
+		} else {
+			subRecords := MakeRecordsWithElem(preload.SubModel, fieldType)
+			if relationFieldType := subRecords.GetFieldType(preload.RelationField.Name()); relationFieldType == nil {
+				return errors.New(fmt.Sprintf("struct of the %s field missing %s field", fieldName, preload.RelationField.Name()))
+			}
+		}
+	}
+	for fieldName, preload := range ctx.Brick.OneToManyPreload {
+		needPrimaryKey = true
+		if fieldType := ctx.Result.Records.GetFieldType(fieldName); fieldType == nil {
+			return errors.New(fmt.Sprintf("struct missing %s field", fieldName))
+		} else {
+			subRecords := MakeRecordsWithElem(preload.SubModel, fieldType)
+			if relationFieldType := subRecords.GetFieldType(preload.RelationField.Name()); relationFieldType == nil {
+				return errors.New(fmt.Sprintf("struct of the %s field missing %s field", fieldName, preload.RelationField.Name()))
+			}
+		}
+	}
+	for fieldName, preload := range ctx.Brick.ManyToManyPreload {
+		needPrimaryKey = true
+		if fieldType := ctx.Result.Records.GetFieldType(fieldName); fieldType == nil {
+			return errors.New(fmt.Sprintf("struct missing %s field", fieldName))
+		} else {
+			subRecords := MakeRecordsWithElem(preload.SubModel, fieldType)
+			subPrimaryFieldName := preload.SubModel.GetOnePrimary().Name()
+			if relationFieldType := subRecords.GetFieldType(subPrimaryFieldName); relationFieldType == nil {
+				return errors.New(fmt.Sprintf("struct of the %s field missing %s field", fieldName, subPrimaryFieldName))
+			}
+		}
+	}
+	if needPrimaryKey {
+		primaryName := ctx.Brick.model.GetOnePrimary().Name()
+		if primaryType := ctx.Result.Records.GetFieldType(primaryName); primaryType == nil {
+			return errors.New(fmt.Sprintf("struct missing %s field", primaryName))
+		}
+	}
 	return nil
 }
 
@@ -699,7 +758,7 @@ func HandlerNotExistTableAbort(ctx *Context) error {
 
 func HandlerPreloadDelete(ctx *Context) error {
 	for fieldName, preload := range ctx.Brick.OneToOnePreload {
-		preloadBrick := ctx.Brick.Preload(fieldName)
+		preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
 		subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
 		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
 		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
@@ -722,7 +781,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 
 	// one to many
 	for fieldName, preload := range ctx.Brick.OneToManyPreload {
-		preloadBrick := ctx.Brick.Preload(fieldName)
+		preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
 		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
 		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
 		elemAddressType := reflect.PtrTo(LoopTypeIndirect(ctx.Result.Records.GetFieldType(fieldName)).Elem())
@@ -746,7 +805,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 	}
 	// many to many
 	for fieldName, preload := range ctx.Brick.ManyToManyPreload {
-		subBrick := ctx.Brick.Preload(fieldName)
+		subBrick := ctx.Brick.MapPreloadBrick[fieldName]
 		middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
 		mainField, subField := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
 		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
@@ -829,7 +888,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 	}
 
 	for fieldName, preload := range ctx.Brick.BelongToPreload {
-		preloadBrick := ctx.Brick.Preload(fieldName)
+		preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
 		subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
 		for _, record := range ctx.Result.Records.GetRecords() {
 			subRecords.Add(record.FieldAddress(fieldName))

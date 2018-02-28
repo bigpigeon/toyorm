@@ -492,6 +492,45 @@ type TestReportSub4Sub4 struct {
 	Sub4Data string
 }
 
+type TestRightValuePreloadTable struct {
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Data       string
+	ManyToMany []TestRightValuePreloadTable
+}
+
+type TestPreloadCheckTable struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+
+	BelongToID uint32
+	BelongTo   *TestPreloadCheckBelongTo
+	OneToOne   *TestPreloadCheckOneToOne
+	OneToMany  []TestPreloadCheckOneToMany
+	ManyToMany []TestPreloadCheckManyToMany
+}
+
+type TestPreloadCheckBelongTo struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
+type TestPreloadCheckOneToOne struct {
+	ID                      uint32 `toyorm:"primary key;auto_increment"`
+	TestPreloadCheckTableID uint32
+	Data                    string
+}
+
+type TestPreloadCheckOneToMany struct {
+	ID                      uint32 `toyorm:"primary key;auto_increment"`
+	TestPreloadCheckTableID uint32
+	Data                    string
+}
+
+type TestPreloadCheckManyToMany struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
 type Product struct {
 	ModelDefault
 	Detail    *ProductDetail
