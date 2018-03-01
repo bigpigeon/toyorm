@@ -1,6 +1,6 @@
 # Toyorm golang orm
 
-this is powerful sql orm library for Golang, it has few dependencies and high performance
+this is powerful sql orm library for Golang, have some funny features
 
 [![Build Status](https://travis-ci.org/bigpigeon/toyorm.svg)](https://travis-ci.org/bigpigeon/toyorm)
 [![codecov](https://codecov.io/gh/bigpigeon/toyorm/branch/master/graph/badge.svg)](https://codecov.io/gh/bigpigeon/toyorm)
@@ -8,6 +8,15 @@ this is powerful sql orm library for Golang, it has few dependencies and high pe
 [![GoDoc](https://godoc.org/github.com/bigpigeon/toyorm?status.svg)](https://godoc.org/github.com/bigpigeon/toyorm)
 [![Join the chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/toyorm/toyorm)
 
+#### support database
+
+sqlite3   mysql
+
+#### feature
+
+- Use Offsetof to Get struct field
+
+- Preload operation
 
 ### A Simple Example
 
