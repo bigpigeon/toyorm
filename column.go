@@ -24,18 +24,6 @@ type ScanField struct {
 	column string
 }
 
-func (s ScanField) Name() string {
-	return s.name
-}
-
-func (s ScanField) Column() string {
-	return s.column
-}
-
-var (
-	StarColumn = ScanField{"All", "*"}
-)
-
 type ColumnValue interface {
 	Column
 	Value() reflect.Value

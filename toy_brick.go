@@ -877,10 +877,3 @@ func (t *ToyBrick) ToDesc(v interface{}) Column {
 	column := StrColumn(field.Column() + " DESC")
 	return column
 }
-
-// count for
-func (t *ToyBrick) CountFor(v interface{}) ColumnName {
-	field := t.model.fieldSelect(v)
-	column := ScanField{"CountWith" + field.Name(), fmt.Sprintf("count(%s)", field.Column())}
-	return column
-}

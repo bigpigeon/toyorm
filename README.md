@@ -966,6 +966,9 @@ brick.CustomManyToManyPreload(<middle model struct>, <main container>, <main rel
 
 **use Report to view sql action**
 
+report format
+
+
 insert
 
 ```golang
@@ -1002,6 +1005,8 @@ result, err = brick.Save(&user)
 fmt.Printf("report:\n%s\n", result.Report())
 
 /*
+// [0, ] means affected the 0 element
+// [0-0, ] means affected the 0 element the 0 sub element
 report:
 [0, ] INSERT INTO user(created_at,updated_at,deleted_at,name,age,sex) VALUES(?,?,?,?,?,?)  args:["2018-02-28T17:31:20.012285+08:00","2018-02-28T17:31:20.012285+08:00",null,"bigpigeon",18,"male"]
 	preload Detail
