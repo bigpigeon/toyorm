@@ -12,6 +12,10 @@ this is powerful sql orm library for Golang, have some funny features
 
 sqlite3   mysql
 
+#### go version
+
+version go-1.9
+
 #### feature
 
 - Use Offsetof to Get struct field
@@ -380,7 +384,7 @@ toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
 
 ### Model definition
 
-**example**
+##### example
 
 ```golang
 type Extra map[string]interface{}
@@ -425,9 +429,35 @@ type User struct {
 }
 ```
 
+##### type translate
+
+if sql type is not match, toyorm will ignore it in Sql Operation
+
+
+you can use **\<type:sql_type\>** field tag to special the sql type
+
+
+the following type will auto translate to sql type
+
+
+Go Type | sql type
+--------|-----------
+bool    | BOOLEAN
+int8,int16,int32,uint8,uint16,uint32| INTEGER
+int64,uint64,int,uint| BIGINT
+float32,float64| FLOAT
+string  | VARCHAR(255)
+time.Time | TIMESTAMP
+[]byte    | VARCHAR(255)
+sql.NullBool | BOOLEAN
+sql.NullInt64 | BIGINT
+sql.NullFloat64 | FLOAT
+sql.NullString | VARCHAR(255)
+sql.RawBytes | VARCHAR(255)
+
 **special fields**
 
-1. all special fields have some process in handlers, do not try to change it type or set it value
+1. special fields have some process in handlers, do not try to change it type or set it value
 
 
 Field Name| Type      | Description
@@ -622,7 +652,7 @@ use **toy.Model** will create a ToyBrick, you need use it to build grammar and o
 
 affective update/find/delete operation
 
-**usage**
+##### usage
 
 where will clean old conditions and make new one
 
@@ -642,7 +672,7 @@ or & and conditions will use or/and to link new conditions
     brick.Or().Conditions(<toyorm.Search>)
     brick.And().Conditions(<toyorm.Search>)
 
-**SearchExpr**
+##### SearchExpr
 
 SearchExpr        |  to sql      | example
 ------------------|--------------|:----------------
@@ -663,7 +693,7 @@ ExprNotLike       | NOT LIKE     | brick.Where(ExprNotLike, OffsetOf(Product{}.N
 ExprNull          | IS NULL      | brick.Where(ExprNull, OffsetOf(Product{}.DeletedAt)) // WHERE DeletedAt IS NULL
 ExprNotNull       | IS NOT NULL  | brick.Where(ExprNotNull, OffsetOf(Product{}.DeletedAt)) // WHERE DeletedAt IS NOT NULL
 
-**example**
+##### example
 
 single condition
 
