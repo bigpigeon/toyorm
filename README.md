@@ -434,7 +434,7 @@ type User struct {
 if sql type is not match, toyorm will ignore it in Sql Operation
 
 
-you can use **\<type:sql_type\>** field tag to special the sql type
+you can use **\<type:sql_type\>** field tag to specified their sql type
 
 
 the following type will auto translate to sql type
