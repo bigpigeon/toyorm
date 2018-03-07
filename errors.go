@@ -58,3 +58,40 @@ type ErrSameColumnName struct {
 func (e ErrSameColumnName) Error() string {
 	return fmt.Sprintf("model '%s' have same sql column %s in field '%s', '%s'", e.ModelName, e.Same, e.OldFieldName, e.NewFieldName)
 }
+
+type ErrCollectionExec map[int]error
+
+func (e ErrCollectionExec) Error() string {
+	var s string
+	for k, v := range e {
+		s += fmt.Sprintf("[%d] %s;", k, v)
+	}
+	return s
+}
+
+type ErrCollectionQuery map[int]error
+
+func (e ErrCollectionQuery) Error() string {
+	var s string
+	for k, v := range e {
+		s += fmt.Sprintf("[%d] %s;", k, v)
+	}
+	return s
+}
+
+type ErrCollectionQueryRow map[int]error
+
+func (e ErrCollectionQueryRow) Error() string {
+	var s string
+	for k, v := range e {
+		s += fmt.Sprintf("[%d] %s;", k, v)
+	}
+	return s
+}
+
+type ErrCollectionDBSelectorNotFound struct {
+}
+
+func (e ErrCollectionDBSelectorNotFound) Error() string {
+	return "db selector not found"
+}

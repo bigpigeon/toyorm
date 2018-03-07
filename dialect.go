@@ -8,6 +8,7 @@ import (
 type Dialect interface {
 	HasTable(*Model) ExecValue
 	CreateTable(*Model) []ExecValue
+	DropTable(*Model) ExecValue
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column) ExecValue
 	FindExec(model *Model, columns []Column) ExecValue
 	UpdateExec(*Model, []ColumnValue) ExecValue
@@ -20,6 +21,10 @@ type Dialect interface {
 }
 
 type DefaultDialect struct{}
+
+func (dia DefaultDialect) DropTable(m *Model) ExecValue {
+	return ExecValue{fmt.Sprintf("DROP TABLE %s", m.Name), nil}
+}
 
 func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, orderBy []Column) (exec ExecValue) {
 	if len(search) > 0 {

@@ -22,6 +22,8 @@ version go-1.9
 
 - Preload operation
 
+- custom sql operation
+
 ### A Simple Example
 
 copy following code to a main.go file and run

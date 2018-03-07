@@ -139,7 +139,7 @@ func (r *Result) report() (reportData []ReportData) {
 	return reportData
 }
 
-// TODO a report log
+// Rename to Log
 func (r *Result) Report() string {
 	reportData := r.report()
 	var buf bytes.Buffer

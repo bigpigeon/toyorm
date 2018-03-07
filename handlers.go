@@ -708,7 +708,7 @@ func HandlerDropTablePreload(option string) func(ctx *Context) error {
 }
 
 func HandlerCreateTable(ctx *Context) error {
-	execs := ctx.Brick.CreateTableExec(ctx.Brick.Toy.Dialect)
+	execs := ctx.Brick.Toy.Dialect.CreateTable(ctx.Brick.model)
 	for _, exec := range execs {
 		action := ExecAction{Exec: exec}
 		action.Result, action.Error = ctx.Brick.Exec(exec)
@@ -719,7 +719,7 @@ func HandlerCreateTable(ctx *Context) error {
 
 func HandlerExistTableAbort(ctx *Context) error {
 	action := QueryAction{}
-	action.Exec = ctx.Brick.HasTableExec(ctx.Brick.Toy.Dialect)
+	action.Exec = ctx.Brick.Toy.Dialect.HasTable(ctx.Brick.model)
 	var hasTable bool
 	err := ctx.Brick.QueryRow(action.Exec).Scan(&hasTable)
 	if err != nil {
@@ -734,7 +734,7 @@ func HandlerExistTableAbort(ctx *Context) error {
 }
 
 func HandlerDropTable(ctx *Context) (err error) {
-	exec := ctx.Brick.DropTableExec()
+	exec := ctx.Brick.Toy.Dialect.DropTable(ctx.Brick.model)
 	action := ExecAction{Exec: exec}
 	action.Result, action.Error = ctx.Brick.Exec(exec)
 	ctx.Result.AddExecRecord(action)
@@ -743,7 +743,7 @@ func HandlerDropTable(ctx *Context) (err error) {
 
 func HandlerNotExistTableAbort(ctx *Context) error {
 	action := QueryAction{}
-	action.Exec = ctx.Brick.HasTableExec(ctx.Brick.Toy.Dialect)
+	action.Exec = ctx.Brick.Toy.Dialect.HasTable(ctx.Brick.model)
 	var hasTable bool
 	err := ctx.Brick.QueryRow(action.Exec).Scan(&hasTable)
 	if err != nil {

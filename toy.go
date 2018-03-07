@@ -7,25 +7,24 @@ import (
 	"reflect"
 )
 
-type Toy struct {
-	db                       *sql.DB
+type ToyKernel struct {
 	CacheModels              map[reflect.Type]*Model
 	CacheMiddleModels        map[reflect.Type]*Model
 	CacheReverseMiddleModels map[reflect.Type]*Model
 	// map[model][container_field_name]
-	belongToPreload          map[*Model]map[string]*BelongToPreload
-	oneToOnePreload          map[*Model]map[string]*OneToOnePreload
-	oneToManyPreload         map[*Model]map[string]*OneToManyPreload
-	manyToManyPreload        map[*Model]map[string]map[bool]*ManyToManyPreload
-	Dialect                  Dialect
-	DefaultHandlerChain      map[string]HandlersChain
-	DefaultModelHandlerChain map[string]map[*Model]HandlersChain
-	Logger                   io.Writer
+	belongToPreload   map[*Model]map[string]*BelongToPreload
+	oneToOnePreload   map[*Model]map[string]*OneToOnePreload
+	oneToManyPreload  map[*Model]map[string]*OneToManyPreload
+	manyToManyPreload map[*Model]map[string]map[bool]*ManyToManyPreload
+	Dialect           Dialect
+	Logger            io.Writer
 }
 
-type RowsTree struct {
-	Rows  *sql.Rows
-	Child map[int]*sql.Rows
+type Toy struct {
+	db                       *sql.DB
+	DefaultHandlerChain      map[string]HandlersChain
+	DefaultModelHandlerChain map[string]map[*Model]HandlersChain
+	ToyKernel
 }
 
 func Open(driverName, dataSourceName string) (*Toy, error) {
@@ -43,15 +42,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		panic(ErrNotMatchDialect)
 	}
 	return &Toy{
-		db:                db,
-		CacheModels:       map[reflect.Type]*Model{},
-		CacheMiddleModels: map[reflect.Type]*Model{},
-		belongToPreload:   map[*Model]map[string]*BelongToPreload{},
-		oneToOnePreload:   map[*Model]map[string]*OneToOnePreload{},
-		oneToManyPreload:  map[*Model]map[string]*OneToManyPreload{},
-		// because have isRight feature need two point to save
-		manyToManyPreload: map[*Model]map[string]map[bool]*ManyToManyPreload{},
-		Dialect:           dialect,
+		db: db,
 		DefaultHandlerChain: map[string]HandlersChain{
 			"CreateTable":              {HandlerSimplePreload("CreateTable"), HandlerCreateTable},
 			"CreateTableIfNotExist":    {HandlerSimplePreload("CreateTableIfNotExist"), HandlerExistTableAbort, HandlerCreateTable},
@@ -67,7 +58,18 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"SoftDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerSoftDelete},
 		},
 		DefaultModelHandlerChain: map[string]map[*Model]HandlersChain{},
-		Logger: os.Stdout,
+		ToyKernel: ToyKernel{
+			CacheModels:       map[reflect.Type]*Model{},
+			CacheMiddleModels: map[reflect.Type]*Model{},
+			belongToPreload:   map[*Model]map[string]*BelongToPreload{},
+			oneToOnePreload:   map[*Model]map[string]*OneToOnePreload{},
+			oneToManyPreload:  map[*Model]map[string]*OneToManyPreload{},
+			// because have isRight feature need two point to save
+			manyToManyPreload: map[*Model]map[string]map[bool]*ManyToManyPreload{},
+			Dialect:           dialect,
+
+			Logger: os.Stdout,
+		},
 	}, nil
 }
 
@@ -89,7 +91,7 @@ func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
 }
 
 // TODO testing thread safe? if not add lock
-func (t *Toy) GetModel(_type reflect.Type) *Model {
+func (t *ToyKernel) GetModel(_type reflect.Type) *Model {
 	if model, ok := t.CacheModels[_type]; ok == false {
 		model = NewModel(_type)
 		t.CacheModels[_type] = model
@@ -97,7 +99,7 @@ func (t *Toy) GetModel(_type reflect.Type) *Model {
 	return t.CacheModels[_type]
 }
 
-func (t *Toy) GetMiddleModel(_type reflect.Type) *Model {
+func (t *ToyKernel) GetMiddleModel(_type reflect.Type) *Model {
 	if model, ok := t.CacheModels[_type]; ok == false {
 		model = NewModel(_type)
 		t.CacheModels[_type] = model
@@ -105,7 +107,7 @@ func (t *Toy) GetMiddleModel(_type reflect.Type) *Model {
 	return t.CacheModels[_type]
 }
 
-func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
+func (t *ToyKernel) BelongToPreload(model *Model, field Field) *BelongToPreload {
 	// try to find cache data
 	if t.belongToPreload[model] != nil && t.belongToPreload[model][field.Name()] != nil {
 		return t.belongToPreload[model][field.Name()]
@@ -127,7 +129,7 @@ func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
 	return nil
 }
 
-func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
+func (t *ToyKernel) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	// try to find cache data
 	if t.oneToOnePreload[model] != nil && t.oneToOnePreload[model][field.Name()] != nil {
 		return t.oneToOnePreload[model][field.Name()]
@@ -148,7 +150,7 @@ func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	return nil
 }
 
-func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
+func (t *ToyKernel) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 	// try to find cache data
 	if t.oneToManyPreload[model] != nil && t.oneToManyPreload[model][field.Name()] != nil {
 		return t.oneToManyPreload[model][field.Name()]
@@ -171,11 +173,11 @@ func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 	return nil
 }
 
-func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyToManyPreload {
+func (t *ToyKernel) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyToManyPreload {
 	return t.manyToManyPreloadWithTag(model, field, isRight, `toyorm:"primary key"`)
 }
 
-func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
+func (t *ToyKernel) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
 	// try to find cache data
 	if t.manyToManyPreload[model] != nil && t.manyToManyPreload[model][field.Name()][isRight] != nil {
 		return t.manyToManyPreload[model][field.Name()][isRight]
@@ -201,7 +203,7 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 	return nil
 }
 
-func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
+func (t *ToyKernel) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with sub model primary key")
 	}
@@ -216,7 +218,7 @@ func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField
 	}
 }
 
-func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field) *OneToOnePreload {
+func (t *ToyKernel) OneToOneBind(model, subModel *Model, containerField, relationField Field) *OneToOnePreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
@@ -231,7 +233,7 @@ func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField
 		ContainerField: containerField,
 	}
 }
-func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
+func (t *ToyKernel) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
@@ -247,7 +249,7 @@ func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationFiel
 	}
 }
 
-func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
+func (t *ToyKernel) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
