@@ -187,7 +187,7 @@ func HandlerInsert(ctx *Context) error {
 				}
 			}
 		}
-		ctx.Result.AddExecRecord(action)
+		ctx.Result.AddRecord(action)
 	}
 	return nil
 }
@@ -199,7 +199,7 @@ func HandlerFind(ctx *Context) error {
 	rows, err := ctx.Brick.Query(action.Exec)
 	if err != nil {
 		action.Error = append(action.Error, err)
-		ctx.Result.AddQueryRecord(action)
+		ctx.Result.AddRecord(action)
 		return err
 	}
 	// find current data
@@ -219,7 +219,7 @@ func HandlerFind(ctx *Context) error {
 	}
 	max := ctx.Result.Records.Len()
 	action.affectData = makeRange(min, max)
-	ctx.Result.AddQueryRecord(action)
+	ctx.Result.AddRecord(action)
 	return nil
 }
 
@@ -445,7 +445,7 @@ func HandlerUpdate(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{Exec: ctx.Brick.UpdateExec(record), affectData: []int{i}}
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
-		ctx.Result.AddExecRecord(action)
+		ctx.Result.AddRecord(action)
 	}
 	return nil
 }
@@ -484,7 +484,7 @@ func HandlerSave(ctx *Context) error {
 			action.Exec = ctx.Brick.ReplaceExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 		}
-		ctx.Result.AddExecRecord(action)
+		ctx.Result.AddRecord(action)
 	}
 	return nil
 }
@@ -526,7 +526,7 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 			if err != nil {
 				action.Error = append(action.Error, err)
 
-				ctx.Result.AddQueryRecord(action)
+				ctx.Result.AddRecord(action)
 				return nil
 			}
 			var mapElemTypeFields []reflect.StructField
@@ -553,7 +553,7 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 				primaryKeysMap.SetMapIndex(id.Elem(), timeFieldValues)
 			}
 
-			ctx.Result.AddQueryRecord(action)
+			ctx.Result.AddRecord(action)
 			for _, record := range ctx.Result.Records.GetRecords() {
 				pri := record.Field(primaryField.Name())
 				fields := primaryKeysMap.MapIndex(pri)
@@ -712,7 +712,7 @@ func HandlerCreateTable(ctx *Context) error {
 	for _, exec := range execs {
 		action := ExecAction{Exec: exec}
 		action.Result, action.Error = ctx.Brick.Exec(exec)
-		ctx.Result.AddExecRecord(action)
+		ctx.Result.AddRecord(action)
 	}
 	return nil
 }
@@ -725,7 +725,7 @@ func HandlerExistTableAbort(ctx *Context) error {
 	if err != nil {
 		action.Error = append(action.Error, err)
 	}
-	ctx.Result.AddQueryRecord(action)
+	ctx.Result.AddRecord(action)
 	if err != nil || hasTable == true {
 		ctx.Abort()
 	}
@@ -737,7 +737,7 @@ func HandlerDropTable(ctx *Context) (err error) {
 	exec := ctx.Brick.Toy.Dialect.DropTable(ctx.Brick.model)
 	action := ExecAction{Exec: exec}
 	action.Result, action.Error = ctx.Brick.Exec(exec)
-	ctx.Result.AddExecRecord(action)
+	ctx.Result.AddRecord(action)
 	return nil
 }
 
@@ -749,7 +749,7 @@ func HandlerNotExistTableAbort(ctx *Context) error {
 	if err != nil {
 		action.Error = append(action.Error, err)
 	}
-	ctx.Result.AddQueryRecord(action)
+	ctx.Result.AddRecord(action)
 	if err != nil || hasTable == false {
 		ctx.Abort()
 	}
@@ -929,7 +929,7 @@ func HandlerHardDelete(ctx *Context) error {
 	action := ExecAction{}
 	action.Exec = ctx.Brick.DeleteExec()
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
-	ctx.Result.AddExecRecord(action)
+	ctx.Result.AddRecord(action)
 	return nil
 }
 
@@ -960,6 +960,6 @@ func HandlerSoftDelete(ctx *Context) error {
 	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
 	action.Exec = ctx.Brick.UpdateExec(record)
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
-	ctx.Result.AddExecRecord(action)
+	ctx.Result.AddRecord(action)
 	return nil
 }

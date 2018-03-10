@@ -30,7 +30,7 @@ func (r *Result) Err() error {
 	var errStr string
 
 	for _, action := range r.ActionFlow {
-		switch t := action.sqlAction.(type) {
+		switch t := action.(type) {
 		case QueryAction:
 			errs := ""
 			for i, err := range t.Error {
@@ -65,18 +65,10 @@ func (r *Result) Err() error {
 	return nil
 }
 
-func (r *Result) AddExecRecord(e ExecAction) {
+func (r *Result) AddRecord(q SqlAction) {
 	last := len(r.ActionFlow)
-	r.ActionFlow = append(r.ActionFlow, SqlAction{e})
-	for _, i := range e.affectData {
-		r.RecordsActions[i] = append(r.RecordsActions[i], last)
-	}
-}
-
-func (r *Result) AddQueryRecord(q QueryAction) {
-	last := len(r.ActionFlow)
-	r.ActionFlow = append(r.ActionFlow, SqlAction{q})
-	for _, i := range q.affectData {
+	r.ActionFlow = append(r.ActionFlow, q)
+	for _, i := range q.AffectData() {
 		r.RecordsActions[i] = append(r.RecordsActions[i], last)
 	}
 }
@@ -186,22 +178,11 @@ const (
 	ResultActionQuery
 )
 
-type SqlAction struct {
-	sqlAction
-}
-
-func (r SqlAction) ToExec() ExecAction {
-	return r.sqlAction.(ExecAction)
-}
-
-func (r SqlAction) ToQuery() QueryAction {
-	return r.sqlAction.(QueryAction)
-}
-
-type sqlAction interface {
+type SqlAction interface {
 	String() string
 	Type() SqlActionType
 	AffectData() []int
+	SetAffectData([]int)
 }
 
 type ExecAction struct {
@@ -225,6 +206,10 @@ func (r ExecAction) Type() SqlActionType {
 
 func (r ExecAction) AffectData() []int {
 	return r.affectData
+}
+
+func (r ExecAction) SetAffectData(d []int) {
+	r.affectData = d
 }
 
 type QueryAction struct {
@@ -252,4 +237,8 @@ func (r QueryAction) Type() SqlActionType {
 
 func (r QueryAction) AffectData() []int {
 	return r.affectData
+}
+
+func (r QueryAction) SetAffectData(d []int) {
+	r.affectData = d
 }

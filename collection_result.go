@@ -19,18 +19,10 @@ type CollectionResult struct {
 	MiddleModelPreload map[string]*CollectionResult
 }
 
-func (r *CollectionResult) AddExecRecord(e CollectionExecAction) {
+func (r *CollectionResult) AddRecord(e SqlAction) {
 	last := len(r.ActionFlow)
-	r.ActionFlow = append(r.ActionFlow, SqlAction{e})
-	for _, i := range e.affectData {
-		r.RecordsActions[i] = append(r.RecordsActions[i], last)
-	}
-}
-
-func (r *CollectionResult) AddQueryRecord(q CollectionQueryAction) {
-	last := len(r.ActionFlow)
-	r.ActionFlow = append(r.ActionFlow, SqlAction{q})
-	for _, i := range q.affectData {
+	r.ActionFlow = append(r.ActionFlow, e)
+	for _, i := range e.AffectData() {
 		r.RecordsActions[i] = append(r.RecordsActions[i], last)
 	}
 }
@@ -59,6 +51,10 @@ func (r CollectionExecAction) AffectData() []int {
 	return r.affectData
 }
 
+func (r CollectionExecAction) SetAffectData(d []int) {
+	r.affectData = d
+}
+
 type CollectionQueryAction struct {
 	Exec       ExecValue
 	affectData []int
@@ -85,4 +81,8 @@ func (r CollectionQueryAction) Type() SqlActionType {
 
 func (r CollectionQueryAction) AffectData() []int {
 	return r.affectData
+}
+
+func (r CollectionQueryAction) SetAffectData(d []int) {
+	r.affectData = d
 }

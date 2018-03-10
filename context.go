@@ -67,7 +67,7 @@ type CollectionContext struct {
 	handlers CollectionHandlersChain
 	index    int8
 	Brick    *CollectionBrick
-	Result   *CollectionResult
+	Result   *Result
 	dbIndex  int
 	value    map[interface{}]interface{}
 	//err      error
@@ -79,11 +79,11 @@ func NewCollectionContext(handlers CollectionHandlersChain, brick *CollectionBri
 		index:    -1,
 		dbIndex:  -1,
 		Brick:    brick,
-		Result: &CollectionResult{
+		Result: &Result{
 			Records:            columns,
-			Preload:            map[string]*CollectionResult{},
+			Preload:            map[string]*Result{},
 			RecordsActions:     map[int][]int{},
-			MiddleModelPreload: map[string]*CollectionResult{},
+			MiddleModelPreload: map[string]*Result{},
 			SimpleRelation:     map[string]map[int]int{},
 			MultipleRelation:   map[string]map[int]Pair{},
 		},

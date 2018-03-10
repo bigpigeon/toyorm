@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	TestDB *Toy
+	TestDB           *Toy
+	TestCollectionDB *ToyCollection
 )
 
 type TestCreateTable1 struct {
@@ -623,24 +624,46 @@ func createTableUnit(brick *ToyBrick) func(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	for _, sqldata := range []struct {
-		Driver string
-		Source string
+		Driver            string
+		Source            string
+		CollectionSources []string
 	}{
-		{"mysql", "root:@tcp(localhost:3306)/toyorm?charset=utf8&parseTime=True"},
-		{"sqlite3", ":memory:"},
+		{"mysql", "root:@tcp(localhost:3306)/toyorm?charset=utf8&parseTime=True",
+			[]string{
+				"root:@tcp(localhost:3306)/toyorm1?charset=utf8&parseTime=True",
+				"root:@tcp(localhost:3306)/toyorm2?charset=utf8&parseTime=True",
+			},
+		},
+		{"sqlite3", ":memory:",
+			[]string{"", ""},
+		},
 	} {
 		var err error
 		TestDB, err = Open(sqldata.Driver, sqldata.Source)
 		fmt.Printf("=========== %s ===========\n", sqldata.Driver)
 		fmt.Printf("connect to %s \n\n", sqldata.Source)
 		if err == nil {
+
 			err = TestDB.db.Ping()
-			if err == nil {
-				m.Run()
-				TestDB.db.Close()
-				continue
+			if err != nil {
+				fmt.Printf("Error: cannot test sql %s because (%s)\n", sqldata.Driver, err)
+				goto Close
 			}
 		}
-		fmt.Printf("Error: cannot test sql %s because (%s)\n", sqldata.Driver, err)
+
+		TestCollectionDB, err = OpenCollection(sqldata.Driver, sqldata.CollectionSources...)
+		if err == nil {
+			for _, db := range TestCollectionDB.dbs {
+				err = db.Ping()
+				if err != nil {
+					fmt.Printf("Error: cannot test sql collection %s because (%s)\n", sqldata.Driver, err)
+					goto Close
+				}
+			}
+		}
+		m.Run()
+	Close:
+		TestDB.db.Close()
+		TestCollectionDB.Close()
 	}
 }

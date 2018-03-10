@@ -95,3 +95,13 @@ type ErrCollectionDBSelectorNotFound struct {
 func (e ErrCollectionDBSelectorNotFound) Error() string {
 	return "db selector not found"
 }
+
+type ErrCollectionClose map[int]error
+
+func (e ErrCollectionClose) Error() string {
+	var s string
+	for k, v := range e {
+		s += fmt.Sprintf("[%d] %s;", k, v)
+	}
+	return s
+}

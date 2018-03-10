@@ -27,6 +27,7 @@ type CollectionBrick struct {
 	//limit  int
 	//groupBy []Column
 
+	selector DBPrimarySelector
 	BrickCommon
 }
 
@@ -285,6 +286,7 @@ func (t *CollectionBrick) BindFields(mode Mode, args ...interface{}) *Collection
 		return &newt
 	})
 }
+
 func (t *CollectionBrick) BindDefaultFields(args ...interface{}) *CollectionBrick {
 	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
 		var fields []Field
@@ -320,6 +322,14 @@ func (t *CollectionBrick) Debug() *CollectionBrick {
 	})
 }
 
+func (t *CollectionBrick) Selector(selector DBPrimarySelector) *CollectionBrick {
+	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
+		newt := *t
+		newt.selector = selector
+		return &newt
+	})
+}
+
 func (t *CollectionBrick) IgnoreMode(s Mode, ignore IgnoreMode) *CollectionBrick {
 	newt := *t
 	newt.ignoreModeSelector[s] = ignore
@@ -333,19 +343,19 @@ func (t *CollectionBrick) GetContext(option string, records ModelRecords) *Colle
 	return ctx
 }
 
-func (t *CollectionBrick) insert(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) insert(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("Insert", t.model)
 	ctx := NewCollectionContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) save(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) save(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("Save", t.model)
 	ctx := NewCollectionContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) deleteWithPrimaryKey(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) deleteWithPrimaryKey(records ModelRecords) (*Result, error) {
 	if field := t.model.GetFieldWithName("DeletedAt"); field != nil {
 		return t.softDeleteWithPrimaryKey(records)
 	} else {
@@ -353,19 +363,19 @@ func (t *CollectionBrick) deleteWithPrimaryKey(records ModelRecords) (*Collectio
 	}
 }
 
-func (t *CollectionBrick) softDeleteWithPrimaryKey(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) softDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("SoftDeleteWithPrimaryKey", t.model)
 	ctx := NewCollectionContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) hardDeleteWithPrimaryKey(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) hardDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("HardDeleteWithPrimaryKey", t.model)
 	ctx := NewCollectionContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) delete(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) delete(records ModelRecords) (*Result, error) {
 	if field := t.model.GetFieldWithName("DeletedAt"); field != nil {
 		return t.softDelete(records)
 	} else {
@@ -373,13 +383,13 @@ func (t *CollectionBrick) delete(records ModelRecords) (*CollectionResult, error
 	}
 }
 
-func (t *CollectionBrick) softDelete(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) softDelete(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("SoftDelete", t.model)
 	ctx := NewCollectionContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) hardDelete(records ModelRecords) (*CollectionResult, error) {
+func (t *CollectionBrick) hardDelete(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("HardDelete", t.model)
 	ctx := NewCollectionContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
@@ -407,22 +417,22 @@ func (t *CollectionBrick) find(value reflect.Value) (*CollectionContext, error) 
 	}
 }
 
-func (t *CollectionBrick) CreateTable() (*CollectionResult, error) {
+func (t *CollectionBrick) CreateTable() (*Result, error) {
 	ctx := t.GetContext("CreateTable", MakeRecordsWithElem(t.model, t.model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) CreateTableIfNotExist() (*CollectionResult, error) {
+func (t *CollectionBrick) CreateTableIfNotExist() (*Result, error) {
 	ctx := t.GetContext("CreateTableIfNotExist", MakeRecordsWithElem(t.model, t.model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) DropTable() (*CollectionResult, error) {
+func (t *CollectionBrick) DropTable() (*Result, error) {
 	ctx := t.GetContext("DropTable", MakeRecordsWithElem(t.model, t.model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) DropTableIfExist() (*CollectionResult, error) {
+func (t *CollectionBrick) DropTableIfExist() (*Result, error) {
 	ctx := t.GetContext("DropTableIfExist", MakeRecordsWithElem(t.model, t.model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
@@ -466,7 +476,7 @@ func (t *CollectionBrick) Count() (count int, err error) {
 // map[offset]interface{}
 // map[int]interface{}
 // insert is difficult that have preload data
-func (t *CollectionBrick) Insert(v interface{}) (*CollectionResult, error) {
+func (t *CollectionBrick) Insert(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	var records ModelRecords
 	switch vValue.Kind() {
@@ -486,7 +496,7 @@ func (t *CollectionBrick) Insert(v interface{}) (*CollectionResult, error) {
 	}
 }
 
-func (t *CollectionBrick) Find(v interface{}) (*CollectionResult, error) {
+func (t *CollectionBrick) Find(v interface{}) (*Result, error) {
 	vValue := LoopIndirectAndNew(reflect.ValueOf(v))
 	if vValue.CanSet() == false {
 		return nil, errors.New("find value cannot be set")
@@ -495,7 +505,7 @@ func (t *CollectionBrick) Find(v interface{}) (*CollectionResult, error) {
 	return ctx.Result, err
 }
 
-func (t *CollectionBrick) Update(v interface{}) (*CollectionResult, error) {
+func (t *CollectionBrick) Update(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	vValueList := reflect.MakeSlice(reflect.SliceOf(vValue.Type()), 0, 1)
 	vValueList = reflect.Append(vValueList, vValue)
@@ -504,7 +514,7 @@ func (t *CollectionBrick) Update(v interface{}) (*CollectionResult, error) {
 	return ctx.Result, ctx.Next()
 }
 
-func (t *CollectionBrick) Save(v interface{}) (*CollectionResult, error) {
+func (t *CollectionBrick) Save(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 
 	switch vValue.Kind() {
@@ -518,7 +528,7 @@ func (t *CollectionBrick) Save(v interface{}) (*CollectionResult, error) {
 	}
 }
 
-func (t *CollectionBrick) Delete(v interface{}) (*CollectionResult, error) {
+func (t *CollectionBrick) Delete(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	var records ModelRecords
 	switch vValue.Kind() {
@@ -532,7 +542,7 @@ func (t *CollectionBrick) Delete(v interface{}) (*CollectionResult, error) {
 	}
 }
 
-func (t *CollectionBrick) DeleteWithConditions() (*CollectionResult, error) {
+func (t *CollectionBrick) DeleteWithConditions() (*Result, error) {
 	return t.delete(nil)
 }
 

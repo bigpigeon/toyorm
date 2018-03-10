@@ -281,3 +281,7 @@ func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
 	handlers = append(handlers, t.DefaultHandlerChain[option]...)
 	return handlers
 }
+
+func (t *Toy) Close() error {
+	return t.db.Close()
+}
