@@ -19,7 +19,7 @@ type Toy struct {
 	manyToManyPreload        map[*Model]map[string]map[bool]*ManyToManyPreload
 	Dialect                  Dialect
 	DefaultHandlerChain      map[string]HandlersChain
-	DefaultModelHandlerChain map[string]map[*Model]HandlersChain
+	DefaultModelHandlerChain map[*Model]map[string]HandlersChain
 	Logger                   io.Writer
 }
 
@@ -66,7 +66,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"HardDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerHardDelete},
 			"SoftDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerSoftDelete},
 		},
-		DefaultModelHandlerChain: map[string]map[*Model]HandlersChain{},
+		DefaultModelHandlerChain: map[*Model]map[string]HandlersChain{},
 		Logger: os.Stdout,
 	}, nil
 }
@@ -274,8 +274,8 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 }
 
 func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
-	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[option][model]))
-	handlers = append(handlers, t.DefaultModelHandlerChain[option][model]...)
+	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
+	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
 	handlers = append(handlers, t.DefaultHandlerChain[option]...)
 	return handlers
 }
