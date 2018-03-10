@@ -202,6 +202,7 @@ func HandlerFind(ctx *Context) error {
 		ctx.Result.AddQueryRecord(action)
 		return err
 	}
+	defer rows.Close()
 	// find current data
 	min := ctx.Result.Records.Len()
 	for rows.Next() {
@@ -529,6 +530,7 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 				ctx.Result.AddQueryRecord(action)
 				return nil
 			}
+			defer rows.Close()
 			var mapElemTypeFields []reflect.StructField
 			{
 				for _, f := range timeFields {
