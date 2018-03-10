@@ -14,7 +14,6 @@ type DBPrimarySelector func(key interface{}, n int) int
 
 type ToyCollection struct {
 	dbs                      []*sql.DB
-	DefaultDBSelector        map[string]DBPrimarySelector
 	DefaultHandlerChain      map[string]CollectionHandlersChain
 	DefaultModelHandlerChain map[*Model]map[string]CollectionHandlersChain
 	ToyKernel

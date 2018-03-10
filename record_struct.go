@@ -143,7 +143,7 @@ func (m *ModelStructRecords) Add(v reflect.Value) ModelRecord {
 		panic("Add need can set permission")
 	}
 	if v.Type() != m.Type {
-		panic(fmt.Sprintf("add data type(%s) must be %s", v.Type().Name(), m.Type.Name()))
+		panic(fmt.Sprintf("add data type(%s) must be type(%s)", v.Type(), m.Type))
 	}
 	last := m.source.Len()
 	oldSource := m.source.Pointer()

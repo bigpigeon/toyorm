@@ -176,12 +176,12 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 	primaryKeyField := ctx.Brick.model.GetOnePrimary()
 	var getDBIndex func(r ModelRecord) int
 	if _, ok := reflect.Zero(
-		reflect.PtrTo(LoopTypeIndirectSliceAndPtr(ctx.Result.Records.Source().Type()))).Interface().(DBValSelector); ok {
+		reflect.PtrTo(ctx.Result.Records.Source().Type())).Interface().(DBValSelector); ok {
 		getDBIndex = func(r ModelRecord) int {
-			iface := LoopIndirect(r.Source()).Interface().(DBValSelector)
+			iface := r.Source().Addr().Interface().(DBValSelector)
 			return iface.Select(len(ctx.Brick.Toy.dbs))
 		}
-	} else if selector := ctx.Brick.Toy.DefaultDBSelector[ctx.Brick.model.Name]; selector != nil {
+	} else if selector := ctx.Brick.selector; selector != nil {
 		getDBIndex = func(r ModelRecord) int {
 			return selector(r.Field(primaryKeyField.Name()).Interface(), len(ctx.Brick.Toy.dbs))
 		}
@@ -194,9 +194,9 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		dbIndex := getDBIndex(record)
 		if dbRecordsMap[dbIndex] == nil {
-			dbRecordsMap[dbIndex] = MakeRecords(ctx.Brick.model, ctx.Result.Records.Source().Type())
+			dbRecordsMap[dbIndex] = MakeRecordsWithElem(ctx.Brick.model, record.Source().Addr().Type())
 		}
-		dbRecordsMap[dbIndex].Add(record.Source())
+		dbRecordsMap[dbIndex].Add(record.Source().Addr())
 		dbIndexMap[dbIndex] = append(dbIndexMap[dbIndex], i)
 	}
 	for i, records := range dbRecordsMap {
@@ -247,7 +247,7 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 // preload schedule belongTo -> Next() -> oneToOne -> oneToMany -> manyToMany(sub -> middle)
 func CollectionHandlerSimplePreload(option string) func(ctx *CollectionContext) error {
 	return func(ctx *CollectionContext) (err error) {
-		for fieldName, _ := range ctx.Brick.BelongToPreload {
+		for fieldName := range ctx.Brick.BelongToPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -259,7 +259,7 @@ func CollectionHandlerSimplePreload(option string) func(ctx *CollectionContext) 
 		if err != nil {
 			return err
 		}
-		for fieldName, _ := range ctx.Brick.OneToOnePreload {
+		for fieldName := range ctx.Brick.OneToOnePreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -268,7 +268,7 @@ func CollectionHandlerSimplePreload(option string) func(ctx *CollectionContext) 
 			}
 		}
 
-		for fieldName, _ := range ctx.Brick.OneToManyPreload {
+		for fieldName := range ctx.Brick.OneToManyPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -303,7 +303,7 @@ func CollectionHandlerSimplePreload(option string) func(ctx *CollectionContext) 
 // preload schedule oneToOne -> oneToMany -> current model -> manyToMany(sub -> middle) -> Next() -> belongTo
 func CollectionHandlerDropTablePreload(option string) func(ctx *CollectionContext) error {
 	return func(ctx *CollectionContext) (err error) {
-		for fieldName, _ := range ctx.Brick.OneToOnePreload {
+		for fieldName := range ctx.Brick.OneToOnePreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -312,7 +312,7 @@ func CollectionHandlerDropTablePreload(option string) func(ctx *CollectionContex
 			}
 
 		}
-		for fieldName, _ := range ctx.Brick.OneToManyPreload {
+		for fieldName := range ctx.Brick.OneToManyPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -345,7 +345,7 @@ func CollectionHandlerDropTablePreload(option string) func(ctx *CollectionContex
 		if err != nil {
 			return err
 		}
-		for fieldName, _ := range ctx.Brick.BelongToPreload {
+		for fieldName := range ctx.Brick.BelongToPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.model, brick.model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -364,7 +364,7 @@ func CollectionHandlerAssignToAllDb(ctx *CollectionContext) error {
 	if ctx.dbIndex != -1 {
 		return nil
 	}
-	for i, _ := range ctx.Brick.Toy.dbs {
+	for i := range ctx.Brick.Toy.dbs {
 		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, ctx.Result.Records)
 		dbCtx.dbIndex = i
 		err := dbCtx.Next()

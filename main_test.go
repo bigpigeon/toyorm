@@ -622,6 +622,27 @@ func createTableUnit(brick *ToyBrick) func(t *testing.T) {
 	}
 }
 
+func CollectionIDGenerate() func(ctx *CollectionContext) error {
+	idGenerate := make(chan int)
+	go func() {
+		current := 1
+		for {
+			idGenerate <- current
+			current++
+		}
+
+	}()
+	return func(ctx *CollectionContext) error {
+		primaryKey := ctx.Brick.model.GetOnePrimary()
+		for _, record := range ctx.Result.Records.GetRecords() {
+			if field := record.Field(primaryKey.Name()); field.IsValid() == false || IsZero(field) {
+				record.SetField(primaryKey.Name(), reflect.ValueOf(<-idGenerate))
+			}
+		}
+		return nil
+	}
+}
+
 func TestMain(m *testing.M) {
 	for _, sqldata := range []struct {
 		Driver            string
