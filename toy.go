@@ -12,6 +12,7 @@ type ToyKernel struct {
 	CacheMiddleModels        map[reflect.Type]*Model
 	CacheReverseMiddleModels map[reflect.Type]*Model
 	// map[model][container_field_name]
+
 	belongToPreload   map[*Model]map[string]*BelongToPreload
 	oneToOnePreload   map[*Model]map[string]*OneToOnePreload
 	oneToManyPreload  map[*Model]map[string]*OneToManyPreload
@@ -23,7 +24,7 @@ type ToyKernel struct {
 type Toy struct {
 	db                       *sql.DB
 	DefaultHandlerChain      map[string]HandlersChain
-	DefaultModelHandlerChain map[string]map[*Model]HandlersChain
+	DefaultModelHandlerChain map[*Model]map[string]HandlersChain
 	ToyKernel
 }
 
@@ -57,7 +58,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"HardDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerHardDelete},
 			"SoftDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerSoftDelete},
 		},
-		DefaultModelHandlerChain: map[string]map[*Model]HandlersChain{},
+		DefaultModelHandlerChain: map[*Model]map[string]HandlersChain{},
 		ToyKernel: ToyKernel{
 			CacheModels:       map[reflect.Type]*Model{},
 			CacheMiddleModels: map[reflect.Type]*Model{},
@@ -67,8 +68,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			// because have isRight feature need two point to save
 			manyToManyPreload: map[*Model]map[string]map[bool]*ManyToManyPreload{},
 			Dialect:           dialect,
-
-			Logger: os.Stdout,
+			Logger:            os.Stdout,
 		},
 	}, nil
 }
@@ -276,8 +276,8 @@ func (t *ToyKernel) ManyToManyPreloadBind(model, subModel, middleModel *Model, c
 }
 
 func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
-	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[option][model]))
-	handlers = append(handlers, t.DefaultModelHandlerChain[option][model]...)
+	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
+	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
 	handlers = append(handlers, t.DefaultHandlerChain[option]...)
 	return handlers
 }

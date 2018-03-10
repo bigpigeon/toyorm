@@ -16,7 +16,7 @@ type ToyCollection struct {
 	dbs                      []*sql.DB
 	DefaultDBSelector        map[string]DBPrimarySelector
 	DefaultHandlerChain      map[string]CollectionHandlersChain
-	DefaultModelHandlerChain map[string]map[*Model]CollectionHandlersChain
+	DefaultModelHandlerChain map[*Model]map[string]CollectionHandlersChain
 	ToyKernel
 }
 
@@ -46,6 +46,7 @@ func OpenCollection(driverName string, dataSourceName ...string) (*ToyCollection
 			//"HardDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerHardDelete},
 			//"SoftDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerSoftDelete},
 		},
+		DefaultModelHandlerChain: map[*Model]map[string]CollectionHandlersChain{},
 	}
 	switch driverName {
 	case "mysql":
@@ -76,10 +77,17 @@ func (t *ToyCollection) Model(v interface{}) *CollectionBrick {
 }
 
 func (t *ToyCollection) ModelHandlers(option string, model *Model) CollectionHandlersChain {
-	handlers := make(CollectionHandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[option][model]))
-	handlers = append(handlers, t.DefaultModelHandlerChain[option][model]...)
+	handlers := make(CollectionHandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
+	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
 	handlers = append(handlers, t.DefaultHandlerChain[option]...)
 	return handlers
+}
+
+func (t *ToyCollection) SetModelHandlers(option string, model *Model, handlers CollectionHandlersChain) {
+	if t.DefaultModelHandlerChain[model] == nil {
+		t.DefaultModelHandlerChain[model] = map[string]CollectionHandlersChain{}
+	}
+	t.DefaultModelHandlerChain[model][option] = handlers
 }
 
 func (t *ToyCollection) Close() error {

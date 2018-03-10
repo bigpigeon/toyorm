@@ -3,7 +3,6 @@ package toyorm
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
-	. "unsafe"
 )
 
 func TestCollectionCreateTable(t *testing.T) {
