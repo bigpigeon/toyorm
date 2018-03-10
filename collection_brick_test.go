@@ -95,6 +95,9 @@ func TestCollectionInsertData(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("id %v created at: %v updated at: %v", tab.ID, tab.CreatedAt, tab.UpdatedAt)
+		assert.Zero(t, tab.ID)
+		assert.Zero(t, tab.CreatedAt)
+		assert.Zero(t, tab.UpdatedAt)
 	}
 	// test insert map[string]interface{}
 	{
@@ -119,6 +122,9 @@ func TestCollectionInsertData(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("id %v created at: %v updated at: %v", tab["ID"], tab["CreatedAt"], tab["UpdatedAt"])
+		assert.NotZero(t, tab["ID"])
+		assert.NotZero(t, tab["CreatedAt"])
+		assert.NotZero(t, tab["UpdatedAt"])
 	}
 	// test insert map[OffsetOf]interface{}
 	{
@@ -144,6 +150,9 @@ func TestCollectionInsertData(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("id %v created at: %v updated at: %v", tabMap[Offsetof(tab.ID)], tabMap[Offsetof(tab.CreatedAt)], tabMap[Offsetof(tab.UpdatedAt)])
+		assert.NotZero(t, tabMap[Offsetof(tab.ID)])
+		assert.NotZero(t, tabMap[Offsetof(tab.CreatedAt)])
+		assert.NotZero(t, tabMap[Offsetof(tab.UpdatedAt)])
 	}
 	// insert list
 	// insert with struct
@@ -152,7 +161,7 @@ func TestCollectionInsertData(t *testing.T) {
 		dint := 100
 		dfloat := 100.0
 		dcomplex := 100 + 1i
-		tab := []TestInsertTable{
+		tabs := []TestInsertTable{
 			{
 				DataStr:     "some str data",
 				DataInt:     100,
@@ -174,13 +183,18 @@ func TestCollectionInsertData(t *testing.T) {
 				PtrComplex:  &dcomplex,
 			},
 		}
-		result, err := brick.Insert(tab)
+		result, err := brick.Insert(tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("id %v %v", tab[0].ID, tab[1].ID)
+		for _, tab := range tabs {
+			t.Logf("id %v created at: %v updated at: %v", tab.ID, tab.CreatedAt, tab.UpdatedAt)
+			assert.NotZero(t, tab.ID)
+			assert.NotZero(t, tab.CreatedAt)
+			assert.NotZero(t, tab.UpdatedAt)
+		}
 	}
 	// test insert map[string]interface{}
 	{
@@ -188,7 +202,7 @@ func TestCollectionInsertData(t *testing.T) {
 		dint := 100
 		dfloat := 100.0
 		dcomplex := 100 + 1i
-		tab := []map[string]interface{}{
+		tabs := []map[string]interface{}{
 			{
 				"DataStr":     "some str data",
 				"DataInt":     100,
@@ -210,13 +224,18 @@ func TestCollectionInsertData(t *testing.T) {
 				"PtrComplex":  &dcomplex,
 			},
 		}
-		result, err := brick.Insert(tab)
+		result, err := brick.Insert(tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("id %v %v", tab[0]["ID"], tab[1]["ID"])
+		for _, tab := range tabs {
+			t.Logf("id %v created at: %v updated at: %v", tab["ID"], tab["CreatedAt"], tab["UpdatedAt"])
+			assert.NotZero(t, tab["ID"])
+			assert.NotZero(t, tab["CreatedAt"])
+			assert.NotZero(t, tab["UpdatedAt"])
+		}
 	}
 	// test insert map[OffsetOf]interface{}
 	{
@@ -225,7 +244,7 @@ func TestCollectionInsertData(t *testing.T) {
 		dfloat := 100.0
 		dcomplex := 100 + 1i
 		var tab TestInsertTable
-		tabMap := []map[uintptr]interface{}{
+		data := []map[uintptr]interface{}{
 			{
 				Offsetof(tab.DataStr):     "some str data",
 				Offsetof(tab.DataInt):     100,
@@ -247,14 +266,76 @@ func TestCollectionInsertData(t *testing.T) {
 				Offsetof(tab.PtrComplex):  &dcomplex,
 			},
 		}
-		result, err := brick.Insert(tabMap)
+		result, err := brick.Insert(data)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("id %v %v", tabMap[0][Offsetof(tab.ID)], tabMap[1][Offsetof(tab.ID)])
+		for _, obj := range data {
+			t.Logf("id %v created at: %v updated at: %v", obj[Offsetof(tab.ID)], obj[Offsetof(tab.CreatedAt)], obj[Offsetof(tab.UpdatedAt)])
+			assert.NotZero(t, obj[Offsetof(tab.ID)])
+			assert.NotZero(t, obj[Offsetof(tab.CreatedAt)])
+			assert.NotZero(t, obj[Offsetof(tab.UpdatedAt)])
+		}
 
+	}
+	// have selector data
+	{
+		brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
+		dstr := "some str data"
+		dint := 100
+		dfloat := 100.0
+		dcomplex := 100 + 1i
+		data := []TestInsertSelector{
+			{TestInsertTable{
+				DataStr:     "some str data",
+				DataInt:     100,
+				DataFloat:   100.0,
+				DataComplex: 100 + 1i,
+				PtrStr:      &dstr,
+				PtrInt:      &dint,
+				PtrFloat:    &dfloat,
+				PtrComplex:  &dcomplex,
+			}},
+			{TestInsertTable{
+				DataStr:     "some str data",
+				DataInt:     100,
+				DataFloat:   100.0,
+				DataComplex: 100 + 1i,
+				PtrStr:      &dstr,
+				PtrInt:      &dint,
+				PtrFloat:    &dfloat,
+				PtrComplex:  &dcomplex,
+			}},
+			{TestInsertTable{
+				DataStr:     "some str data",
+				DataInt:     100,
+				DataFloat:   100.0,
+				DataComplex: 100 + 1i,
+				PtrStr:      &dstr,
+				PtrInt:      &dint,
+				PtrFloat:    &dfloat,
+				PtrComplex:  &dcomplex,
+			}},
+			{TestInsertTable{
+				DataStr:     "some str data",
+				DataInt:     100,
+				DataFloat:   100.0,
+				DataComplex: 100 + 1i,
+				PtrStr:      &dstr,
+				PtrInt:      &dint,
+				PtrFloat:    &dfloat,
+				PtrComplex:  &dcomplex,
+			}},
+		}
+		result, err := brick.Insert(data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Log(data)
 	}
 }
 

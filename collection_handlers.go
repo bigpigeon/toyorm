@@ -175,8 +175,8 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 	}
 	primaryKeyField := ctx.Brick.model.GetOnePrimary()
 	var getDBIndex func(r ModelRecord) int
-	if _, ok := reflect.Zero(
-		reflect.PtrTo(ctx.Result.Records.Source().Type())).Interface().(DBValSelector); ok {
+	notPtrElemType := LoopTypeIndirect(ctx.Result.Records.ElemType())
+	if _, ok := reflect.Zero(reflect.PtrTo(notPtrElemType)).Interface().(DBValSelector); ok {
 		getDBIndex = func(r ModelRecord) int {
 			iface := r.Source().Addr().Interface().(DBValSelector)
 			return iface.Select(len(ctx.Brick.Toy.dbs))
@@ -637,6 +637,154 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		}
 		ctx.Result.AddRecord(action)
+	}
+	return nil
+}
+
+func CollectionHandlerPreloadFind(ctx *CollectionContext) error {
+	for fieldName, preload := range ctx.Brick.BelongToPreload {
+		mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
+		brick := ctx.Brick.MapPreloadBrick[fieldName]
+
+		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
+
+		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
+		if keys := mainGroup.Keys(); len(keys) != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subField, keys).And().Conditions(brick.Search)
+			containerList := reflect.New(reflect.SliceOf(ctx.Result.Records.GetFieldType(fieldName))).Elem()
+			//var preloadRecords ModelRecords
+			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err != nil {
+				return err
+			}
+			// set sub data to container field
+			subGroup := subCtx.Result.Records.GroupBy(subField.Name())
+			ctx.Result.SimpleRelation[fieldName] = map[int]int{}
+			for key, records := range mainGroup {
+				if subRecords := subGroup[key]; len(subRecords) != 0 {
+					for _, record := range records {
+						record.SetField(preload.ContainerField.Name(), subRecords[0].Source())
+						ctx.Result.SimpleRelation[fieldName][subRecords[0].Index] = record.Index
+					}
+				}
+			}
+		}
+	}
+	for fieldName, preload := range ctx.Brick.OneToOnePreload {
+		var mainField, subField Field
+		mainField, subField = preload.Model.GetOnePrimary(), preload.RelationField
+		brick := ctx.Brick.MapPreloadBrick[fieldName]
+
+		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
+		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
+		if keys := mainGroup.Keys(); len(keys) != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subField, keys).And().Conditions(brick.Search)
+			containerList := reflect.New(reflect.SliceOf(ctx.Result.Records.GetFieldType(fieldName))).Elem()
+			//var preloadRecords ModelRecords
+			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err != nil {
+				return err
+			}
+			// set sub data to container field
+			ctx.Result.SimpleRelation[fieldName] = map[int]int{}
+			subGroup := subCtx.Result.Records.GroupBy(subField.Name())
+			for key, records := range mainGroup {
+				if subRecords := subGroup[key]; len(subRecords) != 0 {
+					for _, record := range records {
+						record.SetField(preload.ContainerField.Name(), subRecords[0].Source())
+						ctx.Result.SimpleRelation[fieldName][subRecords[0].Index] = record.Index
+					}
+				}
+			}
+		}
+	}
+	// one to many
+	for fieldName, preload := range ctx.Brick.OneToManyPreload {
+		mainField, subField := preload.Model.GetOnePrimary(), preload.RelationField
+		brick := ctx.Brick.MapPreloadBrick[fieldName]
+
+		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
+		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
+		if keys := mainGroup.Keys(); len(keys) != 0 {
+			// the relation condition should have lowest priority
+			brick = brick.Where(ExprIn, subField, keys).And().Conditions(brick.Search)
+			containerList := reflect.New(ctx.Result.Records.GetFieldType(fieldName)).Elem()
+
+			subCtx, err := brick.find(LoopIndirectAndNew(containerList))
+			ctx.Result.Preload[fieldName] = subCtx.Result
+			if err != nil {
+				return err
+			}
+			subGroup := subCtx.Result.Records.GroupBy(subField.Name())
+
+			ctx.Result.MultipleRelation[fieldName] = map[int]Pair{}
+			for key, records := range mainGroup {
+				if subRecords := subGroup[key]; len(subRecords) != 0 {
+					for _, record := range records {
+						container := record.Field(preload.ContainerField.Name())
+						containerIndirect := LoopIndirectAndNew(container)
+						for j, subRecord := range subRecords {
+							containerIndirect.Set(SafeAppend(containerIndirect, subRecord.Source()))
+							ctx.Result.MultipleRelation[fieldName][subRecord.Index] = Pair{record.Index, j}
+						}
+					}
+				}
+			}
+		}
+	}
+	// many to many
+	for fieldName, preload := range ctx.Brick.ManyToManyPreload {
+		mainPrimary, subPrimary := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
+		middleBrick := NewCollectionBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
+
+		// primaryMap: map[model.id]->the model's ModelRecord
+		//primaryMap := map[interface{}]ModelRecord{}
+		mainGroup := ctx.Result.Records.GroupBy(mainPrimary.Name())
+		if keys := mainGroup.Keys(); len(keys) != 0 {
+			// the relation condition should have lowest priority
+			middleBrick = middleBrick.Where(ExprIn, preload.RelationField, keys).And().Conditions(middleBrick.Search)
+			middleModelElemList := reflect.New(reflect.SliceOf(preload.MiddleModel.ReflectType)).Elem()
+			//var middleModelRecords ModelRecords
+			middleCtx, err := middleBrick.find(middleModelElemList)
+			ctx.Result.MiddleModelPreload[fieldName] = middleCtx.Result
+			if err != nil {
+				return err
+			}
+			middleGroup := middleCtx.Result.Records.GroupBy(preload.SubRelationField.Name())
+			if subKeys := middleGroup.Keys(); len(subKeys) != 0 {
+				brick := ctx.Brick.MapPreloadBrick[fieldName]
+				// the relation condition should have lowest priority
+				brick = brick.Where(ExprIn, subPrimary, subKeys).And().Conditions(brick.Search)
+				containerField := reflect.New(ctx.Result.Records.GetFieldType(fieldName)).Elem()
+				//var subRecords ModelRecords
+				subCtx, err := brick.find(LoopIndirectAndNew(containerField))
+				ctx.Result.Preload[fieldName] = subCtx.Result
+				if err != nil {
+					return err
+				}
+
+				ctx.Result.MultipleRelation[fieldName] = map[int]Pair{}
+				for j, subRecord := range subCtx.Result.Records.GetRecords() {
+					if middleRecords := middleGroup[subRecord.Field(subPrimary.Name()).Interface()]; len(middleRecords) != 0 {
+						for _, middleRecord := range middleRecords {
+							mainRecord := mainGroup[middleRecord.Field(preload.RelationField.Name()).Interface()][0]
+							name := preload.ContainerField.Name()
+							container := mainRecord.Field(name)
+							containerIndirect := LoopIndirectAndNew(container)
+							subi := containerIndirect.Len()
+							containerIndirect.Set(SafeAppend(containerIndirect, subRecord.Source()))
+							ctx.Result.MultipleRelation[fieldName][j] = Pair{mainRecord.Index, subi}
+						}
+					}
+				}
+
+			}
+
+		}
 	}
 	return nil
 }

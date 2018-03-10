@@ -86,6 +86,14 @@ type TestInsertTable struct {
 	PtrComplex  *complex128
 }
 
+type TestInsertSelector struct {
+	TestInsertTable
+}
+
+func (t *TestInsertSelector) Select(n int) int {
+	return int(t.ID) % n
+}
+
 type TestSearchTable struct {
 	ModelDefault
 	A string
