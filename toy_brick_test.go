@@ -516,6 +516,10 @@ func TestCombinationConditionFind(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.Equal(t, "a", tab.A)
+			assert.Equal(t, "b", tab.B)
+		}
 	}
 	{
 		var tabs []TestSearchTable
@@ -526,6 +530,10 @@ func TestCombinationConditionFind(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.Equal(t, "a", tab.A)
+			assert.Equal(t, "b", tab.B)
+		}
 	}
 	{
 		var tabs []TestSearchTable
@@ -539,6 +547,10 @@ func TestCombinationConditionFind(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.Equal(t, "a", tab.A)
+			assert.Equal(t, "b", tab.B)
+		}
 	}
 
 	{
@@ -551,6 +563,9 @@ func TestCombinationConditionFind(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.True(t, tab.A == "a" || tab.B == "b")
+		}
 	}
 }
 
@@ -562,9 +577,20 @@ func TestUpdate(t *testing.T) {
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
-	var tableList []TestSearchTable
-	brick.Find(&tableList)
-	t.Logf("%#v\n", tableList)
+	{
+		var tableList []TestSearchTable
+		brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "a").Find(&tableList)
+		t.Logf("%#v\n", tableList)
+		assert.Equal(t, len(tableList), 0)
+	}
+	{
+		var tableList []TestSearchTable
+		brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "aaaaa").And().
+			Condition(ExprEqual, Offsetof(TestSearchTable{}.B), "bbbbb").
+			Find(&tableList)
+		t.Logf("%#v\n", tableList)
+		assert.True(t, len(tableList) > 0)
+	}
 }
 
 func TestPreloadCreateTable(t *testing.T) {
