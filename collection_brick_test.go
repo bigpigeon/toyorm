@@ -4,6 +4,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+	"time"
 	. "unsafe"
 )
 
@@ -42,7 +43,7 @@ func TestCollectionCreateTable(t *testing.T) {
 func TestCollectionInsertData(t *testing.T) {
 	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
 	// add id generator
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
 	//create table
 	{
 		result, err := brick.DropTableIfExist()
@@ -328,7 +329,7 @@ func TestCollectionInsertData(t *testing.T) {
 func TestCollectionInsertPointData(t *testing.T) {
 	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
 	// add id generator
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
 
 	// insert with struct
 	{
@@ -418,7 +419,7 @@ func TestCollectionFind(t *testing.T) {
 	{
 		brick := TestCollectionDB.Model(&TestSearchTable{}).Debug()
 		// add id generator
-		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
+		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
 
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
@@ -708,12 +709,12 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Debug().Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Debug().Enter().
 		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Debug().Enter()
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate()})
-
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate()})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate()})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate()})
+	// add id generator
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
 
 	{
 		tab := TestPreloadTable{
@@ -725,8 +726,8 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 				Name: "test insert data one to one",
 			},
 			OneToMany: []TestPreloadTableOneToMany{
-				{Name: "test insert data one to many"},
-				{Name: "test insert data one to many."},
+				{Name: "test insert data one to many 1"},
+				{Name: "test insert data one to many 2"},
 			},
 			ManyToMany: []TestPreloadTableManyToMany{
 				{Name: "test insert data many to many"},
@@ -765,8 +766,8 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 				"Name": "test insert data one to one",
 			},
 			"OneToMany": []map[string]interface{}{
-				{"Name": "test insert data one to many"},
-				{"Name": "test insert data one to many."},
+				{"Name": "test insert data one to many 1"},
+				{"Name": "test insert data one to many 2"},
 			},
 			"ManyToMany": []map[string]interface{}{
 				{"Name": "test insert data many to many"},
@@ -847,5 +848,157 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 		assert.Equal(t, tab[Offsetof(tPreload.ID)], tab[Offsetof(tPreload.OneToOne)].(map[uintptr]interface{})[Offsetof(tOneToOne.TestPreloadTableID)])
 		assert.Equal(t, tab[Offsetof(tPreload.ID)], tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[0][Offsetof(tOneToMany.TestPreloadTableID)])
 		assert.Equal(t, tab[Offsetof(tPreload.ID)], tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[1][Offsetof(tOneToMany.TestPreloadTableID)])
+	}
+}
+
+func TestCollectionPreloadSave(t *testing.T) {
+	brick := TestCollectionDB.Model(&TestPreloadTable{}).Debug()
+	brick = brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter()
+	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter()
+	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter()
+	manyToManyPreload := brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany))
+	// add id generator
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+
+	brick = manyToManyPreload.Enter()
+
+	{
+		manyToMany := []TestPreloadTableManyToMany{
+			{
+				Name: "test save 1 many_to_many 1",
+			},
+			{
+				Name: "test save 1 many_to_many 2",
+			},
+		}
+		tables := []TestPreloadTable{
+			{
+				Name: "test save 1",
+				BelongTo: &TestPreloadTableBelongTo{
+					Name: "test save sub1",
+				},
+				OneToOne: &TestPreloadTableOneToOne{
+					Name: "test save sub2",
+				},
+				OneToMany: []TestPreloadTableOneToMany{
+					{
+						Name: "test save sub3 sub1",
+					},
+					{
+						Name: "test save sub3 sub2",
+					},
+				},
+			},
+			{
+				Name: "test save 2",
+				BelongTo: &TestPreloadTableBelongTo{
+					Name: "test save 2 sub1",
+				},
+				OneToOne: &TestPreloadTableOneToOne{
+					Name: "test save 2 sub2",
+				},
+				OneToMany: []TestPreloadTableOneToMany{
+					{
+						Name: "test save 2 sub3 sub1",
+					},
+					{
+						Name: "test save 2 sub3 sub2",
+					},
+				},
+			},
+		}
+		// insert many to many
+		result, err := manyToManyPreload.Insert(&manyToMany)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Failed()
+		}
+		assert.NotZero(t, manyToMany[0].ID)
+		assert.NotZero(t, manyToMany[1].ID)
+		// now many to many object have id information
+		tables[0].ManyToMany = manyToMany
+		tables[1].ManyToMany = manyToMany
+		t.Logf("1id %v 2id %v\n", tables[0].ID, tables[1].ID)
+		result, err = brick.Save(&tables)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Failed()
+		}
+		for _, tab := range tables {
+			t.Logf("main id %v, belong id %v, one to one id %v, one to many id [%v,%v], many to many id [%v, %v]", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, tab.OneToMany[0].ID, tab.OneToMany[1].ID, tab.ManyToMany[0].ID, tab.ManyToMany[1].ID)
+			assert.NotZero(t, tab.ID)
+			assert.NotZero(t, tab.CreatedAt)
+			assert.NotZero(t, tab.UpdatedAt)
+			assert.NotZero(t, tab.BelongTo.ID)
+			assert.NotZero(t, tab.OneToOne.ID)
+			assert.NotZero(t, tab.OneToMany[0].ID)
+			assert.NotZero(t, tab.OneToMany[1].ID)
+			assert.NotZero(t, tab.ManyToMany[0].ID)
+			assert.NotZero(t, tab.ManyToMany[1].ID)
+
+			assert.Equal(t, tab.BelongToID, tab.BelongTo.ID)
+			assert.Equal(t, tab.ID, tab.OneToOne.TestPreloadTableID)
+			assert.Equal(t, tab.ID, tab.OneToMany[0].TestPreloadTableID)
+			assert.Equal(t, tab.ID, tab.OneToMany[1].TestPreloadTableID)
+		}
+		// try to update soft delete
+		now := time.Now()
+		tables[0].DeletedAt = &now
+		result, err = brick.Save(&tables)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Failed()
+		}
+	}
+
+}
+
+func TestCollectionPreloadFind(t *testing.T) {
+	brick := TestCollectionDB.Model(TestPreloadTable{}).Debug().
+		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
+		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
+		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
+		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Enter()
+	{
+		var tabs []TestPreloadTable
+		brick.Find(&tabs)
+		for _, tab := range tabs {
+			var oneToManyIds []int32
+			for _, sub := range tab.OneToMany {
+				oneToManyIds = append(oneToManyIds, sub.ID)
+			}
+			var manyToManyIds []int32
+			for _, sub := range tab.ManyToMany {
+				manyToManyIds = append(manyToManyIds, sub.ID)
+			}
+			t.Logf("%#v\n", tab)
+			t.Logf("main id %v, belong id %v, one to one id %v, one to many id list %v, many to many id list %v", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, oneToManyIds, manyToManyIds)
+			assert.NotZero(t, tab.ID)
+			assert.NotZero(t, tab.CreatedAt)
+			assert.NotZero(t, tab.UpdatedAt)
+			assert.NotZero(t, tab.BelongTo.ID)
+			assert.NotZero(t, tab.OneToOne.ID)
+			assert.Equal(t, len(tab.OneToMany), 2)
+			for _, sub := range tab.OneToMany {
+				assert.NotZero(t, sub.ID)
+			}
+			assert.Equal(t, len(tab.ManyToMany), 2)
+			for _, sub := range tab.ManyToMany {
+				assert.NotZero(t, sub.ID)
+			}
+
+			assert.Equal(t, tab.BelongToID, tab.BelongTo.ID)
+			assert.Equal(t, tab.ID, tab.OneToOne.TestPreloadTableID)
+			for _, sub := range tab.OneToMany {
+				assert.Equal(t, tab.ID, sub.TestPreloadTableID)
+			}
+		}
 	}
 }

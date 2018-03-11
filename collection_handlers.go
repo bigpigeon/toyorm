@@ -174,20 +174,24 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 		return nil
 	}
 	primaryKeyField := ctx.Brick.model.GetPrimary()
-	var getDBIndex func(r ModelRecord) int
+	var getDBIndex func(r ModelRecord) (int, error)
 	notPtrElemType := LoopTypeIndirect(ctx.Result.Records.ElemType())
 	if _, ok := reflect.Zero(reflect.PtrTo(notPtrElemType)).Interface().(DBValSelector); ok {
-		getDBIndex = func(r ModelRecord) int {
+		getDBIndex = func(r ModelRecord) (int, error) {
 			iface := r.Source().Addr().Interface().(DBValSelector)
-			return iface.Select(len(ctx.Brick.Toy.dbs))
+			return iface.Select(len(ctx.Brick.Toy.dbs)), nil
 		}
 	} else if selector := ctx.Brick.selector; selector != nil {
-		getDBIndex = func(r ModelRecord) int {
+		getDBIndex = func(r ModelRecord) (int, error) {
 			var ifaces []interface{}
 			for _, field := range primaryKeyField {
-				ifaces = append(ifaces, r.Field(field.Name()).Interface())
+				if fieldVal := r.Field(field.Name()); !fieldVal.IsValid() || IsZero(fieldVal) {
+					return 0, ErrZeroPrimaryKey{ctx.Brick.model}
+				} else {
+					ifaces = append(ifaces, fieldVal.Interface())
+				}
 			}
-			return selector(len(ctx.Brick.Toy.dbs), ifaces...)
+			return selector(len(ctx.Brick.Toy.dbs), ifaces...), nil
 		}
 	} else {
 		return ErrCollectionDBSelectorNotFound{}
@@ -196,7 +200,10 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 	// dbRecordsMap dbIndexMap[i]  means the position in Records
 	dbIndexMap := make([][]int, len(ctx.Brick.Toy.dbs))
 	for i, record := range ctx.Result.Records.GetRecords() {
-		dbIndex := getDBIndex(record)
+		dbIndex, err := getDBIndex(record)
+		if err != nil {
+			return err
+		}
 		if dbRecordsMap[dbIndex] == nil {
 			dbRecordsMap[dbIndex] = MakeRecordsWithElem(ctx.Brick.model, record.Source().Addr().Type())
 		}
@@ -229,17 +236,19 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 	if ctx.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
+	setInsertId := len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
 		action.Exec = ctx.Brick.InsertExec(record)
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		if action.Error == nil {
 			// set primary field value if model is autoincrement
-			if len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement() == true {
-				// just set zero primary value
-				if IsZero(record.Field(ctx.Brick.model.GetOnePrimary().Name())) {
+			if setInsertId {
+				primaryKeyName := ctx.Brick.model.GetOnePrimary().Name()
+				// just set not zero primary key
+				if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
 					if lastId, err := action.Result.LastInsertId(); err == nil {
-						ctx.Result.Records.GetRecord(i).SetField(ctx.Brick.model.GetOnePrimary().Name(), reflect.ValueOf(lastId))
+						ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
 					} else {
 						return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.model.Name, err))
 					}
@@ -615,6 +624,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 	if ctx.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
+	setInsertId := len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
 		primaryFields := ctx.Brick.model.GetPrimary()
 		var tryInsert bool
@@ -625,22 +635,28 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 				break
 			}
 		}
-		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
+		var action CollectionExecAction
 		if tryInsert {
+			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
 
 			action.Exec = ctx.Brick.InsertExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 			if action.Error == nil {
 				// set primary field value if model is autoincrement
-				if len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement() == true {
-					if lastId, err := action.Result.LastInsertId(); err == nil {
-						ctx.Result.Records.GetRecord(i).SetField(ctx.Brick.model.GetOnePrimary().Name(), reflect.ValueOf(lastId))
-					} else {
-						return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.model.Name, err))
+				if setInsertId {
+					primaryKeyName := ctx.Brick.model.GetOnePrimary().Name()
+					// just set not zero primary key
+					if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
+						if lastId, err := action.Result.LastInsertId(); err == nil {
+							ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
+						} else {
+							return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.model.Name, err))
+						}
 					}
 				}
 			}
 		} else {
+			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
 			action.Exec = ctx.Brick.ReplaceExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		}
@@ -650,6 +666,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerPreloadFind(ctx *CollectionContext) error {
+	ctx.Next()
 	for fieldName, preload := range ctx.Brick.BelongToPreload {
 		mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
 		brick := ctx.Brick.MapPreloadBrick[fieldName]

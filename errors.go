@@ -111,3 +111,9 @@ type ErrDbIndexNotSet struct{}
 func (e ErrDbIndexNotSet) Error() string {
 	return "db index not set"
 }
+
+type ErrZeroPrimaryKey struct{ Model *Model }
+
+func (e ErrZeroPrimaryKey) Error() string {
+	return fmt.Sprintf("%s have zero primary key", e.Model.Name)
+}

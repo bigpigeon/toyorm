@@ -18,7 +18,6 @@ func dbPrimaryKeySelector(n int, keys ...interface{}) int {
 		switch val := k.(type) {
 		case int:
 			sum += val
-
 		case int32:
 			sum += int(val)
 		case uint:
@@ -57,10 +56,10 @@ func OpenCollection(driverName string, dataSourceName ...string) (*ToyCollection
 			"DropTableIfExist":      {CollectionHandlerDropTablePreload("DropTableIfExist"), CollectionHandlerAssignToAllDb, CollectionHandlerNotExistTableAbort, CollectionHandlerDropTable},
 			"DropTable":             {CollectionHandlerDropTablePreload("DropTable"), CollectionHandlerAssignToAllDb, CollectionHandlerDropTable},
 			"Insert":                {CollectionHandlerPreloadContainerCheck, CollectionHandlerPreloadInsertOrSave("Insert"), CollectionHandlerInsertTimeGenerate, CollectionHandlerInsertAssignDbIndex, CollectionHandlerInsert},
+			"Save":                  {CollectionHandlerPreloadContainerCheck, CollectionHandlerPreloadInsertOrSave("Save"), CollectionHandlerInsertAssignDbIndex, CollectionHandlerSaveTimeGenerate, CollectionHandlerSave},
 			"Find":                  {CollectionHandlerPreloadContainerCheck, CollectionHandlerSoftDeleteCheck, CollectionHandlerPreloadFind, CollectionHandlerFindAssignDbIndex, CollectionHandlerFind},
 			"FindOne":               {CollectionHandlerPreloadContainerCheck, CollectionHandlerSoftDeleteCheck, CollectionHandlerPreloadFind, CollectionHandlerFindOneAssignDbIndex, CollectionHandlerFindOne},
 			"Update":                {CollectionHandlerSoftDeleteCheck, CollectionHandlerUpdateTimeGenerate, CollectionHandlerUpdateAssignDbIndex, CollectionHandlerUpdate},
-			"Save":                  {CollectionHandlerPreloadContainerCheck, CollectionHandlerPreloadInsertOrSave("Save"), CollectionHandlerSaveTimeGenerate, CollectionHandlerInsertAssignDbIndex, CollectionHandlerSave},
 			//"HardDelete":               {HandlerPreloadDelete, HandlerHardDelete},
 			//"SoftDelete":               {HandlerPreloadDelete, HandlerSoftDelete},
 			//"HardDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerHardDelete},
