@@ -171,13 +171,9 @@ func (m *ModelNameMapRecord) SetField(name string, value reflect.Value) {
 	}
 	if field := m.model.GetFieldWithName(name); field != nil {
 		nameValue := reflect.ValueOf(name)
-		if fieldValue := m.source.MapIndex(nameValue); fieldValue.IsValid() {
-			SafeMapSet(m.source, nameValue, value)
-		} else if value.IsValid() {
-			elem := reflect.New(field.StructField().Type).Elem()
-			safeSet(elem, value)
-			m.source.SetMapIndex(nameValue, elem)
-		}
+		elem := reflect.New(field.StructField().Type).Elem()
+		safeSet(elem, value)
+		m.source.SetMapIndex(nameValue, elem)
 		m.FieldValues[name] = m.source.MapIndex(nameValue).Elem()
 	}
 }

@@ -154,13 +154,9 @@ func (m *ModelOffsetMapRecord) SetField(name string, value reflect.Value) {
 	}
 	if field := m.model.GetFieldWithName(name); field != nil {
 		offset := reflect.ValueOf(field.Offset())
-		if fieldValue := m.source.MapIndex(offset); fieldValue.IsValid() {
-			SafeMapSet(m.source, offset, value)
-		} else if value.IsValid() {
-			elem := reflect.New(field.StructField().Type).Elem()
-			safeSet(elem, value)
-			m.source.SetMapIndex(offset, elem)
-		}
+		elem := reflect.New(field.StructField().Type).Elem()
+		safeSet(elem, value)
+		m.source.SetMapIndex(offset, elem)
 		m.FieldValues[name] = m.source.MapIndex(offset).Elem()
 	}
 }

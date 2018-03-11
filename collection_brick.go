@@ -36,6 +36,7 @@ func NewCollectionBrick(toy *ToyCollection, model *Model) *CollectionBrick {
 		Toy: toy,
 
 		MapPreloadBrick: map[string]*CollectionBrick{},
+		selector:        dbPrimaryKeySelector,
 		BrickCommon: BrickCommon{
 			model:             model,
 			BelongToPreload:   map[string]*BelongToPreload{},

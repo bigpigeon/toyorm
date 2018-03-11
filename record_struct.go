@@ -214,7 +214,6 @@ func (m *ModelStructRecord) SetField(name string, value reflect.Value) {
 	}
 	//fieldValue = LoopIndirectAndNew(fieldValue)
 	safeSet(fieldValue, value)
-	//fmt.Printf("source :%#v\n", m.source)
 }
 
 func (m *ModelStructRecord) Field(name string) reflect.Value {

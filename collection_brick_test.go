@@ -7,21 +7,6 @@ import (
 	. "unsafe"
 )
 
-func dbSelector(key interface{}, n int) int {
-	switch val := key.(type) {
-	case int:
-		return val % n
-	case int32:
-		return int(val) % n
-	case uint:
-		return int(val) % n
-	case uint32:
-		return int(val) % n
-	default:
-		panic("primary key type not match")
-	}
-}
-
 func TestCollectionCreateTable(t *testing.T) {
 	var hastable []bool
 	var err error
@@ -55,7 +40,7 @@ func TestCollectionCreateTable(t *testing.T) {
 }
 
 func TestCollectionInsertData(t *testing.T) {
-	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug().Selector(dbSelector)
+	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
 	// add id generator
 	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
 	//create table
@@ -341,7 +326,7 @@ func TestCollectionInsertData(t *testing.T) {
 }
 
 func TestCollectionInsertPointData(t *testing.T) {
-	brick := TestCollectionDB.Model(&TestInsertTable{}).Selector(dbSelector).Debug()
+	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
 	// add id generator
 	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
 
@@ -461,7 +446,7 @@ func TestCollectionFind(t *testing.T) {
 							C: strings.Repeat("c", k),
 							D: &d,
 						}
-						result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().Selector(dbSelector).Insert(&t1)
+						result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
 						assert.Nil(t, err)
 						if err := result.Err(); err != nil {
 							t.Error(err)
@@ -714,5 +699,153 @@ func TestCollectionPreloadCreateTable(t *testing.T) {
 	if err := result.Err(); err != nil {
 		t.Error(err)
 		t.Fail()
+	}
+}
+
+func TestCollectionPreloadInsertData(t *testing.T) {
+	brick := TestCollectionDB.Model(TestPreloadTable{}).Debug().
+		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Debug().Enter().
+		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Debug().Enter().
+		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Debug().Enter().
+		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Debug().Enter()
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate()})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate()})
+
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate()})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate()})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate()})
+
+	{
+		tab := TestPreloadTable{
+			Name: "test insert data",
+			BelongTo: &TestPreloadTableBelongTo{
+				Name: "test insert data belong to",
+			},
+			OneToOne: &TestPreloadTableOneToOne{
+				Name: "test insert data one to one",
+			},
+			OneToMany: []TestPreloadTableOneToMany{
+				{Name: "test insert data one to many"},
+				{Name: "test insert data one to many."},
+			},
+			ManyToMany: []TestPreloadTableManyToMany{
+				{Name: "test insert data many to many"},
+				{Name: "test insert data many to many."},
+			},
+		}
+		result, err := brick.Insert(&tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("main id %v, belong id %v, one to one id %v, one to many id [%v,%v], many to many id [%v, %v]", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, tab.OneToMany[0].ID, tab.OneToMany[1].ID, tab.ManyToMany[0].ID, tab.ManyToMany[1].ID)
+		assert.NotZero(t, tab.ID)
+		assert.NotZero(t, tab.CreatedAt)
+		assert.NotZero(t, tab.UpdatedAt)
+		assert.NotZero(t, tab.BelongTo.ID)
+		assert.NotZero(t, tab.OneToOne.ID)
+		assert.NotZero(t, tab.OneToMany[0].ID)
+		assert.NotZero(t, tab.OneToMany[1].ID)
+		assert.NotZero(t, tab.ManyToMany[0].ID)
+		assert.NotZero(t, tab.ManyToMany[1].ID)
+
+		assert.Equal(t, tab.BelongToID, tab.BelongTo.ID)
+		assert.Equal(t, tab.ID, tab.OneToOne.TestPreloadTableID)
+		assert.Equal(t, tab.ID, tab.OneToMany[0].TestPreloadTableID)
+		assert.Equal(t, tab.ID, tab.OneToMany[1].TestPreloadTableID)
+	}
+	{
+		tab := map[string]interface{}{
+			"Name": "test insert data",
+			"BelongTo": map[string]interface{}{
+				"Name": "test insert data belong to",
+			},
+			"OneToOne": map[string]interface{}{
+				"Name": "test insert data one to one",
+			},
+			"OneToMany": []map[string]interface{}{
+				{"Name": "test insert data one to many"},
+				{"Name": "test insert data one to many."},
+			},
+			"ManyToMany": []map[string]interface{}{
+				{"Name": "test insert data many to many"},
+				{"Name": "test insert data many to many."},
+			},
+		}
+		result, err := brick.Insert(tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf("main id %v, belong id %v, one to one id %v, one to many id [%v,%v], many to many id [%v, %v]", tab["ID"], tab["BelongTo"].(map[string]interface{})["ID"], tab["OneToOne"].(map[string]interface{})["ID"], tab["OneToMany"].([]map[string]interface{})[0]["ID"], tab["OneToMany"].([]map[string]interface{})[1]["ID"], tab["ManyToMany"].([]map[string]interface{})[0]["ID"], tab["ManyToMany"].([]map[string]interface{})[1]["ID"])
+		assert.NotZero(t, tab["ID"])
+		assert.NotZero(t, tab["CreatedAt"])
+		assert.NotZero(t, tab["UpdatedAt"])
+		assert.NotZero(t, tab["BelongTo"].(map[string]interface{})["ID"])
+		assert.NotZero(t, tab["OneToOne"].(map[string]interface{})["ID"])
+		assert.NotZero(t, tab["OneToMany"].([]map[string]interface{})[0]["ID"])
+		assert.NotZero(t, tab["OneToMany"].([]map[string]interface{})[1]["ID"])
+		assert.NotZero(t, tab["ManyToMany"].([]map[string]interface{})[0]["ID"])
+		assert.NotZero(t, tab["ManyToMany"].([]map[string]interface{})[1]["ID"])
+		assert.Equal(t, tab["BelongToID"], tab["BelongTo"].(map[string]interface{})["ID"])
+		assert.Equal(t, tab["ID"], tab["OneToOne"].(map[string]interface{})["TestPreloadTableID"])
+		assert.Equal(t, tab["ID"], tab["OneToMany"].([]map[string]interface{})[0]["TestPreloadTableID"])
+		assert.Equal(t, tab["ID"], tab["OneToMany"].([]map[string]interface{})[1]["TestPreloadTableID"])
+	}
+	{
+		var tPreload TestPreloadTable
+		var tBelong TestPreloadTableBelongTo
+		var tOneToOne TestPreloadTableOneToOne
+		var tOneToMany TestPreloadTableOneToMany
+		var tManyToMany TestPreloadTableManyToMany
+		tab := map[uintptr]interface{}{
+			Offsetof(tPreload.Name): "test insert data",
+			Offsetof(tPreload.BelongTo): map[uintptr]interface{}{
+				Offsetof(tBelong.Name): "test insert data belong to",
+			},
+			Offsetof(tPreload.OneToOne): map[uintptr]interface{}{
+				Offsetof(tOneToOne.Name): "test insert data one to one",
+			},
+			Offsetof(tPreload.OneToMany): []map[uintptr]interface{}{
+				{Offsetof(tOneToMany.Name): "test insert data one to many"},
+				{Offsetof(tOneToMany.Name): "test insert data one to many."},
+			},
+			Offsetof(tPreload.ManyToMany): []map[uintptr]interface{}{
+				{Offsetof(tManyToMany.Name): "test insert data many to many"},
+				{Offsetof(tManyToMany.Name): "test insert data many to many."},
+			},
+		}
+		result, err := brick.Insert(tab)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		t.Logf(
+			"main id %v, belong id %v, one to one id %v, one to many id [%v,%v], many to many id [%v, %v]",
+			tab[Offsetof(tPreload.ID)],
+			tab[Offsetof(tPreload.BelongTo)].(map[uintptr]interface{})[Offsetof(tBelong.ID)],
+			tab[Offsetof(tPreload.OneToOne)].(map[uintptr]interface{})[Offsetof(tOneToOne.ID)],
+			tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[0][Offsetof(tOneToMany.ID)],
+			tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[1][Offsetof(tOneToMany.ID)],
+			tab[Offsetof(tPreload.ManyToMany)].([]map[uintptr]interface{})[0][Offsetof(tManyToMany.ID)],
+			tab[Offsetof(tPreload.ManyToMany)].([]map[uintptr]interface{})[1][Offsetof(tManyToMany.ID)],
+		)
+		assert.NotZero(t, tab[Offsetof(tPreload.ID)])
+		assert.NotZero(t, tab[Offsetof(tPreload.CreatedAt)])
+		assert.NotZero(t, tab[Offsetof(tPreload.UpdatedAt)])
+		assert.NotZero(t, tab[Offsetof(tPreload.BelongTo)].(map[uintptr]interface{})[Offsetof(tBelong.ID)])
+		assert.NotZero(t, tab[Offsetof(tPreload.OneToOne)].(map[uintptr]interface{})[Offsetof(tOneToOne.ID)])
+		assert.NotZero(t, tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[0][Offsetof(tOneToMany.ID)])
+		assert.NotZero(t, tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[1][Offsetof(tOneToMany.ID)])
+		assert.NotZero(t, tab[Offsetof(tPreload.ManyToMany)].([]map[uintptr]interface{})[0][Offsetof(tManyToMany.ID)])
+		assert.NotZero(t, tab[Offsetof(tPreload.ManyToMany)].([]map[uintptr]interface{})[1][Offsetof(tManyToMany.ID)])
+
+		assert.Equal(t, tab[Offsetof(tPreload.BelongToID)], tab[Offsetof(tPreload.BelongTo)].(map[uintptr]interface{})[Offsetof(tBelong.ID)])
+		assert.Equal(t, tab[Offsetof(tPreload.ID)], tab[Offsetof(tPreload.OneToOne)].(map[uintptr]interface{})[Offsetof(tOneToOne.TestPreloadTableID)])
+		assert.Equal(t, tab[Offsetof(tPreload.ID)], tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[0][Offsetof(tOneToMany.TestPreloadTableID)])
+		assert.Equal(t, tab[Offsetof(tPreload.ID)], tab[Offsetof(tPreload.OneToMany)].([]map[uintptr]interface{})[1][Offsetof(tOneToMany.TestPreloadTableID)])
 	}
 }

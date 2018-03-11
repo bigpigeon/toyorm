@@ -10,7 +10,27 @@ type DBValSelector interface {
 	Select(int) int
 }
 
-type DBPrimarySelector func(key interface{}, n int) int
+type DBPrimarySelector func(n int, key ...interface{}) int
+
+func dbPrimaryKeySelector(n int, keys ...interface{}) int {
+	sum := 0
+	for _, k := range keys {
+		switch val := k.(type) {
+		case int:
+			sum += val
+
+		case int32:
+			sum += int(val)
+		case uint:
+			sum += int(val)
+		case uint32:
+			sum += int(val)
+		default:
+			panic("primary key type not match")
+		}
+	}
+	return sum % n
+}
 
 type ToyCollection struct {
 	dbs                      []*sql.DB
