@@ -105,3 +105,9 @@ func (e ErrCollectionClose) Error() string {
 	}
 	return s
 }
+
+type ErrDbIndexNotSet struct{}
+
+func (e ErrDbIndexNotSet) Error() string {
+	return "db index not set"
+}

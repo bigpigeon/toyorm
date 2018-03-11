@@ -396,7 +396,6 @@ func (t *CollectionBrick) hardDelete(records ModelRecords) (*Result, error) {
 }
 
 func (t *CollectionBrick) find(value reflect.Value) (*CollectionContext, error) {
-
 	if value.Kind() == reflect.Slice {
 		records := NewRecords(t.model, value)
 		ctx := NewCollectionContext(t.Toy.ModelHandlers("Find", t.model), t, records)
@@ -568,7 +567,7 @@ func (t *CollectionBrick) Query(exec ExecValue, i int) (*sql.Rows, error) {
 		}
 	}
 
-	return rows, nil
+	return rows, err
 }
 
 func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
