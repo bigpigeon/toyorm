@@ -351,21 +351,37 @@ func TestFind(t *testing.T) {
 	// fill data
 	{
 		for i := 1; i < 5; i++ {
-			d := strings.Repeat("d", i)
-			t1 := TestSearchTable{
-				A: strings.Repeat("a", i),
-				B: strings.Repeat("b", i),
-				C: strings.Repeat("c", i),
-				D: &d,
+			for j := 1; j < 5; j++ {
+				for k := 1; k < 5; k++ {
+					for l := 1; l < 5; l++ {
+						d := strings.Repeat("d", l)
+						t1 := TestSearchTable{
+							A: strings.Repeat("a", i),
+							B: strings.Repeat("b", j),
+							C: strings.Repeat("c", k),
+							D: &d,
+						}
+						result, err := TestDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
+						assert.Nil(t, err)
+						if err := result.Err(); err != nil {
+							t.Error(err)
+							t.Fail()
+						}
+						t.Logf("%#v\n", t1)
+					}
+				}
 			}
-			result, err := TestDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
-			assert.Nil(t, err)
-			if err := result.Err(); err != nil {
-				t.Error(err)
-				t.Fail()
-			}
-			t.Logf("%#v\n", t1)
+
 		}
+	}
+	CheckNotZero := func(t *testing.T, tab *TestSearchTable) {
+		assert.NotZero(t, tab.ID)
+		assert.NotZero(t, tab.CreatedAt)
+		assert.NotZero(t, tab.UpdatedAt)
+		assert.NotZero(t, tab.A)
+		assert.NotZero(t, tab.B)
+		assert.NotZero(t, tab.C)
+		assert.NotZero(t, tab.D)
 	}
 	// test find with struct
 	{
@@ -377,6 +393,7 @@ func TestFind(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("%#v\n", table)
+		CheckNotZero(t, &table)
 	}
 	// test find with struct list
 	{
@@ -388,6 +405,9 @@ func TestFind(t *testing.T) {
 			t.Fail()
 		}
 		t.Logf("%#v\n", tables)
+		for _, tab := range tables {
+			CheckNotZero(t, &tab)
+		}
 	}
 }
 
@@ -395,74 +415,93 @@ func TestConditionFind(t *testing.T) {
 	base := TestSearchTable{}
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
-		table := []TestSearchTable{}
+		var tabs []TestSearchTable
 		result, err := TestDB.Model(&TestSearchTable{}).Debug().
-			Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&table)
+			Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("%#v\n", table)
+		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.Equal(t, "a", tab.A)
+			assert.Equal(t, "b", tab.B)
+		}
 	}
 	//SELECT id,a,b,c,d FROM test_search_table WHERE (a = ? OR b = ?), args:[]interface {}{"a", "bb"}
 	{
-		table := []TestSearchTable{}
+		var tabs []TestSearchTable
 		result, err := TestDB.Model(&TestSearchTable{}).Debug().
-			Where(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&table)
+			Where(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("%#v\n", table)
+		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.True(t, tab.A == "a" || tab.B == "bb")
+		}
 	}
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
-		table := []TestSearchTable{}
+		var tabs []TestSearchTable
 		result, err := TestDB.Model(&TestSearchTable{}).Debug().
 			Where(ExprEqual, Offsetof(base.A), "a").
-			And().Condition(ExprEqual, Offsetof(base.B), "b").Find(&table)
+			And().Condition(ExprEqual, Offsetof(base.B), "b").Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("%#v\n", table)
+		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.Equal(t, "a", tab.A)
+			assert.Equal(t, "b", tab.B)
+		}
 	}
 	//SELECT id,a,b,c,d FROM test_search_table WHERE ((a = ? AND b = ? OR c = ?) OR d = ? AND a = ?), args:[]interface {}{"a", "b", "c", "d", "aa"}
 	{
-		table := []TestSearchTable{}
+		var tabs []TestSearchTable
 		result, err := TestDB.Model(&TestSearchTable{}).Debug().
 			Where(ExprEqual, Offsetof(base.A), "a").And().
 			Condition(ExprEqual, Offsetof(base.B), "b").Or().
 			Condition(ExprEqual, Offsetof(base.C), "c").Or().
 			Condition(ExprEqual, Offsetof(base.D), "d").And().
 			Condition(ExprEqual, Offsetof(base.A), "aa").
-			Find(&table)
+			Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("%#v\n", table)
+		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.True(t, (tab.A == "a" && tab.B == "b" || tab.C == "c") || *tab.D == "d" && tab.A == "aa")
+		}
 	}
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND ((a = ? OR b = ?) OR c = ?), args:[]interface {}{"aa", "a", "b", "c"}
 	{
-		table := []TestSearchTable{}
+		var tabs []TestSearchTable
 		brick := TestDB.Model(&TestSearchTable{}).Debug()
-		inlineSearch := brick.Where(ExprEqual, Offsetof(base.A), "a").Or().
-			Condition(ExprEqual, Offsetof(base.B), "b").Or().
-			Condition(ExprEqual, Offsetof(base.C), "c").Search
+
 		result, err := brick.Where(ExprEqual, Offsetof(base.A), "aa").And().
-			Conditions(inlineSearch).
-			Find(&table)
+			Conditions(
+				brick.Where(ExprEqual, Offsetof(base.A), "a").Or().
+					Condition(ExprEqual, Offsetof(base.B), "b").Or().
+					Condition(ExprEqual, Offsetof(base.C), "c").Search,
+			).
+			Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		t.Logf("%#v\n", table)
+		t.Logf("%#v\n", tabs)
+		for _, tab := range tabs {
+			assert.True(t, tab.A == "aa" && ((tab.A == "a" || tab.B == "b") || tab.C == "c"))
+		}
 	}
 }
 
