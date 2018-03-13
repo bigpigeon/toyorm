@@ -24,6 +24,10 @@ func dbPrimaryKeySelector(n int, keys ...interface{}) int {
 			sum += int(val)
 		case uint32:
 			sum += int(val)
+		case string:
+			for _, c := range val {
+				sum += int(c)
+			}
 		default:
 			panic("primary key type not match")
 		}

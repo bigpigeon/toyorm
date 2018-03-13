@@ -30,21 +30,8 @@ func (r *Result) Err() error {
 	var errStr string
 
 	for _, action := range r.ActionFlow {
-		switch t := action.(type) {
-		case QueryAction:
-			errs := ""
-			for i, err := range t.Error {
-				if err != nil {
-					errs += fmt.Sprintf("\t[%d]%s\n", i, err)
-				}
-			}
-			if errs != "" {
-				errStr += fmt.Sprintf("%s args:%s errors(\n%s)\n", t.Exec.Query, t.Exec.JsonArgs(), errs)
-			}
-		case ExecAction:
-			if t.Error != nil {
-				errStr += fmt.Sprintf("%s args:%s errors(\n\t%s\n)\n", t.Exec.Query, t.Exec.JsonArgs(), t.Error)
-			}
+		if err := action.Err(); err != nil {
+			errStr += fmt.Sprintf("%s errors(\n%s\n)\n", action.String(), err)
 		}
 	}
 	for name, preload := range r.Preload {
@@ -183,6 +170,7 @@ type SqlAction interface {
 	Type() SqlActionType
 	AffectData() []int
 	SetAffectData([]int)
+	Err() error
 }
 
 type ExecAction struct {
@@ -194,9 +182,6 @@ type ExecAction struct {
 }
 
 func (r ExecAction) String() string {
-	if r.Error != nil {
-		return fmt.Sprintf("%s args:%s error(%v)", r.Exec.Query, r.Exec.JsonArgs(), r.Error)
-	}
 	return fmt.Sprintf("%s args:%s", r.Exec.Query, r.Exec.JsonArgs())
 }
 
@@ -210,6 +195,10 @@ func (r ExecAction) AffectData() []int {
 
 func (r ExecAction) SetAffectData(d []int) {
 	r.affectData = d
+}
+
+func (r ExecAction) Err() error {
+	return r.Error
 }
 
 type QueryAction struct {
@@ -241,4 +230,94 @@ func (r QueryAction) AffectData() []int {
 
 func (r QueryAction) SetAffectData(d []int) {
 	r.affectData = d
+}
+
+func (r QueryAction) Err() error {
+	errs := ""
+	for i, err := range r.Error {
+		if err != nil {
+			errs += fmt.Sprintf("\t[%d]%s\n", i, err)
+		}
+	}
+	if errs != "" {
+		return errors.New(errs)
+	}
+	return nil
+}
+
+type CollectionExecAction struct {
+	//Type   ResultType
+	Exec       ExecValue
+	Result     sql.Result
+	dbIndex    int
+	affectData []int
+	Error      error
+}
+
+func (r CollectionExecAction) String() string {
+	if r.Error != nil {
+		return fmt.Sprintf("[%d]%s args:%s error(%v)", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs(), r.Error)
+	}
+	return fmt.Sprintf("[%d]%s args:%s", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs())
+}
+
+func (r CollectionExecAction) Type() SqlActionType {
+	return ResultActionExec
+}
+
+func (r CollectionExecAction) AffectData() []int {
+	return r.affectData
+}
+
+func (r CollectionExecAction) SetAffectData(d []int) {
+	r.affectData = d
+}
+
+func (r CollectionExecAction) Err() error {
+	return r.Error
+}
+
+type CollectionQueryAction struct {
+	Exec       ExecValue
+	affectData []int
+	Error      []error
+	dbIndex    int
+}
+
+func (r CollectionQueryAction) String() string {
+	var errors []error
+	for _, err := range r.Error {
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) != 0 {
+		return fmt.Sprintf("[%d]%s args:%s error(%v)", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs(), errors)
+	}
+	return fmt.Sprintf("[%d]%s args:%s", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs())
+}
+
+func (r CollectionQueryAction) Type() SqlActionType {
+	return ResultActionQuery
+}
+
+func (r CollectionQueryAction) AffectData() []int {
+	return r.affectData
+}
+
+func (r CollectionQueryAction) SetAffectData(d []int) {
+	r.affectData = d
+}
+
+func (r CollectionQueryAction) Err() error {
+	errs := ""
+	for i, err := range r.Error {
+		if err != nil {
+			errs += fmt.Sprintf("\t[%d]%s\n", i, err)
+		}
+	}
+	if errs != "" {
+		return errors.New(errs)
+	}
+	return nil
 }

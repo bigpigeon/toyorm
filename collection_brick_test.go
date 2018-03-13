@@ -1,6 +1,7 @@
 package toyorm
 
 import (
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -710,12 +711,13 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Debug().Enter().
 		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Debug().Enter()
 	// add id generator
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
 	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
 
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
 	{
 		tab := TestPreloadTable{
 			Name: "test insert data",
@@ -859,11 +861,11 @@ func TestCollectionPreloadSave(t *testing.T) {
 	manyToManyPreload := brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany))
 	// add id generator
 	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
 	brick = manyToManyPreload.Enter()
 
 	{
@@ -1021,15 +1023,12 @@ func TestCollectionPreloadDelete(t *testing.T) {
 			Preload(Offsetof(hardTab.SoftManyToMany)).Enter()
 
 		TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftBelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftOneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftOneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
 
+		for _, pBrick := range brick.MapPreloadBrick {
+			TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		}
 		result, err = brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -1119,15 +1118,11 @@ func TestCollectionPreloadDelete(t *testing.T) {
 			Preload(Offsetof(softTab.SoftManyToMany)).Enter()
 
 		TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftBelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftOneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftOneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
-
+		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+		for _, pBrick := range brick.MapPreloadBrick {
+			TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		}
 		result, err = brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -1205,5 +1200,397 @@ func TestCollectionPreloadDelete(t *testing.T) {
 			t.Error(err)
 		}
 	})
+}
 
+func TestCollectionCustomPreload(t *testing.T) {
+	table := TestCustomPreloadTable{}
+	tableOne := TestCustomPreloadOneToOne{}
+	tableThree := TestCustomPreloadOneToMany{}
+	middleTable := TestCustomPreloadManyToManyMiddle{}
+	brick := TestCollectionDB.Model(&table).Debug().
+		CustomOneToOnePreload(Offsetof(table.ChildOne), Offsetof(tableOne.ParentID)).Enter().
+		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
+		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
+		CustomManyToManyPreload(middleTable, Offsetof(table.OtherChildren), Offsetof(middleTable.ParentID), Offsetof(middleTable.ChildID)).Enter()
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := TestCustomPreloadTable{
+		Data:     "custom main data",
+		ChildOne: &TestCustomPreloadOneToOne{OneData: "custom one to one data"},
+		ChildTwo: &TestCustomPreloadBelongTo{TwoData: "custom belong to data"},
+		Children: []TestCustomPreloadOneToMany{
+			{ThreeData: "custom one to many data 1"},
+			{ThreeData: "custom one to many data 2"},
+		},
+		OtherChildren: []TestCustomPreloadManyToMany{
+			{FourData: "custom many to many data 1"},
+			{FourData: "custom many to many data 2"},
+		},
+	}
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	assert.NotZero(t, data.ID)
+	assert.NotZero(t, data.ChildOne.ID)
+	assert.NotZero(t, data.ChildTwo.ID)
+	assert.NotZero(t, data.Children[0].ID)
+	assert.NotZero(t, data.Children[1].ID)
+	assert.NotZero(t, data.OtherChildren[0].ID)
+	assert.NotZero(t, data.OtherChildren[1].ID)
+
+	assert.Equal(t, data.ChildTwo.ID, data.BelongToID)
+	assert.Equal(t, data.ChildOne.ParentID, data.ID)
+	assert.Equal(t, data.ID, data.Children[0].ParentID)
+	assert.Equal(t, data.ID, data.Children[1].ParentID)
+
+	result, err = brick.Delete(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCollectionFlow(t *testing.T) {
+	// create a brick with product
+	brick := TestCollectionDB.Model(&Product{}).Debug().
+		Preload(Offsetof(Product{}.Detail)).Enter().
+		Preload(Offsetof(Product{}.Address)).Enter().
+		Preload(Offsetof(Product{}.Tag)).Enter().
+		Preload(Offsetof(Product{}.Friend)).
+		Preload(Offsetof(Product{}.Detail)).Enter().
+		Preload(Offsetof(Product{}.Address)).Enter().
+		Preload(Offsetof(Product{}.Tag)).Enter().
+		Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTableIfNotExist()
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	product := []Product{
+		{
+			Detail: &ProductDetail{
+				Page: "html code at here",
+				Parameters: map[string]interface{}{
+					"value":  "1",
+					"value2": 1.0,
+					"value3": 1.0,
+				},
+			},
+			Price:    10.0,
+			Discount: 1.0,
+			Amount:   100000,
+			Address: []Address{
+				{Address1: "what ever", Address2: "what ever"},
+				{Address1: "product origin", Address2: "origin 2"},
+			},
+			Contact: "phone number or email",
+			//Favorites: 50,
+			Version: "1.0",
+			Tag: []Tag{
+				{"food", ""},
+				{"recommend", ""},
+			},
+			Friend: []Product{
+				{
+					Detail: &ProductDetail{
+						Page: "html code at here",
+						Parameters: map[string]interface{}{
+							"value":  "1",
+							"value2": 1.0,
+							"value3": 1.0,
+						},
+					},
+					Price:    11.0,
+					Discount: 1.0,
+					Amount:   100000,
+					Address: []Address{
+						{Address1: "what ever", Address2: "what ever"},
+						{Address1: "product origin", Address2: "origin 2"},
+					},
+					Contact:   "phone number or email",
+					Favorites: 50,
+					Version:   "1.0",
+					Tag: []Tag{
+						{"food", ""},
+						{"recommend", ""},
+					},
+				},
+			},
+		},
+		{
+			Detail: &ProductDetail{
+				Page: "html code at here",
+				Parameters: map[string]interface{}{
+					"value":  "2",
+					"value2": 2.0,
+					"value3": 2.0,
+				},
+			},
+			Price:    20.0,
+			Discount: 1.0,
+			Amount:   100000,
+			Address: []Address{
+				{Address1: "what ever", Address2: "what ever"},
+				{Address1: "product origin", Address2: "origin 2"},
+			},
+			Contact:   "phone number or email",
+			Favorites: 50,
+			Version:   "1.0",
+			Tag: []Tag{
+				{"food", ""},
+				{"bad", ""},
+			},
+		},
+	}
+	result, err = brick.Save(product)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	// add a new tag
+	tagBrick := TestCollectionDB.Model(&Tag{}).Debug()
+	result, err = tagBrick.Insert(&Tag{Code: "nice"})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	//bind new tag to the one's product
+	middleBrick := TestCollectionDB.MiddleModel(&Product{}, &Tag{}).Debug()
+	result, err = middleBrick.Save(&struct {
+		ProductID uint32
+		TagCode   string
+	}{product[0].ID, "nice"})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	// I try use transaction but sqlite will lock database when have second query
+	//if _, err = brick.Insert(&product); err != nil {
+	//	t.Logf("error %s", err)
+	//	err = brick.Rollback()
+	//	assert.Nil(t, err)
+	//	t.Log("try to save")
+	//	brick = brick.Begin()
+	//	if err = brick.Save(&product); err != nil {
+	//		t.Logf("error %s", err)
+	//		err = brick.Rollback()
+	//		assert.Nil(t, err)
+	//	} else {
+	//		err = brick.Commit()
+	//		assert.Nil(t, err)
+	//	}
+	//} else {
+	//	err = brick.Commit()
+	//	assert.Nil(t, err)
+	//}
+	// try to find
+	var newProducts []Product
+	result, err = brick.Find(&newProducts)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	jsonBytes, err := json.MarshalIndent(newProducts, "", "  ")
+	assert.Nil(t, err)
+	t.Logf("\n%v", string(jsonBytes))
+	brick.Delete(&newProducts)
+}
+
+func TestCollectionIgnorePreloadInsert(t *testing.T) {
+	var tab TestPreloadIgnoreTable
+	brick := TestCollectionDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := []TestPreloadIgnoreTable{
+		{Data: "ignore preload 1"},
+		{
+			Data:     "ignore preload 2",
+			BelongTo: TestPreloadIgnoreBelongTo{Data: "ignore preload 2 belong to"},
+			OneToOne: TestPreloadIgnoreOneToOne{Data: "ignore preload 2 one to one"},
+		},
+	}
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	assert.Zero(t, data[0].BelongToID)
+	assert.Equal(t, data[1].OneToOne.TestPreloadIgnoreTableID, data[1].ID)
+}
+
+func TestCollectionMissPreloadFind(t *testing.T) {
+	var tab TestMissTable
+	var belongTab TestMissBelongTo
+	var manyToManyTab TestMissManyToMany
+	brick := TestCollectionDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	missData := []TestMissTable{
+		{
+			Data: " miss data 1",
+			BelongTo: &TestMissBelongTo{
+				BelongToData: "miss data 1 belong to",
+			},
+			ManyToMany: []TestMissManyToMany{
+				{ManyToManyData: "miss data 1 many to many 1"},
+				{ManyToManyData: "miss data 1 many to many 2"},
+			},
+		},
+		{
+			Data: "miss data 2",
+			BelongTo: &TestMissBelongTo{
+				BelongToData: "miss data 2 belong to",
+			},
+			ManyToMany: []TestMissManyToMany{
+				{ManyToManyData: "miss data 2 many to many 1"},
+				{ManyToManyData: "miss data 2 many to many 2"},
+			},
+		},
+	}
+	// insert some data
+	result, err = brick.Insert(&missData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	// remove belong to data and many to many data
+	result, err = TestCollectionDB.Model(&belongTab).Debug().
+		Delete([]TestMissBelongTo{*missData[0].BelongTo, *missData[1].BelongTo})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	result, err = TestCollectionDB.Model(&manyToManyTab).Debug().
+		Delete([]TestMissManyToMany{missData[0].ManyToMany[0], missData[1].ManyToMany[0]})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	// find again
+	var scanMissData []TestMissTable
+
+	result, err = brick.Find(&scanMissData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	t.Logf("%#v\n", scanMissData)
+	// TODO miss data need warning or error
+}
+
+func TestCollectionSameBelongId(t *testing.T) {
+	var tab TestSameBelongIdTable
+	brick := TestCollectionDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	data := []TestSameBelongIdTable{
+		{Data: "test same belong id 1", BelongTo: TestSameBelongIdBelongTo{ID: 1, Data: "belong data"}},
+		{Data: "test same belong id 2", BelongTo: TestSameBelongIdBelongTo{ID: 1, Data: "belong data"}},
+	}
+	result, err = brick.Save(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var findData []TestSameBelongIdTable
+	result, err = brick.Find(&findData)
+	t.Logf("%#v", findData)
 }
