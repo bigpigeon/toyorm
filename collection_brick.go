@@ -28,6 +28,7 @@ type CollectionBrick struct {
 	//groupBy []Column
 
 	selector DBPrimarySelector
+	dbIndex  int
 	BrickCommon
 }
 
@@ -37,6 +38,7 @@ func NewCollectionBrick(toy *ToyCollection, model *Model) *CollectionBrick {
 
 		MapPreloadBrick: map[string]*CollectionBrick{},
 		selector:        dbPrimaryKeySelector,
+		dbIndex:         -1,
 		BrickCommon: BrickCommon{
 			model:             model,
 			BelongToPreload:   map[string]*BelongToPreload{},
@@ -327,6 +329,14 @@ func (t *CollectionBrick) Selector(selector DBPrimarySelector) *CollectionBrick 
 	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
 		newt := *t
 		newt.selector = selector
+		return &newt
+	})
+}
+
+func (t *CollectionBrick) DBIndex(i int) *CollectionBrick {
+	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
+		newt := *t
+		newt.dbIndex = i
 		return &newt
 	})
 }

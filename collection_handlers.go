@@ -170,7 +170,7 @@ func CollectionHandlerInsertTimeGenerate(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
-	if ctx.dbIndex != -1 {
+	if ctx.Brick.dbIndex != -1 {
 		return nil
 	}
 	primaryKeyField := ctx.Brick.model.GetPrimary()
@@ -211,8 +211,8 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 		dbIndexMap[dbIndex] = append(dbIndexMap[dbIndex], i)
 	}
 	for i, records := range dbRecordsMap {
-		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, records)
-		dbCtx.dbIndex = i
+		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick.DBIndex(i), records)
+
 		err := dbCtx.Next()
 		if err != nil {
 			return err
@@ -233,12 +233,12 @@ func CollectionHandlerInsertAssignDbIndex(ctx *CollectionContext) error {
 
 func CollectionHandlerInsert(ctx *CollectionContext) error {
 	// current insert
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	setInsertId := len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
-		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
+		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 		action.Exec = ctx.Brick.InsertExec(record)
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		if action.Error == nil {
@@ -377,12 +377,11 @@ func CollectionHandlerDropTablePreload(option string) func(ctx *CollectionContex
 
 // assign after handlers to all db
 func CollectionHandlerAssignToAllDb(ctx *CollectionContext) error {
-	if ctx.dbIndex != -1 {
+	if ctx.Brick.dbIndex != -1 {
 		return nil
 	}
 	for i := range ctx.Brick.Toy.dbs {
-		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, ctx.Result.Records)
-		dbCtx.dbIndex = i
+		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick.DBIndex(i), ctx.Result.Records)
 		err := dbCtx.Next()
 		if err != nil {
 			return err
@@ -394,12 +393,12 @@ func CollectionHandlerAssignToAllDb(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerCreateTable(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	execs := ctx.Brick.Toy.Dialect.CreateTable(ctx.Brick.model)
 	for _, exec := range execs {
-		action := CollectionExecAction{Exec: exec, dbIndex: ctx.dbIndex}
+		action := CollectionExecAction{Exec: exec, dbIndex: ctx.Brick.dbIndex}
 		action.Result, action.Error = ctx.Brick.Exec(exec, action.dbIndex)
 		ctx.Result.AddRecord(action)
 	}
@@ -407,13 +406,13 @@ func CollectionHandlerCreateTable(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerExistTableAbort(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
-	action := CollectionQueryAction{dbIndex: ctx.dbIndex}
+	action := CollectionQueryAction{dbIndex: ctx.Brick.dbIndex}
 	action.Exec = ctx.Brick.Toy.Dialect.HasTable(ctx.Brick.model)
 	var hasTable bool
-	err := ctx.Brick.QueryRow(action.Exec, ctx.dbIndex).Scan(&hasTable)
+	err := ctx.Brick.QueryRow(action.Exec, ctx.Brick.dbIndex).Scan(&hasTable)
 	if err != nil {
 		action.Error = append(action.Error, err)
 	}
@@ -426,24 +425,24 @@ func CollectionHandlerExistTableAbort(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerDropTable(ctx *CollectionContext) (err error) {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	exec := ctx.Brick.Toy.Dialect.DropTable(ctx.Brick.model)
-	action := CollectionExecAction{Exec: exec, dbIndex: ctx.dbIndex}
+	action := CollectionExecAction{Exec: exec, dbIndex: ctx.Brick.dbIndex}
 	action.Result, action.Error = ctx.Brick.Exec(exec, action.dbIndex)
 	ctx.Result.AddRecord(action)
 	return nil
 }
 
 func CollectionHandlerNotExistTableAbort(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	action := CollectionQueryAction{}
 	action.Exec = ctx.Brick.Toy.Dialect.HasTable(ctx.Brick.model)
 	var hasTable bool
-	err := ctx.Brick.QueryRow(action.Exec, ctx.dbIndex).Scan(&hasTable)
+	err := ctx.Brick.QueryRow(action.Exec, ctx.Brick.dbIndex).Scan(&hasTable)
 	if err != nil {
 		action.Error = append(action.Error, err)
 	}
@@ -514,7 +513,7 @@ func CollectionHandlerPreloadContainerCheck(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerSaveTimeGenerate(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	createdAtField := ctx.Brick.model.GetFieldWithName("CreatedAt")
@@ -536,7 +535,7 @@ func CollectionHandlerSaveTimeGenerate(ctx *CollectionContext) error {
 		primaryField := ctx.Brick.model.GetOnePrimary()
 		brick := ctx.Brick.bindFields(ModeDefault, append([]Field{primaryField}, timeFields...)...)
 		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.StructField().Type), 0, ctx.Result.Records.Len())
-		action := CollectionQueryAction{dbIndex: ctx.dbIndex}
+		action := CollectionQueryAction{dbIndex: ctx.Brick.dbIndex}
 
 		for i, record := range ctx.Result.Records.GetRecords() {
 			pri := record.Field(primaryField.Name())
@@ -621,7 +620,7 @@ func CollectionHandlerSaveTimeGenerate(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerSave(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	setInsertId := len(ctx.Brick.model.GetPrimary()) == 1 && ctx.Brick.model.GetOnePrimary().AutoIncrement() == true
@@ -637,7 +636,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 		}
 		var action CollectionExecAction
 		if tryInsert {
-			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
+			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 
 			action.Exec = ctx.Brick.InsertExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
@@ -656,7 +655,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 				}
 			}
 		} else {
-			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.dbIndex}
+			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 			action.Exec = ctx.Brick.ReplaceExec(record)
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		}
@@ -814,29 +813,13 @@ func CollectionHandlerPreloadFind(ctx *CollectionContext) error {
 	return nil
 }
 
-func CollectionHandlerFindAssignDbIndex(ctx *CollectionContext) error {
-	for i := range ctx.Brick.Toy.dbs {
-		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, ctx.Result.Records)
-		dbCtx.dbIndex = i
-		err := dbCtx.Next()
-		if err != nil {
-			return err
-		}
-		for _, action := range dbCtx.Result.ActionFlow {
-			ctx.Result.AddRecord(action)
-		}
-	}
-	ctx.Abort()
-	return nil
-}
-
 func CollectionHandlerFind(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	action := CollectionQueryAction{
 		Exec:    ctx.Brick.FindExec(ctx.Result.Records),
-		dbIndex: ctx.dbIndex,
+		dbIndex: ctx.Brick.dbIndex,
 	}
 	rows, err := ctx.Brick.Query(action.Exec, action.dbIndex)
 	if err != nil {
@@ -867,13 +850,12 @@ func CollectionHandlerFind(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerFindOneAssignDbIndex(ctx *CollectionContext) error {
-	if ctx.dbIndex != -1 {
+	if ctx.Brick.dbIndex != -1 {
 		return nil
 	}
 	for i := range ctx.Brick.Toy.dbs {
 		currentLen := ctx.Result.Records.Len()
-		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, ctx.Result.Records)
-		dbCtx.dbIndex = i
+		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick.DBIndex(i), ctx.Result.Records)
 		err := dbCtx.Next()
 		if err != nil {
 			return err
@@ -889,12 +871,12 @@ func CollectionHandlerFindOneAssignDbIndex(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerFindOne(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	action := CollectionQueryAction{
 		Exec:    ctx.Brick.FindExec(ctx.Result.Records),
-		dbIndex: ctx.dbIndex,
+		dbIndex: ctx.Brick.dbIndex,
 	}
 	rows, err := ctx.Brick.Query(action.Exec, action.dbIndex)
 	if err != nil {
@@ -943,28 +925,12 @@ func CollectionHandlerUpdateTimeGenerate(ctx *CollectionContext) error {
 	return nil
 }
 
-func CollectionHandlerUpdateAssignDbIndex(ctx *CollectionContext) error {
-	for i := range ctx.Brick.Toy.dbs {
-		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, ctx.Result.Records)
-		dbCtx.dbIndex = i
-		err := dbCtx.Next()
-		if err != nil {
-			return err
-		}
-		for _, action := range dbCtx.Result.ActionFlow {
-			ctx.Result.AddRecord(action)
-		}
-	}
-	ctx.Abort()
-	return nil
-}
-
 func CollectionHandlerUpdate(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 	for i, record := range ctx.Result.Records.GetRecords() {
-		action := CollectionExecAction{Exec: ctx.Brick.UpdateExec(record), affectData: []int{i}, dbIndex: ctx.dbIndex}
+		action := CollectionExecAction{Exec: ctx.Brick.UpdateExec(record), affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		ctx.Result.AddRecord(action)
 	}
@@ -1141,10 +1107,10 @@ func HandlerCollectionSearchWithPrimaryKey(ctx *CollectionContext) error {
 }
 
 func HandlerCollectionHardDelete(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
-	action := CollectionExecAction{dbIndex: ctx.dbIndex}
+	action := CollectionExecAction{dbIndex: ctx.Brick.dbIndex}
 	action.Exec = ctx.Brick.DeleteExec()
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 	ctx.Result.AddRecord(action)
@@ -1161,7 +1127,7 @@ func HandlerCollectionSoftDeleteCheck(ctx *CollectionContext) error {
 }
 
 func HandlerCollectionSoftDelete(ctx *CollectionContext) error {
-	if ctx.dbIndex == -1 {
+	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
 
@@ -1178,7 +1144,7 @@ func HandlerCollectionSoftDelete(ctx *CollectionContext) error {
 			record.SetField(rField.Name(), reflect.Zero(rField.StructField().Type))
 		}
 	}
-	action := CollectionExecAction{dbIndex: ctx.dbIndex}
+	action := CollectionExecAction{dbIndex: ctx.Brick.dbIndex}
 	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
 	action.Exec = ctx.Brick.UpdateExec(record)
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
