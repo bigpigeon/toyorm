@@ -1623,7 +1623,6 @@ func TestSameBelongId(t *testing.T) {
 	var tab TestSameBelongIdTable
 	brick := TestDB.Model(&tab).Debug().
 		Preload(Offsetof(tab.BelongTo)).Enter()
-	brick.DropTableIfExist()
 
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
