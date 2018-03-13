@@ -68,7 +68,6 @@ type CollectionContext struct {
 	index    int8
 	Brick    *CollectionBrick
 	Result   *Result
-	dbIndex  int
 	value    map[interface{}]interface{}
 	//err      error
 }
@@ -77,7 +76,6 @@ func NewCollectionContext(handlers CollectionHandlersChain, brick *CollectionBri
 	return &CollectionContext{
 		handlers: handlers,
 		index:    -1,
-		dbIndex:  -1,
 		Brick:    brick,
 		Result: &Result{
 			Records:            columns,
