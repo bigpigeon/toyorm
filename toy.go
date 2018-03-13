@@ -2,24 +2,9 @@ package toyorm
 
 import (
 	"database/sql"
-	"io"
 	"os"
 	"reflect"
 )
-
-type ToyKernel struct {
-	CacheModels              map[reflect.Type]*Model
-	CacheMiddleModels        map[reflect.Type]*Model
-	CacheReverseMiddleModels map[reflect.Type]*Model
-	// map[model][container_field_name]
-
-	belongToPreload   map[*Model]map[string]*BelongToPreload
-	oneToOnePreload   map[*Model]map[string]*OneToOnePreload
-	oneToManyPreload  map[*Model]map[string]*OneToManyPreload
-	manyToManyPreload map[*Model]map[string]map[bool]*ManyToManyPreload
-	Dialect           Dialect
-	Logger            io.Writer
-}
 
 type Toy struct {
 	db                       *sql.DB
@@ -90,24 +75,18 @@ func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
 	return NewToyBrick(t, middleModel)
 }
 
-// TODO testing thread safe? if not add lock
-func (t *ToyKernel) GetModel(_type reflect.Type) *Model {
-	if model, ok := t.CacheModels[_type]; ok == false {
-		model = NewModel(_type)
-		t.CacheModels[_type] = model
-	}
-	return t.CacheModels[_type]
+func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
+	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
+	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
+	handlers = append(handlers, t.DefaultHandlerChain[option]...)
+	return handlers
 }
 
-func (t *ToyKernel) GetMiddleModel(_type reflect.Type) *Model {
-	if model, ok := t.CacheModels[_type]; ok == false {
-		model = NewModel(_type)
-		t.CacheModels[_type] = model
-	}
-	return t.CacheModels[_type]
+func (t *Toy) Close() error {
+	return t.db.Close()
 }
 
-func (t *ToyKernel) BelongToPreload(model *Model, field Field) *BelongToPreload {
+func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
 	// try to find cache data
 	if t.belongToPreload[model] != nil && t.belongToPreload[model][field.Name()] != nil {
 		return t.belongToPreload[model][field.Name()]
@@ -129,7 +108,7 @@ func (t *ToyKernel) BelongToPreload(model *Model, field Field) *BelongToPreload 
 	return nil
 }
 
-func (t *ToyKernel) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
+func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 	// try to find cache data
 	if t.oneToOnePreload[model] != nil && t.oneToOnePreload[model][field.Name()] != nil {
 		return t.oneToOnePreload[model][field.Name()]
@@ -150,7 +129,7 @@ func (t *ToyKernel) OneToOnePreload(model *Model, field Field) *OneToOnePreload 
 	return nil
 }
 
-func (t *ToyKernel) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
+func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 	// try to find cache data
 	if t.oneToManyPreload[model] != nil && t.oneToManyPreload[model][field.Name()] != nil {
 		return t.oneToManyPreload[model][field.Name()]
@@ -173,11 +152,11 @@ func (t *ToyKernel) OneToManyPreload(model *Model, field Field) *OneToManyPreloa
 	return nil
 }
 
-func (t *ToyKernel) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyToManyPreload {
+func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyToManyPreload {
 	return t.manyToManyPreloadWithTag(model, field, isRight, `toyorm:"primary key"`)
 }
 
-func (t *ToyKernel) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
+func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
 	// try to find cache data
 	if t.manyToManyPreload[model] != nil && t.manyToManyPreload[model][field.Name()][isRight] != nil {
 		return t.manyToManyPreload[model][field.Name()][isRight]
@@ -203,7 +182,7 @@ func (t *ToyKernel) manyToManyPreloadWithTag(model *Model, field Field, isRight 
 	return nil
 }
 
-func (t *ToyKernel) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
+func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with sub model primary key")
 	}
@@ -218,7 +197,7 @@ func (t *ToyKernel) BelongToBind(model, subModel *Model, containerField, relatio
 	}
 }
 
-func (t *ToyKernel) OneToOneBind(model, subModel *Model, containerField, relationField Field) *OneToOnePreload {
+func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField Field) *OneToOnePreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
@@ -233,7 +212,7 @@ func (t *ToyKernel) OneToOneBind(model, subModel *Model, containerField, relatio
 		ContainerField: containerField,
 	}
 }
-func (t *ToyKernel) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
+func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
@@ -249,7 +228,7 @@ func (t *ToyKernel) OneToManyBind(model, subModel *Model, containerField, relati
 	}
 }
 
-func (t *ToyKernel) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
+func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, containerField, relationField, subRelationField Field) *ManyToManyPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
@@ -273,15 +252,4 @@ func (t *ToyKernel) ManyToManyPreloadBind(model, subModel, middleModel *Model, c
 		RelationField:    relationField,
 		SubRelationField: subRelationField,
 	}
-}
-
-func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
-	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
-	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
-	handlers = append(handlers, t.DefaultHandlerChain[option]...)
-	return handlers
-}
-
-func (t *Toy) Close() error {
-	return t.db.Close()
 }

@@ -562,9 +562,9 @@ func (t *CollectionBrick) Query(exec ExecValue, i int) (*sql.Rows, error) {
 	rows, err := t.Toy.dbs[i].Query(exec.Query, exec.Args...)
 	if t.debug {
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "db[%d], query:%s, args:%s faiure reason %s\n", i, exec.Query, exec.JsonArgs(), err)
+			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s faiure reason %s\n", i, exec.Query, exec.JsonArgs(), err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "db[%d], query:%s, args:%s\n", i, exec.Query, exec.JsonArgs())
+			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, exec.Query, exec.JsonArgs())
 		}
 	}
 

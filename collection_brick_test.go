@@ -436,10 +436,10 @@ func TestCollectionFind(t *testing.T) {
 	}
 	// fill data
 	{
-		for i := 1; i < 5; i++ {
-			for j := 1; j < 5; j++ {
-				for k := 1; k < 5; k++ {
-					for l := 1; l < 5; l++ {
+		for i := 1; i < 4; i++ {
+			for j := 1; j < 4; j++ {
+				for k := 1; k < 4; k++ {
+					for l := 1; l < 4; l++ {
 						d := strings.Repeat("d", l)
 						t1 := TestSearchTable{
 							A: strings.Repeat("a", i),
@@ -1001,4 +1001,209 @@ func TestCollectionPreloadFind(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestCollectionPreloadDelete(t *testing.T) {
+	var hardTab TestHardDeleteTable
+	var softTab TestSoftDeleteTable
+	var err error
+	var result *Result
+
+	t.Run("Hard Delete", func(t *testing.T) {
+		brick := TestCollectionDB.Model(&hardTab).Debug().
+			Preload(Offsetof(hardTab.BelongTo)).Enter().
+			Preload(Offsetof(hardTab.OneToOne)).Enter().
+			Preload(Offsetof(hardTab.OneToMany)).Enter().
+			Preload(Offsetof(hardTab.ManyToMany)).Enter().
+			Preload(Offsetof(hardTab.SoftBelongTo)).Enter().
+			Preload(Offsetof(hardTab.SoftOneToOne)).Enter().
+			Preload(Offsetof(hardTab.SoftOneToMany)).Enter().
+			Preload(Offsetof(hardTab.SoftManyToMany)).Enter()
+
+		TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftBelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftOneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftOneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(hardTab.SoftManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+
+		result, err = brick.DropTableIfExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		result, err = brick.CreateTableIfNotExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		result, err = brick.Save([]TestHardDeleteTable{
+			{
+				Data:     "hard delete main model",
+				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
+				OneToOne: &TestHardDeleteTableOneToOne{Data: "one to one data"},
+				OneToMany: []TestHardDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				ManyToMany: []TestHardDeleteManyToMany{
+					{ID: 1, Data: "many to many data"},
+					{ID: 2, Data: "many to many data"},
+				},
+				SoftBelongTo: &TestSoftDeleteTableBelongTo{Data: "belong to data"},
+				SoftOneToOne: &TestSoftDeleteTableOneToOne{Data: "one to one data"},
+				SoftOneToMany: []TestSoftDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				SoftManyToMany: []TestSoftDeleteManyToMany{
+					{ModelDefault: ModelDefault{ID: 1}, Data: "many to many data"},
+					{ModelDefault: ModelDefault{ID: 2}, Data: "many to many data"},
+				},
+			},
+			{
+				Data:     "hard delete main model",
+				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
+				OneToOne: &TestHardDeleteTableOneToOne{Data: "one to one data"},
+				OneToMany: []TestHardDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				ManyToMany: []TestHardDeleteManyToMany{
+					{ID: 1, Data: "many to many data"},
+					{ID: 2, Data: "many to many data"},
+				},
+				SoftBelongTo: &TestSoftDeleteTableBelongTo{Data: "belong to data"},
+				SoftOneToOne: &TestSoftDeleteTableOneToOne{Data: "one to one data"},
+				SoftOneToMany: []TestSoftDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				SoftManyToMany: []TestSoftDeleteManyToMany{
+					{ModelDefault: ModelDefault{ID: 1}, Data: "many to many data"},
+					{ModelDefault: ModelDefault{ID: 2}, Data: "many to many data"},
+				},
+			},
+		})
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		var hardDeleteData []TestHardDeleteTable
+		result, err = brick.Find(&hardDeleteData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		_, err = brick.Delete(&hardDeleteData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+	})
+	t.Run("SoftDelete", func(t *testing.T) {
+		brick := TestCollectionDB.Model(&softTab).Debug().
+			Preload(Offsetof(softTab.BelongTo)).Enter().
+			Preload(Offsetof(softTab.OneToOne)).Enter().
+			Preload(Offsetof(softTab.OneToMany)).Enter().
+			Preload(Offsetof(softTab.ManyToMany)).Enter().
+			Preload(Offsetof(softTab.SoftBelongTo)).Enter().
+			Preload(Offsetof(softTab.SoftOneToOne)).Enter().
+			Preload(Offsetof(softTab.SoftOneToMany)).Enter().
+			Preload(Offsetof(softTab.SoftManyToMany)).Enter()
+
+		TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.BelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.OneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.OneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.ManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftBelongTo)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftOneToOne)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftOneToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Preload(Offsetof(softTab.SoftManyToMany)).model, CollectionHandlersChain{CollectionIDGenerate})
+
+		result, err = brick.DropTableIfExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		result, err = brick.CreateTableIfNotExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		result, err = brick.Save([]TestSoftDeleteTable{
+			{
+				Data:     "hard delete main model",
+				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
+				OneToOne: &TestHardDeleteTableOneToOne{Data: "one to one data"},
+				OneToMany: []TestHardDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				ManyToMany: []TestHardDeleteManyToMany{
+					{ID: 1, Data: "many to many data"},
+					{ID: 2, Data: "many to many data"},
+				},
+				SoftBelongTo: &TestSoftDeleteTableBelongTo{Data: "belong to data"},
+				SoftOneToOne: &TestSoftDeleteTableOneToOne{Data: "one to one data"},
+				SoftOneToMany: []TestSoftDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				SoftManyToMany: []TestSoftDeleteManyToMany{
+					{ModelDefault: ModelDefault{ID: 1}, Data: "many to many data"},
+					{ModelDefault: ModelDefault{ID: 2}, Data: "many to many data"},
+				},
+			},
+			{
+				Data:     "hard delete main model",
+				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
+				OneToOne: &TestHardDeleteTableOneToOne{Data: "one to one data"},
+				OneToMany: []TestHardDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				ManyToMany: []TestHardDeleteManyToMany{
+					{ID: 1, Data: "many to many data"},
+					{ID: 2, Data: "many to many data"},
+				},
+				SoftBelongTo: &TestSoftDeleteTableBelongTo{Data: "belong to data"},
+				SoftOneToOne: &TestSoftDeleteTableOneToOne{Data: "one to one data"},
+				SoftOneToMany: []TestSoftDeleteTableOneToMany{
+					{Data: "one to many data"},
+					{Data: "one to many data"},
+				},
+				SoftManyToMany: []TestSoftDeleteManyToMany{
+					{ModelDefault: ModelDefault{ID: 1}, Data: "many to many data"},
+					{ModelDefault: ModelDefault{ID: 2}, Data: "many to many data"},
+				},
+			},
+		})
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		var softDeleteData []TestSoftDeleteTable
+		result, err = brick.Find(&softDeleteData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		_, err = brick.Delete(&softDeleteData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+	})
+
 }

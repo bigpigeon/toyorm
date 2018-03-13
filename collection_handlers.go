@@ -867,6 +867,9 @@ func CollectionHandlerFind(ctx *CollectionContext) error {
 }
 
 func CollectionHandlerFindOneAssignDbIndex(ctx *CollectionContext) error {
+	if ctx.dbIndex != -1 {
+		return nil
+	}
 	for i := range ctx.Brick.Toy.dbs {
 		currentLen := ctx.Result.Records.Len()
 		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick, ctx.Result.Records)
@@ -875,9 +878,8 @@ func CollectionHandlerFindOneAssignDbIndex(ctx *CollectionContext) error {
 		if err != nil {
 			return err
 		}
-		for _, action := range dbCtx.Result.ActionFlow {
-			ctx.Result.AddRecord(action)
-		}
+
+		ctx.Result.ActionFlow = append(ctx.Result.ActionFlow, dbCtx.Result.ActionFlow...)
 		if ctx.Result.Records.Len() > currentLen {
 			break
 		}
@@ -966,5 +968,220 @@ func CollectionHandlerUpdate(ctx *CollectionContext) error {
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		ctx.Result.AddRecord(action)
 	}
+	return nil
+}
+
+func HandlerCollectionPreloadDelete(ctx *CollectionContext) error {
+	for fieldName, preload := range ctx.Brick.OneToOnePreload {
+		preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
+		subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		// set sub model relation field
+		for _, record := range ctx.Result.Records.GetRecords() {
+			// it means relation field, result[j].LastInsertId() is id value
+			subRecords.Add(record.FieldAddress(fieldName))
+		}
+		// if main model is hard delete need set relationship field set zero if sub model is soft delete
+		if mainSoftDelete == false && subSoftDelete == true {
+			deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
+			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
+		}
+		result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
+		ctx.Result.Preload[fieldName] = result
+		if err != nil {
+			return err
+		}
+	}
+
+	// one to many
+	for fieldName, preload := range ctx.Brick.OneToManyPreload {
+		preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		elemAddressType := reflect.PtrTo(LoopTypeIndirect(ctx.Result.Records.GetFieldType(fieldName)).Elem())
+		subRecords := MakeRecordsWithElem(preload.SubModel, elemAddressType)
+		for _, record := range ctx.Result.Records.GetRecords() {
+			rField := LoopIndirect(record.Field(fieldName))
+			for subi := 0; subi < rField.Len(); subi++ {
+				subRecords.Add(rField.Index(subi).Addr())
+			}
+		}
+		// model relationship field set zero
+		if mainSoftDelete == false && subSoftDelete == true {
+			deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
+			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
+		}
+		result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
+		ctx.Result.Preload[fieldName] = result
+		if err != nil {
+			return err
+		}
+	}
+	// many to many
+	for fieldName, preload := range ctx.Brick.ManyToManyPreload {
+		subBrick := ctx.Brick.MapPreloadBrick[fieldName]
+		middleBrick := NewCollectionBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
+		mainField, subField := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+
+		elemAddressType := reflect.PtrTo(LoopTypeIndirect(ctx.Result.Records.GetFieldType(fieldName)).Elem())
+		subRecords := MakeRecordsWithElem(preload.SubModel, elemAddressType)
+
+		for _, record := range ctx.Result.Records.GetRecords() {
+			rField := LoopIndirect(record.Field(fieldName))
+			for subi := 0; subi < rField.Len(); subi++ {
+				subRecords.Add(rField.Index(subi).Addr())
+			}
+		}
+
+		middleRecords := MakeRecordsWithElem(middleBrick.model, middleBrick.model.ReflectType)
+		// use to calculate what sub records belong for
+		offset := 0
+		for _, record := range ctx.Result.Records.GetRecords() {
+			primary := record.Field(mainField.Name())
+			if primary.IsValid() == false {
+				return errors.New("some records have not primary key")
+			}
+			rField := LoopIndirect(record.Field(fieldName))
+			for subi := 0; subi < rField.Len(); subi++ {
+				subRecord := subRecords.GetRecord(subi + offset)
+				subPrimary := subRecord.Field(subField.Name())
+				if subPrimary.IsValid() == false {
+					return errors.New("some records have not primary key")
+				}
+				middleRecord := NewRecord(middleBrick.model, reflect.New(middleBrick.model.ReflectType).Elem())
+				middleRecord.SetField(preload.RelationField.Name(), primary)
+				middleRecord.SetField(preload.SubRelationField.Name(), subPrimary)
+				middleRecords.Add(middleRecord.Source())
+			}
+			offset += rField.Len()
+		}
+
+		// delete middle model data
+		var primaryFields []Field
+		if mainSoftDelete == false {
+			primaryFields = append(primaryFields, middleBrick.model.GetPrimary()[0])
+		}
+		if subSoftDelete == false {
+			primaryFields = append(primaryFields, middleBrick.model.GetPrimary()[1])
+		}
+		if len(primaryFields) != 0 {
+			conditions := middleBrick.Search
+			middleBrick = middleBrick.Conditions(nil)
+			for _, primaryField := range primaryFields {
+				primarySetType := reflect.MapOf(primaryField.StructField().Type, reflect.TypeOf(struct{}{}))
+				primarySet := reflect.MakeMap(primarySetType)
+				for _, record := range middleRecords.GetRecords() {
+					primarySet.SetMapIndex(record.Field(primaryField.Name()), reflect.ValueOf(struct{}{}))
+				}
+				var primaryKeys = reflect.New(reflect.SliceOf(primaryField.StructField().Type)).Elem()
+				for _, k := range primarySet.MapKeys() {
+					primaryKeys = reflect.Append(primaryKeys, k)
+				}
+				middleBrick = middleBrick.Where(ExprIn, primaryField, primaryKeys.Interface()).
+					Or().Conditions(middleBrick.Search)
+			}
+			middleBrick = middleBrick.And().Conditions(conditions)
+			result, err := middleBrick.delete(middleRecords)
+			ctx.Result.MiddleModelPreload[fieldName] = result
+			if err != nil {
+				return err
+			}
+		}
+
+		result, err := subBrick.deleteWithPrimaryKey(subRecords)
+		ctx.Result.Preload[fieldName] = result
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := ctx.Next(); err != nil {
+		return err
+	}
+
+	for fieldName, preload := range ctx.Brick.BelongToPreload {
+		preloadBrick := ctx.Brick.MapPreloadBrick[fieldName]
+		subRecords := MakeRecordsWithElem(preload.SubModel, ctx.Result.Records.GetFieldAddressType(fieldName))
+		for _, record := range ctx.Result.Records.GetRecords() {
+			subRecords.Add(record.FieldAddress(fieldName))
+		}
+
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		if mainSoftDelete == false && subSoftDelete == true {
+			deletedAtField := preloadBrick.model.GetFieldWithName("DeletedAt")
+			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
+		}
+
+		result, err := preloadBrick.deleteWithPrimaryKey(subRecords)
+		ctx.Result.Preload[fieldName] = result
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+func HandlerCollectionSearchWithPrimaryKey(ctx *CollectionContext) error {
+	var primaryKeys []interface{}
+	primaryField := ctx.Brick.model.GetOnePrimary()
+	for _, record := range ctx.Result.Records.GetRecords() {
+		primaryKeys = append(primaryKeys, record.Field(primaryField.Name()).Interface())
+	}
+	if len(primaryKeys) == 0 {
+		ctx.Abort()
+		return nil
+	}
+	ctx.Brick = ctx.Brick.Where(ExprIn, primaryField, primaryKeys).And().Conditions(ctx.Brick.Search)
+	return nil
+}
+
+func HandlerCollectionHardDelete(ctx *CollectionContext) error {
+	if ctx.dbIndex == -1 {
+		return ErrDbIndexNotSet{}
+	}
+	action := CollectionExecAction{dbIndex: ctx.dbIndex}
+	action.Exec = ctx.Brick.DeleteExec()
+	action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
+	ctx.Result.AddRecord(action)
+	return nil
+}
+
+//
+func HandlerCollectionSoftDeleteCheck(ctx *CollectionContext) error {
+	deletedField := ctx.Brick.model.GetFieldWithName("DeletedAt")
+	if deletedField != nil {
+		ctx.Brick = ctx.Brick.Where(ExprNull, deletedField).And().Conditions(ctx.Brick.Search)
+	}
+	return nil
+}
+
+func HandlerCollectionSoftDelete(ctx *CollectionContext) error {
+	if ctx.dbIndex == -1 {
+		return ErrDbIndexNotSet{}
+	}
+
+	now := time.Now()
+	value := reflect.New(ctx.Brick.model.ReflectType).Elem()
+	record := NewStructRecord(ctx.Brick.model, value)
+	record.SetField("DeletedAt", reflect.ValueOf(now))
+	bindFields := []interface{}{"DeletedAt"}
+	for _, preload := range ctx.Brick.BelongToPreload {
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		if subSoftDelete == false {
+			rField := preload.RelationField
+			bindFields = append(bindFields, rField.Name())
+			record.SetField(rField.Name(), reflect.Zero(rField.StructField().Type))
+		}
+	}
+	action := CollectionExecAction{dbIndex: ctx.dbIndex}
+	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
+	action.Exec = ctx.Brick.UpdateExec(record)
+	action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
+	ctx.Result.AddRecord(action)
 	return nil
 }
