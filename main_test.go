@@ -630,6 +630,22 @@ func createTableUnit(brick *ToyBrick) func(t *testing.T) {
 	}
 }
 
+func createCollectionTableUnit(brick *CollectionBrick) func(t *testing.T) {
+	return func(t *testing.T) {
+		result, err := brick.DropTableIfExist()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+
+		result, err = brick.CreateTable()
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+	}
+}
+
 var idGenerator = map[*Model]chan int{}
 
 func CollectionIDGenerate(ctx *CollectionContext) error {

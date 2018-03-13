@@ -2,7 +2,9 @@ package toyorm
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1593,4 +1595,426 @@ func TestCollectionSameBelongId(t *testing.T) {
 	var findData []TestSameBelongIdTable
 	result, err = brick.Find(&findData)
 	t.Logf("%#v", findData)
+}
+
+func TestCollectionPointContainerField(t *testing.T) {
+	var tab TestPointContainerTable
+	brick := TestCollectionDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	createCollectionTableUnit(brick)(t)
+	data := []*TestPointContainerTable{
+		{
+			Data: "point container table 1",
+			OneToMany: &[]*TestPointContainerOneToMany{
+				{OneToManyData: "point container table 1 one to many 1"},
+				{OneToManyData: "point container table 1 one to many 2"},
+			},
+			ManyToMany: &[]*TestPointContainerManyToMany{
+				{ManyToManyData: "point container table many to many 1"},
+				{ManyToManyData: "point container table many to many 2"},
+			},
+		},
+		{
+			Data: "point container table 1",
+			OneToMany: &[]*TestPointContainerOneToMany{
+				{OneToManyData: "point container table 2 one to many 1"},
+				{OneToManyData: "point container table 2 one to many 2"},
+			},
+			ManyToMany: &[]*TestPointContainerManyToMany{
+				{ManyToManyData: "point container table many to many 3"},
+				{ManyToManyData: "point container table many to many 4"},
+			},
+		},
+	}
+	result, err := brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var findData []*TestPointContainerTable
+	result, err = brick.Find(&findData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	jsonBytes, err := json.MarshalIndent(findData, "", "  ")
+	assert.Nil(t, err)
+	t.Logf("\n%v", string(jsonBytes))
+
+	sort.Slice(findData, func(i, j int) bool {
+		return findData[i].ID < findData[j].ID
+	})
+	for _, data := range findData {
+		sort.Slice(*data.OneToMany, func(i, j int) bool {
+			return (*data.OneToMany)[i].ID < (*data.OneToMany)[j].ID
+		})
+		sort.Slice(*data.ManyToMany, func(i, j int) bool {
+			return (*data.ManyToMany)[i].ID < (*data.ManyToMany)[j].ID
+		})
+	}
+
+	assert.Equal(t, data, findData)
+
+}
+
+func TestCollectionReport(t *testing.T) {
+	var tab TestReportTable
+	var tabSub1 TestReportSub1
+	var tabSub2 TestReportSub2
+	var tabSub3 TestReportSub3
+	var tabSub4 TestReportSub4
+	brick := TestCollectionDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).
+		Preload(Offsetof(tabSub1.BelongTo)).Enter().
+		Preload(Offsetof(tabSub1.OneToOne)).Enter().
+		Preload(Offsetof(tabSub1.OneToMany)).Enter().
+		Preload(Offsetof(tabSub1.ManyToMany)).Enter().
+		Enter().
+		Preload(Offsetof(tab.OneToOne)).
+		Preload(Offsetof(tabSub2.BelongTo)).Enter().
+		Preload(Offsetof(tabSub2.OneToOne)).Enter().
+		Preload(Offsetof(tabSub2.OneToMany)).Enter().
+		Preload(Offsetof(tabSub2.ManyToMany)).Enter().
+		Enter().
+		Preload(Offsetof(tab.OneToMany)).
+		Preload(Offsetof(tabSub3.BelongTo)).Enter().
+		Preload(Offsetof(tabSub3.OneToOne)).Enter().
+		Preload(Offsetof(tabSub3.OneToMany)).Enter().
+		Preload(Offsetof(tabSub3.ManyToMany)).Enter().
+		Enter().
+		Preload(Offsetof(tab.ManyToMany)).
+		Preload(Offsetof(tabSub4.BelongTo)).Enter().
+		Preload(Offsetof(tabSub4.OneToOne)).Enter().
+		Preload(Offsetof(tabSub4.OneToMany)).Enter().
+		Preload(Offsetof(tabSub4.ManyToMany)).Enter().
+		Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		for _, ppBrick := range pBrick.MapPreloadBrick {
+			TestCollectionDB.SetModelHandlers("Save", ppBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Insert", ppBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		}
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Log("\n", result.Report())
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Log("\n", result.Report())
+
+	var data []TestReportTable
+	for i := 0; i < 2; i++ {
+		reportStr := fmt.Sprintf("report data(%d)", i)
+		tab := TestReportTable{
+			Data: reportStr,
+			BelongTo: &TestReportSub1{
+				Sub1Data: reportStr + " sub 1",
+				BelongTo: &TestReportSub1Sub1{
+					Sub1Data: reportStr + " sub 1 sub 1",
+				},
+				OneToOne: &TestReportSub1Sub2{
+					Sub2Data: reportStr + " sub 1 sub 2",
+				},
+			},
+			OneToOne: &TestReportSub2{
+				Sub2Data: reportStr + " sub 2",
+				BelongTo: &TestReportSub2Sub1{
+					Sub1Data: reportStr + " sub 2 sub 1",
+				},
+				OneToOne: &TestReportSub2Sub2{
+					Sub2Data: reportStr + " sub 2 sub 2",
+				},
+			},
+		}
+		for j := 0; j < 2; j++ {
+			tab.BelongTo.OneToMany = append(tab.BelongTo.OneToMany, TestReportSub1Sub3{
+				Sub3Data: reportStr + " sub 1 " + fmt.Sprintf("sub 3(%d)", j),
+			})
+			tab.BelongTo.ManyToMany = append(tab.BelongTo.ManyToMany, TestReportSub1Sub4{
+				Sub4Data: reportStr + " sub 1 " + fmt.Sprintf("sub 4(%d)", j),
+			})
+			tab.OneToOne.OneToMany = append(tab.OneToOne.OneToMany, TestReportSub2Sub3{
+				Sub3Data: reportStr + " sub 2 " + fmt.Sprintf("sub 3(%d)", j),
+			})
+			tab.OneToOne.ManyToMany = append(tab.OneToOne.ManyToMany, TestReportSub2Sub4{
+				Sub4Data: reportStr + " sub 2 " + fmt.Sprintf("sub 4(%d)", j),
+			})
+			sub3Str := fmt.Sprintf(" sub 3(%d)", j)
+			tab.OneToMany = append(tab.OneToMany, TestReportSub3{
+				Sub3Data: reportStr + sub3Str,
+				BelongTo: &TestReportSub3Sub1{
+					Sub1Data: reportStr + sub3Str + " sub 1",
+				},
+				OneToOne: &TestReportSub3Sub2{
+					Sub2Data: reportStr + sub3Str + " sub 2",
+				},
+			})
+			sub4Str := fmt.Sprintf(" sub 4(%d)", j)
+			tab.ManyToMany = append(tab.ManyToMany, TestReportSub4{
+				Sub4Data: reportStr + fmt.Sprintf(" sub 4(%d)", j),
+				BelongTo: &TestReportSub4Sub1{
+					Sub1Data: reportStr + sub4Str + " sub 1",
+				},
+				OneToOne: &TestReportSub4Sub2{
+					Sub2Data: reportStr + sub4Str + " sub 2",
+				},
+			})
+			for k := 0; k < 2; k++ {
+				tab.OneToMany[j].OneToMany = append(tab.OneToMany[j].OneToMany, TestReportSub3Sub3{
+					Sub3Data: reportStr + sub3Str + fmt.Sprintf(" sub 3(%d)", k),
+				})
+
+				tab.OneToMany[j].ManyToMany = append(tab.OneToMany[j].ManyToMany, TestReportSub3Sub4{
+					Sub4Data: reportStr + sub3Str + fmt.Sprintf(" sub 4(%d)", k),
+				})
+
+				tab.ManyToMany[j].OneToMany = append(tab.ManyToMany[j].OneToMany, TestReportSub4Sub3{
+					Sub3Data: reportStr + sub4Str + fmt.Sprintf(" sub 3(%d)", k),
+				})
+
+				tab.ManyToMany[j].ManyToMany = append(tab.ManyToMany[j].ManyToMany, TestReportSub4Sub4{
+					Sub4Data: reportStr + sub4Str + fmt.Sprintf(" sub 4(%d)", k),
+				})
+			}
+		}
+		data = append(data, tab)
+	}
+	data[0].ID = 2
+
+	result, err = brick.Save(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Log("\n", result.Report())
+
+	var scanData []TestReportTable
+	result, err = brick.Find(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Log("\n", result.Report())
+
+	jsonBytes, err := json.MarshalIndent(scanData, "", "  ")
+	assert.Nil(t, err)
+	t.Logf("\n%v", string(jsonBytes))
+
+	result, err = brick.Delete(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Log("\n", result.Report())
+}
+
+func TestCollectionRightValuePreload(t *testing.T) {
+	var tab TestRightValuePreloadTable
+	baseBrick := TestCollectionDB.Model(&tab).Debug()
+	brick := baseBrick.Preload(Offsetof(tab.ManyToMany)).Enter()
+
+	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTableIfNotExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := TestRightValuePreloadTable{
+		Data: "test right value preload",
+		ManyToMany: []TestRightValuePreloadTable{
+			{Data: "test right value preload sub 1"},
+			{Data: "test right value preload sub 2"},
+		},
+	}
+
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var scanData TestRightValuePreloadTable
+	findBrick := baseBrick.RightValuePreload(Offsetof(tab.ManyToMany)).Enter()
+	findBrick = findBrick.Where(ExprEqual, Offsetof(tab.ID), data.ManyToMany[0].ID)
+	result, err = findBrick.Find(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, scanData.ManyToMany[0].ID, data.ID)
+	t.Logf("result:\n%s\n", result.Report())
+}
+
+func TestCollectionPreloadCheck(t *testing.T) {
+	var tab TestPreloadCheckTable
+	brick := TestCollectionDB.Model(&tab).Debug().
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+	createCollectionTableUnit(brick)(t)
+	type missingID struct {
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+	type missingBelongToID struct {
+		ID   uint32
+		Data string
+
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+	type missingBelongTo struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToOne struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		//OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToOneRelationship struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *struct {
+			ID   uint32
+			Data string
+		}
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToMany struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		//OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingOneToManyRelationship struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []struct {
+			ID   uint32
+			Data string
+		}
+		ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingManyToMany struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		//ManyToMany []TestPreloadCheckManyToMany
+	}
+
+	type missingManyToManyID struct {
+		ID   uint32
+		Data string
+
+		BelongToID uint32
+		BelongTo   *TestPreloadCheckBelongTo
+		OneToOne   *TestPreloadCheckOneToOne
+		OneToMany  []TestPreloadCheckOneToMany
+		ManyToMany []struct {
+			//ID   uint32 `toyorm:"primary key;auto_increment"`
+			Data string
+		}
+	}
+
+	_, err := brick.Find(&missingID{})
+	assert.Equal(t, err.Error(), "struct missing ID field")
+
+	_, err = brick.Find(&missingBelongToID{})
+	assert.Equal(t, err.Error(), "struct missing BelongToID field")
+
+	_, err = brick.Find(&missingBelongTo{})
+	assert.Equal(t, err.Error(), "struct missing BelongTo field")
+
+	_, err = brick.Find(&missingOneToOne{})
+	assert.Equal(t, err.Error(), "struct missing OneToOne field")
+
+	_, err = brick.Find(&missingOneToOneRelationship{})
+	assert.Equal(t, err.Error(), "struct of the OneToOne field missing TestPreloadCheckTableID field")
+
+	_, err = brick.Find(&missingOneToMany{})
+	assert.Equal(t, err.Error(), "struct missing OneToMany field")
+
+	_, err = brick.Find(&missingOneToManyRelationship{})
+	assert.Equal(t, err.Error(), "struct of the OneToMany field missing TestPreloadCheckTableID field")
+
+	_, err = brick.Find(&missingManyToMany{})
+	assert.Equal(t, err.Error(), "struct missing ManyToMany field")
+
+	_, err = brick.Find(&missingManyToManyID{})
+	assert.Equal(t, err.Error(), "struct of the ManyToMany field missing ID field")
 }

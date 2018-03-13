@@ -573,6 +573,9 @@ func (t *CollectionBrick) Query(exec ExecValue, i int) (*sql.Rows, error) {
 
 func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
 	row := t.Toy.dbs[i].QueryRow(exec.Query, exec.Args...)
+	if t.debug {
+		fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, exec.Query, exec.JsonArgs())
+	}
 	return row
 }
 
