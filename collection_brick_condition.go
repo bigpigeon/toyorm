@@ -73,7 +73,7 @@ func (t *CollectionBrick) condition(expr SearchExpr, key interface{}, args ...in
 	switch expr {
 	case ExprAnd, ExprOr:
 		keyValue := LoopIndirect(reflect.ValueOf(key))
-		record := NewRecord(t.model, keyValue)
+		record := NewRecord(t.Model, keyValue)
 		pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
 		for _, pair := range pairs {
 			search = search.Condition(pair, ExprEqual, expr)
@@ -88,7 +88,7 @@ func (t *CollectionBrick) condition(expr SearchExpr, key interface{}, args ...in
 		} else {
 			value = reflect.ValueOf(args)
 		}
-		mField := t.model.fieldSelect(key)
+		mField := t.Model.fieldSelect(key)
 
 		search = search.Condition(&modelFieldValue{mField, value}, expr, ExprAnd)
 	}

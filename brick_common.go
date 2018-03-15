@@ -1,7 +1,7 @@
 package toyorm
 
 type BrickCommon struct {
-	model             *Model
+	Model             *Model
 	BelongToPreload   map[string]*BelongToPreload
 	OneToOnePreload   map[string]*OneToOnePreload
 	OneToManyPreload  map[string]*OneToManyPreload
@@ -57,7 +57,7 @@ func (t *BrickCommon) getFieldValuePairWithRecord(mode Mode, record ModelRecord)
 
 	var useIgnoreMode bool
 	if len(fields) == 0 {
-		fields = t.model.GetSqlFields()
+		fields = t.Model.GetSqlFields()
 		useIgnoreMode = record.IsVariableContainer() == false
 	}
 	var columnValues []ColumnValue
@@ -90,7 +90,7 @@ func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) []Field {
 	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
 		fields = t.FieldsSelector[ModeDefault]
 	} else {
-		fields = t.model.GetSqlFields()
+		fields = t.Model.GetSqlFields()
 	}
 	return getFieldsWithRecords(fields, records)
 }
@@ -102,14 +102,14 @@ func (t *BrickCommon) getScanFields(records ModelRecordFieldTypes) []Field {
 	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
 		fields = t.FieldsSelector[ModeDefault]
 	} else {
-		fields = t.model.GetSqlFields()
+		fields = t.Model.GetSqlFields()
 	}
 	return getFieldsWithRecords(fields, records)
 }
 
 // use for order by
 func (t *BrickCommon) ToDesc(v interface{}) Column {
-	field := t.model.fieldSelect(v)
+	field := t.Model.fieldSelect(v)
 
 	column := StrColumn(field.Column() + " DESC")
 	return column

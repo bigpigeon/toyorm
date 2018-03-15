@@ -593,7 +593,7 @@ type SqlTypeTable struct {
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {
-		field := t.model.fieldSelect(v)
+		field := t.Model.fieldSelect(v)
 		if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
 			return subBrick
 		}
@@ -604,11 +604,11 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
 		newt.MapPreloadBrick[field.Name()] = newSubt
 		newSubt.preBrick = PreToyBrick{&newt, field}
-		if preload := newt.Toy.manyToManyPreloadWithTag(newt.model, field, false, `toyorm:"primary key;foreign key"`); preload != nil {
+		if preload := newt.Toy.manyToManyPreloadWithTag(newt.Model, field, false, `toyorm:"primary key;foreign key"`); preload != nil {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field.Name()] = preload
 		} else {
-			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Name()})
+			panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), field.Name()})
 		}
 		return newSubt
 	}
@@ -649,7 +649,7 @@ func createCollectionTableUnit(brick *CollectionBrick) func(t *testing.T) {
 var idGenerator = map[*Model]chan int{}
 
 func CollectionIDGenerate(ctx *CollectionContext) error {
-	if idGenerator[ctx.Brick.model] == nil {
+	if idGenerator[ctx.Brick.Model] == nil {
 		idGenerate := make(chan int)
 		go func() {
 			current := 1
@@ -659,12 +659,12 @@ func CollectionIDGenerate(ctx *CollectionContext) error {
 			}
 
 		}()
-		idGenerator[ctx.Brick.model] = idGenerate
+		idGenerator[ctx.Brick.Model] = idGenerate
 	}
-	primaryKey := ctx.Brick.model.GetOnePrimary()
+	primaryKey := ctx.Brick.Model.GetOnePrimary()
 	for _, record := range ctx.Result.Records.GetRecords() {
 		if field := record.Field(primaryKey.Name()); field.IsValid() == false || IsZero(field) {
-			v := <-idGenerator[ctx.Brick.model]
+			v := <-idGenerator[ctx.Brick.Model]
 			record.SetField(primaryKey.Name(), reflect.ValueOf(v))
 		}
 	}

@@ -26,7 +26,7 @@ func TestCollectionCreateTable(t *testing.T) {
 		brick := TestCollectionDB.Model(tab).Debug()
 		hastable, err = brick.HasTable()
 		assert.Nil(t, err)
-		t.Logf("table %s exist:%v\n", brick.model.Name, hastable)
+		t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -46,7 +46,7 @@ func TestCollectionCreateTable(t *testing.T) {
 func TestCollectionInsertData(t *testing.T) {
 	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
 	// add id generator
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	//create table
 	{
 		result, err := brick.DropTableIfExist()
@@ -332,7 +332,7 @@ func TestCollectionInsertData(t *testing.T) {
 func TestCollectionInsertPointData(t *testing.T) {
 	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
 	// add id generator
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 
 	// insert with struct
 	{
@@ -422,7 +422,7 @@ func TestCollectionFind(t *testing.T) {
 	{
 		brick := TestCollectionDB.Model(&TestSearchTable{}).Debug()
 		// add id generator
-		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
@@ -691,7 +691,7 @@ func TestCollectionPreloadCreateTable(t *testing.T) {
 	brick.CreateTable()
 	hasTable, err := brick.HasTable()
 	assert.Nil(t, err)
-	t.Logf("table %s exist:%v\n", brick.model.Name, hasTable)
+	t.Logf("table %s exist:%v\n", brick.Model.Name, hasTable)
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -713,12 +713,12 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Debug().Enter().
 		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Debug().Enter()
 	// add id generator
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 	{
 		tab := TestPreloadTable{
@@ -862,11 +862,11 @@ func TestCollectionPreloadSave(t *testing.T) {
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter()
 	manyToManyPreload := brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany))
 	// add id generator
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 	brick = manyToManyPreload.Enter()
 
@@ -1024,12 +1024,12 @@ func TestCollectionPreloadDelete(t *testing.T) {
 			Preload(Offsetof(hardTab.SoftOneToMany)).Enter().
 			Preload(Offsetof(hardTab.SoftManyToMany)).Enter()
 
-		TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 
 		for _, pBrick := range brick.MapPreloadBrick {
-			TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-			TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 		}
 		result, err = brick.DropTableIfExist()
 		assert.Nil(t, err)
@@ -1119,11 +1119,11 @@ func TestCollectionPreloadDelete(t *testing.T) {
 			Preload(Offsetof(softTab.SoftOneToMany)).Enter().
 			Preload(Offsetof(softTab.SoftManyToMany)).Enter()
 
-		TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 		for _, pBrick := range brick.MapPreloadBrick {
-			TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-			TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 		}
 		result, err = brick.DropTableIfExist()
 		assert.Nil(t, err)
@@ -1214,9 +1214,9 @@ func TestCollectionCustomPreload(t *testing.T) {
 		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
 		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
 		CustomManyToManyPreload(middleTable, Offsetof(table.OtherChildren), Offsetof(middleTable.ParentID), Offsetof(middleTable.ChildID)).Enter()
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	result, err := brick.DropTableIfExist()
@@ -1282,11 +1282,11 @@ func TestCollectionFlow(t *testing.T) {
 		Preload(Offsetof(Product{}.Tag)).Enter().
 		Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	result, err := brick.DropTableIfExist()
@@ -1442,11 +1442,11 @@ func TestCollectionIgnorePreloadInsert(t *testing.T) {
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	result, err := brick.DropTableIfExist()
@@ -1488,11 +1488,11 @@ func TestCollectionMissPreloadFind(t *testing.T) {
 		Preload(Offsetof(tab.OneToMany)).Enter().
 		Preload(Offsetof(tab.ManyToMany)).Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	result, err := brick.DropTableIfExist()
@@ -1565,11 +1565,11 @@ func TestCollectionSameBelongId(t *testing.T) {
 	brick := TestCollectionDB.Model(&tab).Debug().
 		Preload(Offsetof(tab.BelongTo)).Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	result, err := brick.DropTableIfExist()
@@ -1603,11 +1603,11 @@ func TestCollectionPointContainerField(t *testing.T) {
 		Preload(Offsetof(tab.OneToMany)).Enter().
 		Preload(Offsetof(tab.ManyToMany)).Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	createCollectionTableUnit(brick)(t)
@@ -1699,14 +1699,14 @@ func TestCollectionReport(t *testing.T) {
 		Preload(Offsetof(tabSub4.ManyToMany)).Enter().
 		Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 		for _, ppBrick := range pBrick.MapPreloadBrick {
-			TestCollectionDB.SetModelHandlers("Save", ppBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-			TestCollectionDB.SetModelHandlers("Insert", ppBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Save", ppBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+			TestCollectionDB.SetModelHandlers("Insert", ppBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 		}
 	}
 
@@ -1835,11 +1835,11 @@ func TestCollectionRightValuePreload(t *testing.T) {
 	baseBrick := TestCollectionDB.Model(&tab).Debug()
 	brick := baseBrick.Preload(Offsetof(tab.ManyToMany)).Enter()
 
-	TestCollectionDB.SetModelHandlers("Save", brick.model, CollectionHandlersChain{CollectionIDGenerate})
-	TestCollectionDB.SetModelHandlers("Insert", brick.model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	for _, pBrick := range brick.MapPreloadBrick {
-		TestCollectionDB.SetModelHandlers("Save", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
-		TestCollectionDB.SetModelHandlers("Insert", pBrick.model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	}
 
 	result, err := brick.DropTableIfExist()

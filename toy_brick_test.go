@@ -24,7 +24,7 @@ func TestCreateTable(t *testing.T) {
 		brick := TestDB.Model(tab).Begin().Debug()
 		hastable, err = brick.HasTable()
 		assert.Nil(t, err)
-		t.Logf("table %s exist:%v\n", brick.model.Name, hastable)
+		t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -602,7 +602,7 @@ func TestPreloadCreateTable(t *testing.T) {
 	brick.CreateTable()
 	hastable, err := brick.HasTable()
 	assert.Nil(t, err)
-	t.Logf("table %s exist:%v\n", brick.model.Name, hastable)
+	t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
