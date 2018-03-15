@@ -584,7 +584,7 @@ type SqlTypeTable struct {
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {
-		field := t.model.fieldSelect(v)
+		field := t.Model.fieldSelect(v)
 		if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
 			return subBrick
 		}
@@ -595,11 +595,11 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
 		newt.MapPreloadBrick[field.Name()] = newSubt
 		newSubt.relationship = ToyBrickRelationship{&newt, field}
-		if preload := newt.Toy.manyToManyPreloadWithTag(newt.model, field, false, `toyorm:"primary key;foreign key"`); preload != nil {
+		if preload := newt.Toy.manyToManyPreloadWithTag(newt.Model, field, false, `toyorm:"primary key;foreign key"`); preload != nil {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field.Name()] = preload
 		} else {
-			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Name()})
+			panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), field.Name()})
 		}
 		return newSubt
 	}

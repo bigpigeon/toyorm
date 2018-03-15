@@ -24,7 +24,7 @@ type ToyBrick struct {
 	debug bool
 	tx    *sql.Tx
 
-	model   *Model
+	Model   *Model
 	orderBy []Column
 	Search  SearchList
 	offset  int
@@ -42,7 +42,7 @@ type ToyBrick struct {
 func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 	return &ToyBrick{
 		Toy:               toy,
-		model:             model,
+		Model:             model,
 		MapPreloadBrick:   map[string]*ToyBrick{},
 		BelongToPreload:   map[string]*BelongToPreload{},
 		OneToOnePreload:   map[string]*OneToOnePreload{},
@@ -113,7 +113,7 @@ func (t *ToyBrick) Enter() *ToyBrick {
 // if you want to get preload with main model middle field name == R_UserID use RightValuePreload
 func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		field := t.model.fieldSelect(fv)
+		field := t.Model.fieldSelect(fv)
 		// TODO
 		//if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok  {
 		//	return subBrick
@@ -125,11 +125,11 @@ func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
 		newt.MapPreloadBrick[field.Name()] = newSubt
 		newSubt.relationship = ToyBrickRelationship{&newt, field}
-		if preload := newt.Toy.ManyToManyPreload(newt.model, field, true); preload != nil {
+		if preload := newt.Toy.ManyToManyPreload(newt.Model, field, true); preload != nil {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field.Name()] = preload
 		} else {
-			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Name()})
+			panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), field.Name()})
 		}
 		return newSubt
 	})
@@ -138,7 +138,7 @@ func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 // return
 func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		field := t.model.fieldSelect(fv)
+		field := t.Model.fieldSelect(fv)
 		//if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
 		//	return subBrick
 		//}
@@ -149,23 +149,23 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
 		newt.MapPreloadBrick[field.Name()] = newSubt
 		newSubt.relationship = ToyBrickRelationship{&newt, field}
-		if preload := newt.Toy.BelongToPreload(newt.model, field); preload != nil {
+		if preload := newt.Toy.BelongToPreload(newt.Model, field); preload != nil {
 			newt.BelongToPreload = t.CopyBelongToPreload()
 			newt.BelongToPreload[field.Name()] = preload
-		} else if preload := newt.Toy.OneToOnePreload(newt.model, field); preload != nil {
+		} else if preload := newt.Toy.OneToOnePreload(newt.Model, field); preload != nil {
 			newt.OneToOnePreload = t.CopyOneToOnePreload()
 			newt.OneToOnePreload[field.Name()] = preload
-		} else if preload := newt.Toy.OneToManyPreload(newt.model, field); preload != nil {
+		} else if preload := newt.Toy.OneToManyPreload(newt.Model, field); preload != nil {
 			newt.OneToManyPreload = t.CopyOneToManyPreload()
 			for k, v := range t.OneToManyPreload {
 				newt.OneToManyPreload[k] = v
 			}
 			newt.OneToManyPreload[field.Name()] = preload
-		} else if preload := newt.Toy.ManyToManyPreload(newt.model, field, false); preload != nil {
+		} else if preload := newt.Toy.ManyToManyPreload(newt.Model, field, false); preload != nil {
 			newt.ManyToManyPreload = t.CopyManyToManyPreload()
 			newt.ManyToManyPreload[field.Name()] = preload
 		} else {
-			panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), field.Name()})
+			panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), field.Name()})
 		}
 		return newSubt
 	})
@@ -212,7 +212,7 @@ func (t *ToyBrick) CopyManyToManyPreload() map[string]*ManyToManyPreload {
 }
 
 func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
-	containerField := t.model.fieldSelect(container)
+	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
@@ -220,9 +220,9 @@ func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, ar
 		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
 	}
 	relationshipField := subModel.fieldSelect(relationship)
-	preload := t.Toy.OneToOneBind(t.model, subModel, containerField, relationshipField)
+	preload := t.Toy.OneToOneBind(t.Model, subModel, containerField, relationshipField)
 	if preload == nil {
-		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
+		panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), containerField.Name()})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -237,16 +237,16 @@ func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, ar
 }
 
 func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
-	containerField, relationshipField := t.model.fieldSelect(container), t.model.fieldSelect(relationship)
+	containerField, relationshipField := t.Model.fieldSelect(container), t.Model.fieldSelect(relationship)
 	var subModel *Model
 	if len(args) > 0 {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
 	} else {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
 	}
-	preload := t.Toy.BelongToBind(t.model, subModel, containerField, relationshipField)
+	preload := t.Toy.BelongToBind(t.Model, subModel, containerField, relationshipField)
 	if preload == nil {
-		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
+		panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), containerField.Name()})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -261,7 +261,7 @@ func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, ar
 }
 
 func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
-	containerField := t.model.fieldSelect(container)
+	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
@@ -269,9 +269,9 @@ func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, a
 		subModel = t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(containerField.StructField().Type))
 	}
 	relationshipField := subModel.fieldSelect(relationship)
-	preload := t.Toy.OneToManyBind(t.model, subModel, containerField, relationshipField)
+	preload := t.Toy.OneToManyBind(t.Model, subModel, containerField, relationshipField)
 	if preload == nil {
-		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
+		panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), containerField.Name()})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -286,7 +286,7 @@ func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, a
 }
 
 func (t *ToyBrick) CustomManyToManyPreload(middleStruct, container, relation, subRelation interface{}, args ...interface{}) *ToyBrick {
-	containerField := t.model.fieldSelect(container)
+	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
 		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
@@ -295,9 +295,9 @@ func (t *ToyBrick) CustomManyToManyPreload(middleStruct, container, relation, su
 	}
 	middleModel := t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(middleStruct)))
 	relationField, subRelationField := middleModel.fieldSelect(relation), middleModel.fieldSelect(subRelation)
-	preload := t.Toy.ManyToManyPreloadBind(t.model, subModel, middleModel, containerField, relationField, subRelationField)
+	preload := t.Toy.ManyToManyPreloadBind(t.Model, subModel, middleModel, containerField, relationField, subRelationField)
 	if preload == nil {
-		panic(ErrInvalidPreloadField{t.model.ReflectType.Name(), containerField.Name()})
+		panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), containerField.Name()})
 	}
 
 	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
@@ -315,7 +315,7 @@ func (t *ToyBrick) BindFields(mode Mode, args ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		var fields []Field
 		for _, v := range args {
-			fields = append(fields, t.model.fieldSelect(v))
+			fields = append(fields, t.Model.fieldSelect(v))
 		}
 		newt := *t
 
@@ -327,7 +327,7 @@ func (t *ToyBrick) BindDefaultFields(args ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		var fields []Field
 		for _, v := range args {
-			fields = append(fields, t.model.fieldSelect(v))
+			fields = append(fields, t.Model.fieldSelect(v))
 		}
 		return t.bindDefaultFields(fields...)
 	})
@@ -355,7 +355,7 @@ func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface
 	switch expr {
 	case ExprAnd, ExprOr:
 		keyValue := LoopIndirect(reflect.ValueOf(key))
-		record := NewRecord(t.model, keyValue)
+		record := NewRecord(t.Model, keyValue)
 		pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
 		for _, pair := range pairs {
 			search = search.Condition(pair, ExprEqual, expr)
@@ -370,7 +370,7 @@ func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface
 		} else {
 			value = reflect.ValueOf(args)
 		}
-		mField := t.model.fieldSelect(key)
+		mField := t.Model.fieldSelect(key)
 
 		search = search.Condition(&modelFieldValue{mField, value}, expr, ExprAnd)
 	}
@@ -428,7 +428,7 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 			if column, ok := v.(Column); ok {
 				newt.orderBy = append(newt.orderBy, column)
 			} else {
-				newt.orderBy = append(newt.orderBy, t.model.fieldSelect(v))
+				newt.orderBy = append(newt.orderBy, t.Model.fieldSelect(v))
 			}
 		}
 		return &newt
@@ -440,7 +440,7 @@ func (t *ToyBrick) GroupBy(vList ...interface{}) *ToyBrick {
 		newt := *t
 		newt.groupBy = nil
 		for _, v := range vList {
-			field := newt.model.fieldSelect(v)
+			field := newt.Model.fieldSelect(v)
 			newt.groupBy = append(newt.groupBy, field)
 		}
 		return &newt
@@ -482,26 +482,26 @@ func (t *ToyBrick) IgnoreMode(s Mode, ignore IgnoreMode) *ToyBrick {
 }
 
 func (t *ToyBrick) GetContext(option string, records ModelRecords) *Context {
-	handlers := t.Toy.ModelHandlers(option, t.model)
+	handlers := t.Toy.ModelHandlers(option, t.Model)
 	ctx := NewContext(handlers, t, records)
 	//ctx.Next()
 	return ctx
 }
 
 func (t *ToyBrick) insert(records ModelRecords) (*Result, error) {
-	handlers := t.Toy.ModelHandlers("Insert", t.model)
+	handlers := t.Toy.ModelHandlers("Insert", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) save(records ModelRecords) (*Result, error) {
-	handlers := t.Toy.ModelHandlers("Save", t.model)
+	handlers := t.Toy.ModelHandlers("Save", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) deleteWithPrimaryKey(records ModelRecords) (*Result, error) {
-	if field := t.model.GetFieldWithName("DeletedAt"); field != nil {
+	if field := t.Model.GetFieldWithName("DeletedAt"); field != nil {
 		return t.softDeleteWithPrimaryKey(records)
 	} else {
 		return t.hardDeleteWithPrimaryKey(records)
@@ -509,19 +509,19 @@ func (t *ToyBrick) deleteWithPrimaryKey(records ModelRecords) (*Result, error) {
 }
 
 func (t *ToyBrick) softDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
-	handlers := t.Toy.ModelHandlers("SoftDeleteWithPrimaryKey", t.model)
+	handlers := t.Toy.ModelHandlers("SoftDeleteWithPrimaryKey", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) hardDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
-	handlers := t.Toy.ModelHandlers("HardDeleteWithPrimaryKey", t.model)
+	handlers := t.Toy.ModelHandlers("HardDeleteWithPrimaryKey", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) delete(records ModelRecords) (*Result, error) {
-	if field := t.model.GetFieldWithName("DeletedAt"); field != nil {
+	if field := t.Model.GetFieldWithName("DeletedAt"); field != nil {
 		return t.softDelete(records)
 	} else {
 		return t.hardDelete(records)
@@ -529,27 +529,27 @@ func (t *ToyBrick) delete(records ModelRecords) (*Result, error) {
 }
 
 func (t *ToyBrick) softDelete(records ModelRecords) (*Result, error) {
-	handlers := t.Toy.ModelHandlers("SoftDelete", t.model)
+	handlers := t.Toy.ModelHandlers("SoftDelete", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) hardDelete(records ModelRecords) (*Result, error) {
-	handlers := t.Toy.ModelHandlers("HardDelete", t.model)
+	handlers := t.Toy.ModelHandlers("HardDelete", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) find(value reflect.Value) (*Context, error) {
-	handlers := t.Toy.ModelHandlers("Find", t.model)
+	handlers := t.Toy.ModelHandlers("Find", t.Model)
 
 	if value.Kind() == reflect.Slice {
-		records := NewRecords(t.model, value)
+		records := NewRecords(t.Model, value)
 		ctx := NewContext(handlers, t, records)
 		return ctx, ctx.Next()
 	} else {
 		vList := reflect.New(reflect.SliceOf(value.Type())).Elem()
-		records := NewRecords(t.model, vList)
+		records := NewRecords(t.Model, vList)
 		ctx := NewContext(handlers, t.Limit(1), records)
 		err := ctx.Next()
 		if vList.Len() == 0 {
@@ -564,22 +564,22 @@ func (t *ToyBrick) find(value reflect.Value) (*Context, error) {
 }
 
 func (t *ToyBrick) CreateTable() (*Result, error) {
-	ctx := t.GetContext("CreateTable", MakeRecordsWithElem(t.model, t.model.ReflectType))
+	ctx := t.GetContext("CreateTable", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) CreateTableIfNotExist() (*Result, error) {
-	ctx := t.GetContext("CreateTableIfNotExist", MakeRecordsWithElem(t.model, t.model.ReflectType))
+	ctx := t.GetContext("CreateTableIfNotExist", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) DropTable() (*Result, error) {
-	ctx := t.GetContext("DropTable", MakeRecordsWithElem(t.model, t.model.ReflectType))
+	ctx := t.GetContext("DropTable", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
 func (t *ToyBrick) DropTableIfExist() (*Result, error) {
-	ctx := t.GetContext("DropTableIfExist", MakeRecordsWithElem(t.model, t.model.ReflectType))
+	ctx := t.GetContext("DropTableIfExist", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	return ctx.Result, ctx.Next()
 }
 
@@ -605,15 +605,15 @@ func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
 	var records ModelRecords
 	switch vValue.Kind() {
 	case reflect.Slice:
-		records = NewRecords(t.model, vValue)
+		records = NewRecords(t.Model, vValue)
 		return t.insert(records)
 	default:
 		var records ModelRecords
 		if vValue.CanAddr() {
-			records = MakeRecordsWithElem(t.model, vValue.Addr().Type())
+			records = MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 			records.Add(vValue.Addr())
 		} else {
-			records = MakeRecordsWithElem(t.model, vValue.Type())
+			records = MakeRecordsWithElem(t.Model, vValue.Type())
 			records.Add(vValue)
 		}
 		return t.insert(records)
@@ -633,8 +633,8 @@ func (t *ToyBrick) Update(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	vValueList := reflect.MakeSlice(reflect.SliceOf(vValue.Type()), 0, 1)
 	vValueList = reflect.Append(vValueList, vValue)
-	handlers := t.Toy.ModelHandlers("Update", t.model)
-	ctx := NewContext(handlers, t, NewRecords(t.model, vValueList))
+	handlers := t.Toy.ModelHandlers("Update", t.Model)
+	ctx := NewContext(handlers, t, NewRecords(t.Model, vValueList))
 	return ctx.Result, ctx.Next()
 }
 
@@ -643,10 +643,10 @@ func (t *ToyBrick) Save(v interface{}) (*Result, error) {
 
 	switch vValue.Kind() {
 	case reflect.Slice:
-		records := NewRecords(t.model, vValue)
+		records := NewRecords(t.Model, vValue)
 		return t.save(records)
 	default:
-		records := MakeRecordsWithElem(t.model, vValue.Addr().Type())
+		records := MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 		records.Add(vValue.Addr())
 		return t.save(records)
 	}
@@ -657,10 +657,10 @@ func (t *ToyBrick) Delete(v interface{}) (*Result, error) {
 	var records ModelRecords
 	switch vValue.Kind() {
 	case reflect.Slice:
-		records = NewRecords(t.model, vValue)
+		records = NewRecords(t.Model, vValue)
 		return t.deleteWithPrimaryKey(records)
 	default:
-		records = MakeRecordsWithElem(t.model, vValue.Addr().Type())
+		records = MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 		records.Add(vValue.Addr())
 		return t.deleteWithPrimaryKey(records)
 	}
@@ -735,19 +735,19 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 }
 
 func (t *ToyBrick) DropTableExec() (exec ExecValue) {
-	return ExecValue{fmt.Sprintf("DROP TABLE %s", t.model.Name), nil}
+	return ExecValue{fmt.Sprintf("DROP TABLE %s", t.Model.Name), nil}
 }
 
 func (t *ToyBrick) CreateTableExec(dia Dialect) (execlist []ExecValue) {
-	return dia.CreateTable(t.model)
+	return dia.CreateTable(t.Model)
 }
 
 func (t *ToyBrick) HasTableExec(dialect Dialect) (exec ExecValue) {
-	return dialect.HasTable(t.model)
+	return dialect.HasTable(t.Model)
 }
 
 func (t *ToyBrick) CountExec() (exec ExecValue) {
-	exec.Query = fmt.Sprintf("SELECT count(*) FROM %s", t.model.Name)
+	exec.Query = fmt.Sprintf("SELECT count(*) FROM %s", t.Model.Name)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
@@ -764,20 +764,20 @@ func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
 		columns = append(columns, mField)
 	}
 
-	exec := t.Toy.Dialect.FindExec(t.model, columns)
+	exec := t.Toy.Dialect.FindExec(t.Model, columns)
 
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
 
-	gExec := t.Toy.Dialect.GroupByExec(t.model, t.groupBy)
+	gExec := t.Toy.Dialect.GroupByExec(t.Model, t.groupBy)
 	exec.Query += " " + gExec.Query
 	exec.Args = append(exec.Args, gExec.Args...)
 	return exec
 }
 
 func (t *ToyBrick) UpdateExec(record ModelRecord) ExecValue {
-	exec := t.Toy.Dialect.UpdateExec(t.model, t.getFieldValuePairWithRecord(ModeUpdate, record))
+	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record))
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
@@ -785,7 +785,7 @@ func (t *ToyBrick) UpdateExec(record ModelRecord) ExecValue {
 }
 
 func (t *ToyBrick) DeleteExec() ExecValue {
-	exec := t.Toy.Dialect.DeleteExec(t.model)
+	exec := t.Toy.Dialect.DeleteExec(t.Model)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
@@ -794,7 +794,7 @@ func (t *ToyBrick) DeleteExec() ExecValue {
 
 func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-	exec := t.Toy.Dialect.InsertExec(t.model, recorders)
+	exec := t.Toy.Dialect.InsertExec(t.Model, recorders)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
@@ -803,7 +803,7 @@ func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 
 func (t *ToyBrick) ReplaceExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
-	exec := t.Toy.Dialect.ReplaceExec(t.model, recorders)
+	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)
@@ -820,7 +820,7 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) []
 
 	var useIgnoreMode bool
 	if len(fields) == 0 {
-		fields = t.model.GetSqlFields()
+		fields = t.Model.GetSqlFields()
 		useIgnoreMode = record.IsVariableContainer() == false
 	}
 	var columnValues []ColumnValue
@@ -853,7 +853,7 @@ func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) []Field {
 	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
 		fields = t.FieldsSelector[ModeDefault]
 	} else {
-		fields = t.model.GetSqlFields()
+		fields = t.Model.GetSqlFields()
 	}
 	return getFieldsWithRecords(fields, records)
 }
@@ -865,14 +865,14 @@ func (t *ToyBrick) getScanFields(records ModelRecordFieldTypes) []Field {
 	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
 		fields = t.FieldsSelector[ModeDefault]
 	} else {
-		fields = t.model.GetSqlFields()
+		fields = t.Model.GetSqlFields()
 	}
 	return getFieldsWithRecords(fields, records)
 }
 
 // use for order by
 func (t *ToyBrick) ToDesc(v interface{}) Column {
-	field := t.model.fieldSelect(v)
+	field := t.Model.fieldSelect(v)
 
 	column := StrColumn(field.Column() + " DESC")
 	return column
