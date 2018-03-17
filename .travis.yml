@@ -12,7 +12,7 @@ before_install:
   - go get -t -v ./...
 
 script:
-  - go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...|grep -v /examples/)`
+  - go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...|grep -v /examples/)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
