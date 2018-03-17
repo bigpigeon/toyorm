@@ -1,4 +1,4 @@
-# Toyorm golang orm
+# Toyorm
 
 this is powerful sql orm library for Golang, have some funny features
 
@@ -7,6 +7,55 @@ this is powerful sql orm library for Golang, have some funny features
 [![Go Report Card](https://goreportcard.com/badge/github.com/bigpigeon/toyorm)](https://goreportcard.com/report/github.com/bigpigeon/toyorm)
 [![GoDoc](https://godoc.org/github.com/bigpigeon/toyorm?status.svg)](https://godoc.org/github.com/bigpigeon/toyorm)
 [![Join the chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/toyorm/toyorm)
+
+---
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Toyorm](#toyorm-golang-orm)
+      - [support database](#support-database)
+      - [go version](#go-version)
+      - [feature](#feature)
+    - [A Simple Example](#a-simple-example)
+    - [Database connection](#database-connection)
+    - [Model definition](#model-definition)
+        - [example](#example)
+        - [type translate](#type-translate)
+      - [Bind models](#bind-models)
+    - [Sql Operation](#sql-operation)
+      - [create table](#create-table)
+      - [drop table](#drop-table)
+      - [insert/save data](#insertsave-data)
+      - [update](#update)
+      - [find](#find)
+      - [delete](#delete)
+    - [ToyBrick](#toybrick)
+      - [Where condition](#where-condition)
+        - [usage](#usage)
+        - [SearchExpr](#searchexpr)
+        - [example](#example-1)
+      - [Transaction](#transaction)
+      - [Debug](#debug)
+      - [IgnoreMode](#ignoremode)
+      - [BindFields](#bindfields)
+      - [Scope](#scope)
+      - [Thread safe](#thread-safe)
+      - [Preload](#preload)
+    - [Result](#result)
+      - [Selector](#selector)
+    - [Full Feature Example](#full-feature-example)
+  - [collection](#collection)
+    - [ToyCollection](#toycollection)
+    - [CollectionBrick](#collectionbrick)
+      - [Selector](#selector-1)
+      - [id generator](#id-generator)
+      - [sql action](#sql-action)
+    - [collection example](#collection-example)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+---
 
 #### support database
 
