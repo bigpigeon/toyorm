@@ -1518,3 +1518,146 @@ func main() {
 }
 
 ```
+
+## collection
+
+collection provide multiple database operation
+
+### ToyCollection
+
+ToyCollection is basic of the collection , it like Toy
+
+```toyorm
+toyCollection, err = toyorm.OpenCollection("sqlite3", []string{"", ""}...)
+```
+
+### CollectionBrick
+
+CollectionBrick use to build grammar and operate the database, like ToyBrick
+
+```toyorm
+brick := toyCollection.Model(&User{})
+```
+
+#### Selector
+
+Selector use to select database when Insert/Save
+
+
+CollectionBrick has default selector **dbPrimaryKeySelector**
+
+
+you can custom db selector
+
+
+```toyorm
+func idSelector(n int, keys ...interface{}) int {
+	sum := 0
+	for _, k := range keys {
+		switch val := k.(type) {
+		case int:
+			sum += val
+		case int32:
+			sum += int(val)
+		case uint:
+			sum += int(val)
+		case uint32:
+			sum += int(val)
+		default:
+			panic("primary key type not match")
+		}
+	}
+	return sum % n
+}
+
+brick = brick.Selector(idSelector)
+```
+
+#### id generator
+
+in this mode,Field tag **auto_increment** was invalid
+
+
+you need create id generator
+
+
+```golang
+// a context id generator
+type IDGenerator map[*toyorm.Model]chan int
+
+func (g IDGenerator) CollectionIDGenerate(ctx *toyorm.CollectionContext) error {
+	if g[ctx.Brick.Model] == nil {
+		idGenerate := make(chan int)
+		go func() {
+			current := 1
+			for {
+				// if have redis, use redis-cli
+				idGenerate <- current
+				current++
+			}
+
+		}()
+		g[ctx.Brick.Model] = idGenerate
+	}
+	primaryKey := ctx.Brick.Model.GetOnePrimary()
+	for _, record := range ctx.Result.Records.GetRecords() {
+		if field := record.Field(primaryKey.Name()); field.IsValid() == false || toyorm.IsZero(field) {
+			v := <-g[ctx.Brick.Model]
+			record.SetField(primaryKey.Name(), reflect.ValueOf(v))
+		}
+	}
+	return nil
+
+}
+
+// set id genetor to model context
+toy.SetModelHandlers("Save", brick.Model, toyorm.CollectionHandlersChain{idGenerate.CollectionIDGenerate})
+// set id genetor to all preload models context
+for _, pBrick := range brick.MapPreloadBrick {
+		toy.SetModelHandlers("Save", pBrick.Model, toyorm.CollectionHandlersChain{idGenerate.CollectionIDGenerate})
+}
+```
+
+
+#### sql action
+
+toy collection sql action is same as Toy
+
+
+insert
+
+```golang
+users := []User{
+    {Name: "Turing"},
+    {Name: "Shannon"},
+    {Name: "Ritchie"},
+    {Name: "Jobs"},
+}
+result, err = userBrick.Insert(&users)
+// error process
+
+// view report log
+fmt.Printf("report:\n%s", result.Report())
+```
+
+find
+
+```golang
+var jobs User
+result, err = userBrick.Where(toyorm.ExprEqual, Offsetof(User{}.Name), "Jobs").Find(&jobs)
+// error process
+
+// view report log
+fmt.Printf("report:\n%s", result.Report())
+```
+
+delete
+
+```golang
+result, err = userBrick.Delete(&jobs)
+// error process
+
+// view report log
+fmt.Printf("delete report:\n%s\n", result.Report())
+```
+
