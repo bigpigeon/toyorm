@@ -10,8 +10,12 @@ before_install:
   - mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
   - mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
   - go get -t -v ./...
+  - go get -u github.com/client9/misspell/cmd/misspell
 
 script:
+  - go vet .
+  - go fmt -s -d . 1>&2
+  - misspell . 1>&2
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...|grep -v /examples/)
 
 after_success:
