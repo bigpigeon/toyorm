@@ -1006,7 +1006,7 @@ many to many not need to specified the relation ship,it relation field at middle
 type User struct {
     toyorm.ModelDefault
     // container field
-    Firends    []*User
+    Friends    []*User
 }
 ```
 
