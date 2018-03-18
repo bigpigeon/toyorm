@@ -1258,151 +1258,6 @@ func processError(result *toyorm.Result, err error) {
 	}
 }
 
-func FullFeatureExample(sqlType, url string) {
-	toy, err := toyorm.Open(sqlType, url)
-	var result *toyorm.Result
-	if err != nil {
-		panic(err)
-	}
-
-	var friendUserId uint32
-	brick := toy.Model(&User{}).Debug().
-		Preload(Offsetof(User{}.Detail)).Enter().
-		Preload(Offsetof(User{}.Blog)).Enter()
-	{
-		brick := brick.Preload(Offsetof(User{}.Friends)).Enter()
-		result, err = brick.DropTableIfExist()
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-
-		result, err = brick.CreateTableIfNotExist()
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-	}
-
-	// insert test
-	{
-		brick := brick.Preload(Offsetof(User{}.Friends)).
-			Preload(Offsetof(User{}.Detail)).Enter().
-			Preload(Offsetof(User{}.Blog)).Enter().
-			Enter()
-		user := User{
-			Detail: &UserDetail{
-				MainPage: "some html code with you page",
-				Extra:    Extra{"title": "my blog"},
-			},
-			Blog: []Blog{
-				{Title: "how to write a blog", Content: "first ..."},
-				{Title: "blog introduction", Content: "..."},
-			},
-			Friends: []*User{
-				{
-					Detail: &UserDetail{
-						MainPage: "some html code with you page",
-						Extra:    Extra{},
-					},
-					Blog: []Blog{
-						{Title: "some python tech", Content: "first ..."},
-						{Title: "my eleme_union_meal usage", Content: "..."},
-					},
-					Name: "fatpigeon",
-					Age:  18,
-					Sex:  "male",
-				},
-			},
-			Name: "bigpigeon",
-			Age:  18,
-			Sex:  "male",
-		}
-		result, err = brick.Save(&user)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		fmt.Printf("report:\n%s\n", result.Report())
-		fmt.Printf("user %v\n", JsonEncode(user))
-		friendUserId = user.Friends[0].ID
-	}
-	// find one
-	{
-		brick := brick.RightValuePreload(Offsetof(User{}.Friends)).
-			Preload(Offsetof(User{}.Detail)).Enter().
-			Preload(Offsetof(User{}.Blog)).Enter().
-			Enter()
-		brick = brick.Where(toyorm.ExprEqual, Offsetof(User{}.ID), friendUserId)
-		var user User
-		result, err = brick.Find(&user)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		fmt.Printf("report:\n%s\n", result.Report())
-		fmt.Printf("user %v\n", JsonEncode(user))
-	}
-	var deleteUsers []User
-	// find
-	{
-		brick := brick.Preload(Offsetof(User{}.Friends)).
-			Preload(Offsetof(User{}.Detail)).Enter().
-			Preload(Offsetof(User{}.Blog)).Enter().
-			Enter()
-		var users []User
-		result, err = brick.Find(&users)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		fmt.Printf("report:\n%s\n", result.Report())
-		fmt.Printf("users %v\n", JsonEncode(users))
-		deleteUsers = users
-	}
-	// report error with find
-	{
-		var users []struct {
-			ID     uint32
-			Age    bool
-			Detail *UserDetail
-			Blog   []Blog
-		}
-		result, err = brick.Find(&users)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("error:\n%s\n", err)
-		}
-	}
-	// delete
-	{
-		brick := brick.Preload(Offsetof(User{}.Friends)).
-			Preload(Offsetof(User{}.Detail)).Enter().
-			Preload(Offsetof(User{}.Blog)).Enter().
-			Enter()
-		result, err = brick.Delete(&deleteUsers)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		fmt.Printf("report:\n%s\n", result.Report())
-	}
-}
-
 func main() {
 	var err error
 	var toy *toyorm.Toy
@@ -1439,6 +1294,7 @@ func main() {
 		}
 	}
 
+	fmt.Println("insert")
 	// insert test
 	{
 		brick := brick.Preload(Offsetof(User{}.Friends)).
@@ -1484,13 +1340,17 @@ func main() {
 		fmt.Printf("user %v\n", JsonEncode(user))
 		friendUserId = user.Friends[0].ID
 	}
+
+	fmt.Println("find one")
 	// find one
 	{
-		brick := brick.RightValuePreload(Offsetof(User{}.Friends)).
+		brick := brick.Where(toyorm.ExprEqual, Offsetof(User{}.ID), friendUserId).
+			Preload(Offsetof(User{}.Detail)).Enter().
+			Preload(Offsetof(User{}.Blog)).Where(toyorm.ExprLike, Offsetof(Blog{}.Title), "%tech%").Enter().
+			RightValuePreload(Offsetof(User{}.Friends)).
 			Preload(Offsetof(User{}.Detail)).Enter().
 			Preload(Offsetof(User{}.Blog)).Enter().
 			Enter()
-		brick = brick.Where(toyorm.ExprEqual, Offsetof(User{}.ID), friendUserId)
 		var user User
 		result, err = brick.Find(&user)
 		if err != nil {
@@ -1502,6 +1362,8 @@ func main() {
 		fmt.Printf("report:\n%s\n", result.Report())
 		fmt.Printf("user %v\n", JsonEncode(user))
 	}
+
+	fmt.Println("find")
 	var deleteUsers []User
 	// find
 	{
@@ -1521,6 +1383,8 @@ func main() {
 		fmt.Printf("users %v\n", JsonEncode(users))
 		deleteUsers = users
 	}
+
+	fmt.Println("error find")
 	// report error with find
 	{
 		var users []struct {
@@ -1537,6 +1401,8 @@ func main() {
 			fmt.Printf("error:\n%s\n", err)
 		}
 	}
+
+	fmt.Println("delete")
 	// delete
 	{
 		brick := brick.Preload(Offsetof(User{}.Friends)).
@@ -1553,6 +1419,7 @@ func main() {
 		fmt.Printf("report:\n%s\n", result.Report())
 	}
 }
+
 
 ```
 

@@ -16,13 +16,8 @@ type ToyKernel struct {
 	CacheMiddleModels        map[reflect.Type]*Model
 	CacheReverseMiddleModels map[reflect.Type]*Model
 	// map[model][container_field_name]
-
-	belongToPreload   map[*Model]map[string]*BelongToPreload
-	oneToOnePreload   map[*Model]map[string]*OneToOnePreload
-	oneToManyPreload  map[*Model]map[string]*OneToManyPreload
-	manyToManyPreload map[*Model]map[string]map[bool]*ManyToManyPreload
-	Dialect           Dialect
-	Logger            io.Writer
+	Dialect Dialect
+	Logger  io.Writer
 }
 
 // TODO testing thread safe? if not add lock
