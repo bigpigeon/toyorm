@@ -14,6 +14,7 @@ this is powerful sql orm library for Golang, have some funny features
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 
+  - [A Simple Example](#a-simple-example)
   - [Database connection](#database-connection)
   - [Model definition](#model-definition)
       - [example](#example)
@@ -53,13 +54,17 @@ this is powerful sql orm library for Golang, have some funny features
 
 ---
 
-#### support database
+
+
+### Support database
 
 [sqlite3](https://www.sqlite.org/)  [mysql](https://www.mysql.com/)
 
-#### go version
+### Go version
 
 version go-1.9
+
+---
 
 ### A Simple Example
 

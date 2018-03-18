@@ -12,27 +12,27 @@ import (
 	"strings"
 )
 
-type SearchExpr int
+type SearchExpr string
 
 const (
-	ExprIgnore SearchExpr = iota
-	ExprAnd
-	ExprOr
-	ExprNot
-	ExprEqual
-	ExprNotEqual
-	ExprGreater
-	ExprGreaterEqual
-	ExprLess
-	ExprLessEqual
-	ExprBetween
-	ExprNotBetween
-	ExprIn
-	ExprNotIn
-	ExprLike
-	ExprNotLike
-	ExprNull
-	ExprNotNull
+	ExprIgnore       = ""
+	ExprAnd          = "AND"
+	ExprOr           = "OR"
+	ExprNot          = "NOT"
+	ExprEqual        = "="
+	ExprNotEqual     = "<>"
+	ExprGreater      = ">"
+	ExprGreaterEqual = ">="
+	ExprLess         = "<"
+	ExprLessEqual    = "<="
+	ExprBetween      = "BETWEEN"
+	ExprNotBetween   = "NOT BETWEEN"
+	ExprIn           = "IN"
+	ExprNotIn        = "NOT IN"
+	ExprLike         = "LIKE"
+	ExprNotLike      = "NOT LIKE"
+	ExprNull         = "NULL"
+	ExprNotNull      = "NOT NULL"
 )
 
 func (op SearchExpr) IsBranch() bool {

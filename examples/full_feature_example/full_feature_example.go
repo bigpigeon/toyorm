@@ -88,6 +88,7 @@ func main() {
 	}
 
 	var friendUserId uint32
+	// bind model
 	brick := toy.Model(&User{}).Debug().
 		Preload(Offsetof(User{}.Detail)).Enter().
 		Preload(Offsetof(User{}.Blog)).Enter()
