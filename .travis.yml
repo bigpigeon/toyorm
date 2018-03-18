@@ -14,8 +14,8 @@ before_install:
 
 script:
   - go vet .
-  - go fmt -s -d . 1>&2
-  - misspell . 1>&2
+  - diff=$(gofmt -s -d .);if [ -n "$diff" ]; then exit 1; fi;
+  - misspell -error .
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...|grep -v /examples/)
 
 after_success:

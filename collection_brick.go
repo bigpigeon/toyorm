@@ -457,7 +457,7 @@ func (t *CollectionBrick) HasTable() ([]bool, error) {
 	set := make([]bool, len(t.Toy.dbs))
 	exec := t.Toy.Dialect.HasTable(t.Model)
 	errs := ErrCollectionQueryRow{}
-	for i, _ := range t.Toy.dbs {
+	for i := range t.Toy.dbs {
 		err := t.QueryRow(exec, i).Scan(&set[i])
 		if err != nil {
 			errs[i] = err
@@ -473,7 +473,7 @@ func (t *CollectionBrick) Count() (count int, err error) {
 	exec := t.CountExec()
 	countCount := 0
 	errs := ErrCollectionQueryRow{}
-	for i, _ := range t.Toy.dbs {
+	for i := range t.Toy.dbs {
 		var count int
 		err := t.QueryRow(exec, i).Scan(&count)
 		if err != nil {

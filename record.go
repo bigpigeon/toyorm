@@ -33,7 +33,7 @@ type ModelGroupBy map[interface{}][]ModelIndexRecord
 
 func (m ModelGroupBy) Keys() []interface{} {
 	l := make([]interface{}, 0, len(m))
-	for k, _ := range m {
+	for k := range m {
 		l = append(l, k)
 	}
 	return l

@@ -612,7 +612,7 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 // preload schedule belongTo -> Next() -> oneToOne -> oneToMany -> manyToMany(sub -> middle)
 func HandlerSimplePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
-		for fieldName, _ := range ctx.Brick.BelongToPreload {
+		for fieldName := range ctx.Brick.BelongToPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -624,7 +624,7 @@ func HandlerSimplePreload(option string) func(ctx *Context) error {
 		if err != nil {
 			return err
 		}
-		for fieldName, _ := range ctx.Brick.OneToOnePreload {
+		for fieldName := range ctx.Brick.OneToOnePreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -633,7 +633,7 @@ func HandlerSimplePreload(option string) func(ctx *Context) error {
 			}
 		}
 
-		for fieldName, _ := range ctx.Brick.OneToManyPreload {
+		for fieldName := range ctx.Brick.OneToManyPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -668,7 +668,7 @@ func HandlerSimplePreload(option string) func(ctx *Context) error {
 // preload schedule oneToOne -> oneToMany -> current model -> manyToMany(sub -> middle) -> Next() -> belongTo
 func HandlerDropTablePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
-		for fieldName, _ := range ctx.Brick.OneToOnePreload {
+		for fieldName := range ctx.Brick.OneToOnePreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -677,7 +677,7 @@ func HandlerDropTablePreload(option string) func(ctx *Context) error {
 			}
 
 		}
-		for fieldName, _ := range ctx.Brick.OneToManyPreload {
+		for fieldName := range ctx.Brick.OneToManyPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result
@@ -710,7 +710,7 @@ func HandlerDropTablePreload(option string) func(ctx *Context) error {
 		if err != nil {
 			return err
 		}
-		for fieldName, _ := range ctx.Brick.BelongToPreload {
+		for fieldName := range ctx.Brick.BelongToPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
 			subCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 			ctx.Result.Preload[fieldName] = subCtx.Result

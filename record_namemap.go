@@ -37,7 +37,7 @@ func NewNameMapRecord(model *Model, v reflect.Value) *ModelNameMapRecord {
 		model,
 	}
 
-	for name, _ := range model.GetNameFieldMap() {
+	for name := range model.GetNameFieldMap() {
 		if fieldValue := v.MapIndex(reflect.ValueOf(name)); fieldValue.IsValid() {
 			fieldValue = fieldValue.Elem()
 			record.FieldValues[name] = fieldValue
@@ -51,7 +51,7 @@ func (m *ModelNameMapRecords) sync() {
 		// why need LoopIndirect? because m could be []*map[string]interface{}
 		elem := LoopIndirect(m.source.Index(i))
 		c := map[string]reflect.Value{}
-		for name, _ := range m.model.GetNameFieldMap() {
+		for name := range m.model.GetNameFieldMap() {
 			if elemField := elem.MapIndex(reflect.ValueOf(name)); elemField.IsValid() {
 				elemField = elemField.Elem()
 				c[name] = elemField
