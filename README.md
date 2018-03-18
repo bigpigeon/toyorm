@@ -743,6 +743,8 @@ single condition
 
 ```golang
 brick = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food")
+or use string
+brick = brick.Where("=", Offsetof(Product{}.Tag), "food")
 // WHERE tag = "food"
 ```
 
@@ -752,6 +754,10 @@ combination condition
 brick = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).And().
     Condition(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).Or().
     Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 4)
+or use string
+brick = brick.Where("=", Offsetof(Product{}.Count), 2).And().
+    Condition(">", Offsetof(Product{}.Price), 3).Or().
+    Condition("=", Offsetof(Product{}.Count), 4)
 // WHERE count = 2 and price > 3 or count = 4
 ```
 
@@ -761,6 +767,11 @@ priority condition
 brick.Where(toyorm.ExprGreater, Offsetof(Product{}.Price), 3).And().Conditions(
     brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Count), 2).Or().
     Condition(toyorm.ExprEqual, Offsetof(Product{}.Count), 1).Search
+)
+or use string
+brick.Where(">", Offsetof(Product{}.Price), 3).And().Conditions(
+    brick.Where("=", Offsetof(Product{}.Count), 2).Or().
+    Condition("=", Offsetof(Product{}.Count), 1).Search
 )
 // WHERE price > 3 and (count = 2 or count = 1)
 ```
@@ -773,6 +784,14 @@ brick.Conditions(
 ).And().Conditions(
     brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Price), 3).Or().
         Condition(toyorm.ExprEqual, Offsetof(Product{}.Price), 4).Search,
+)
+or use string
+brick.Conditions(
+    brick.Where("=", Offsetof(Product{}.Count), 2).Or().
+        Condition("=", Offsetof(Product{}.Count), 1).Search,
+).And().Conditions(
+    brick.Where("=", Offsetof(Product{}.Price), 3).Or().
+        Condition("=", Offsetof(Product{}.Price), 4).Search,
 )
 // WHERE (count = ? OR count = ?) AND (price = ? OR price = ?)
 ```
