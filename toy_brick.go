@@ -705,10 +705,6 @@ func (t *ToyBrick) DropTableExec() (exec ExecValue) {
 	return ExecValue{fmt.Sprintf("DROP TABLE %s", t.Model.Name), nil}
 }
 
-func (t *ToyBrick) CreateTableExec(dia Dialect) (execlist []ExecValue) {
-	return dia.CreateTable(t.Model)
-}
-
 func (t *ToyBrick) HasTableExec(dialect Dialect) (exec ExecValue) {
 	return dialect.HasTable(t.Model)
 }

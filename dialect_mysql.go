@@ -22,15 +22,13 @@ func (dia MySqlDialect) HasTable(model *Model) ExecValue {
 	}
 }
 
-func (dia MySqlDialect) CreateTable(model *Model) (execlist []ExecValue) {
+func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey) (execlist []ExecValue) {
 	// lazy init model
 	strList := []string{}
 	// use to create foreign definition
-	var foreignKeyList []Field
+
 	for _, sqlField := range model.GetSqlFields() {
-		if sqlField.ForeignModel() != nil {
-			foreignKeyList = append(foreignKeyList, sqlField)
-		}
+
 		s := fmt.Sprintf("%s %s", sqlField.Column(), sqlField.SqlType())
 		if sqlField.AutoIncrement() {
 			s += " AUTO_INCREMENT"
@@ -50,9 +48,10 @@ func (dia MySqlDialect) CreateTable(model *Model) (execlist []ExecValue) {
 	}
 	strList = append(strList, fmt.Sprintf("PRIMARY KEY(%s)", strings.Join(primaryStrList, ",")))
 
-	for _, f := range foreignKeyList {
+	for name, key := range foreign {
+		f := model.GetFieldWithName(name)
 		strList = append(strList,
-			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(%s)", f.Column(), f.ForeignModel().Name, f.ForeignModel().GetOnePrimary().Column()),
+			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(%s)", f.Column(), key.Model.Name, key.Field.Column()),
 		)
 	}
 

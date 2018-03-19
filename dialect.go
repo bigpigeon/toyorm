@@ -11,9 +11,14 @@ import (
 	"strings"
 )
 
+type ForeignKey struct {
+	Model *Model
+	Field Field
+}
+
 type Dialect interface {
 	HasTable(*Model) ExecValue
-	CreateTable(*Model) []ExecValue
+	CreateTable(*Model, map[string]ForeignKey) []ExecValue
 	DropTable(*Model) ExecValue
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column) ExecValue
 	FindExec(model *Model, columns []Column) ExecValue

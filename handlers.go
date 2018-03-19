@@ -610,7 +610,7 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 }
 
 // preload schedule belongTo -> Next() -> oneToOne -> oneToMany -> manyToMany(sub -> middle)
-func HandlerSimplePreload(option string) func(ctx *Context) error {
+func HandlerCreateTablePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {
 		for fieldName := range ctx.Brick.BelongToPreload {
 			brick := ctx.Brick.MapPreloadBrick[fieldName]
@@ -654,6 +654,15 @@ func HandlerSimplePreload(option string) func(ctx *Context) error {
 			{
 				middleModel := preload.MiddleModel
 				brick := NewToyBrick(ctx.Brick.Toy, middleModel).CopyStatus(ctx.Brick)
+				// copy PreToyBrick
+				brick = brick.Scope(func(t *ToyBrick) *ToyBrick {
+					newt := *t
+					newt.preBrick = PreToyBrick{
+						ctx.Brick,
+						preload.ContainerField,
+					}
+					return &newt
+				})
 				middleCtx := brick.GetContext(option, MakeRecordsWithElem(brick.Model, brick.Model.ReflectType))
 				ctx.Result.MiddleModelPreload[fieldName] = middleCtx.Result
 				if err := middleCtx.Next(); err != nil {
@@ -725,7 +734,38 @@ func HandlerDropTablePreload(option string) func(ctx *Context) error {
 }
 
 func HandlerCreateTable(ctx *Context) error {
-	execs := ctx.Brick.Toy.Dialect.CreateTable(ctx.Brick.Model)
+	foreign := map[string]ForeignKey{}
+	for _, field := range ctx.Brick.Model.GetSqlFields() {
+		// this is foreign key, mean it must relationship field with parent or child
+		if field.IsForeign() {
+			if ctx.Brick.preBrick.Parent != nil {
+				parent, containerField := ctx.Brick.preBrick.Parent, ctx.Brick.preBrick.Field
+				if preload := parent.OneToOnePreload[containerField.Name()]; preload != nil {
+					if preload.RelationField.Name() == field.Name() {
+						foreign[field.Name()] = ForeignKey{preload.Model, preload.Model.GetOnePrimary()}
+					}
+				} else if preload := parent.OneToManyPreload[containerField.Name()]; preload != nil {
+					if preload.RelationField.Name() == field.Name() {
+						foreign[field.Name()] = ForeignKey{preload.Model, preload.Model.GetOnePrimary()}
+					}
+				} else if preload := parent.ManyToManyPreload[containerField.Name()]; preload != nil {
+					if preload.SubRelationField.Name() == field.Name() {
+						foreign[field.Name()] = ForeignKey{preload.Model, preload.SubModel.GetOnePrimary()}
+					} else if preload.RelationField.Name() == field.Name() {
+						foreign[field.Name()] = ForeignKey{preload.Model, preload.Model.GetOnePrimary()}
+					}
+				}
+			}
+			// search belong to
+			for _, preload := range ctx.Brick.BelongToPreload {
+				if preload.RelationField.Name() == field.Name() {
+					foreign[field.Name()] = ForeignKey{preload.SubModel, preload.SubModel.GetOnePrimary()}
+				}
+			}
+		}
+	}
+
+	execs := ctx.Brick.Toy.Dialect.CreateTable(ctx.Brick.Model, foreign)
 	for _, exec := range execs {
 		action := ExecAction{Exec: exec}
 		action.Result, action.Error = ctx.Brick.Exec(exec)

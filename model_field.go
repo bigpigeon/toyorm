@@ -20,7 +20,7 @@ type Field interface {
 	AutoIncrement() bool
 	Index() string
 	UniqueIndex() string
-	ForeignModel() *Model
+	IsForeign() bool
 	Attr(string) string
 	Attrs() map[string]string
 	SqlType() string
@@ -38,7 +38,6 @@ type modelField struct {
 	attrs         map[string]string
 	autoIncrement bool
 	isForeign     bool
-	foreignModel  *Model
 	field         reflect.StructField
 }
 
@@ -70,12 +69,8 @@ func (m *modelField) UniqueIndex() string {
 	return m.uniqueIndex
 }
 
-func (m *modelField) SetForeignModel(model *Model) {
-	m.foreignModel = model
-}
-
-func (m *modelField) ForeignModel() *Model {
-	return m.foreignModel
+func (m *modelField) IsForeign() bool {
+	return m.isForeign
 }
 
 func (m *modelField) StructField() reflect.StructField {

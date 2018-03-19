@@ -402,7 +402,7 @@ func CollectionHandlerCreateTable(ctx *CollectionContext) error {
 	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
-	execs := ctx.Brick.Toy.Dialect.CreateTable(ctx.Brick.Model)
+	execs := ctx.Brick.Toy.Dialect.CreateTable(ctx.Brick.Model, map[string]ForeignKey{})
 	for _, exec := range execs {
 		action := CollectionExecAction{Exec: exec, dbIndex: ctx.Brick.dbIndex}
 		action.Result, action.Error = ctx.Brick.Exec(exec, action.dbIndex)

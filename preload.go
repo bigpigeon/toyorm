@@ -6,8 +6,6 @@
 
 package toyorm
 
-type PreloadType int
-
 // this is describe one to one relationship with table and its sub table
 // e.g select * from sub_table where id = (table.RelationField).value
 type BelongToPreload struct {

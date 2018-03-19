@@ -22,20 +22,17 @@ func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
 	}
 }
 
-func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
+func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKey) (execlist []ExecValue) {
 	// lazy init model
 	strList := []string{}
 
 	// for strange auto_increment syntax to do strange codition
 	isSinglePrimary := len(model.GetPrimary()) == 1
 	// use to create foreign definition
-	var foreignKeyList []Field
 	for _, sqlField := range model.GetSqlFields() {
-		if sqlField.ForeignModel() != nil {
-			foreignKeyList = append(foreignKeyList, sqlField)
-		}
+
 		s := fmt.Sprintf("%s %s", sqlField.Column(), sqlField.SqlType())
-		if isSinglePrimary && sqlField == model.PrimaryFields[0] {
+		if isSinglePrimary && sqlField.Name() == model.GetOnePrimary().Name() {
 			s += " PRIMARY KEY"
 		}
 		if sqlField.AutoIncrement() {
@@ -61,9 +58,10 @@ func (dia Sqlite3Dialect) CreateTable(model *Model) (execlist []ExecValue) {
 
 	}
 
-	for _, f := range foreignKeyList {
+	for name, key := range foreign {
+		f := model.GetFieldWithName(name)
 		strList = append(strList,
-			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(%s)", f.Column(), f.ForeignModel().Name, f.ForeignModel().GetOnePrimary().Column()),
+			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(%s)", f.Column(), key.Model.Name, key.Field.Column()),
 		)
 	}
 

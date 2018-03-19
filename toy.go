@@ -36,8 +36,8 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 	return &Toy{
 		db: db,
 		DefaultHandlerChain: map[string]HandlersChain{
-			"CreateTable":              {HandlerSimplePreload("CreateTable"), HandlerCreateTable},
-			"CreateTableIfNotExist":    {HandlerSimplePreload("CreateTableIfNotExist"), HandlerExistTableAbort, HandlerCreateTable},
+			"CreateTable":              {HandlerCreateTablePreload("CreateTable"), HandlerCreateTable},
+			"CreateTableIfNotExist":    {HandlerCreateTablePreload("CreateTableIfNotExist"), HandlerExistTableAbort, HandlerCreateTable},
 			"DropTableIfExist":         {HandlerDropTablePreload("DropTableIfExist"), HandlerNotExistTableAbort, HandlerDropTable},
 			"DropTable":                {HandlerDropTablePreload("DropTable"), HandlerDropTable},
 			"Insert":                   {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("Insert"), HandlerInsertTimeGenerate, HandlerInsert},
@@ -151,9 +151,6 @@ func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField
 	if LoopTypeIndirect(relationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with sub model primary key")
 	}
-	if realField := model.NameFields[relationField.Name()]; realField.isForeign {
-		realField.foreignModel = subModel
-	}
 	return &BelongToPreload{
 		Model:          model,
 		SubModel:       subModel,
@@ -166,10 +163,6 @@ func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
 	}
-	if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
-		realField.foreignModel = model
-	}
-
 	return &OneToOnePreload{
 		Model:          model,
 		SubModel:       subModel,
@@ -180,9 +173,6 @@ func (t *Toy) OneToOneBind(model, subModel *Model, containerField, relationField
 func (t *Toy) OneToManyBind(model, subModel *Model, containerField, relationField Field) *OneToManyPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != model.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with model primary key")
-	}
-	if realField := subModel.NameFields[relationField.Name()]; realField.isForeign {
-		realField.foreignModel = model
 	}
 
 	return &OneToManyPreload{
@@ -199,12 +189,6 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 	}
 	if LoopTypeIndirect(subRelationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("sub relation key must have same type with sub model primary key")
-	}
-	if realField := middleModel.NameFields[relationField.Name()]; realField.isForeign {
-		realField.foreignModel = model
-	}
-	if realField := middleModel.NameFields[subRelationField.Name()]; realField.isForeign {
-		realField.foreignModel = subModel
 	}
 
 	t.CacheMiddleModels[middleModel.ReflectType] = middleModel
