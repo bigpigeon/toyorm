@@ -15,7 +15,7 @@ import (
 type Toy struct {
 	db                       *sql.DB
 	DefaultHandlerChain      map[string]HandlersChain
-	DefaultModelHandlerChain map[*Model]map[string]HandlersChain
+	DefaultModelHandlerChain map[reflect.Type]map[string]HandlersChain
 	ToyKernel
 }
 
@@ -49,7 +49,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"HardDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerHardDelete},
 			"SoftDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerSoftDelete},
 		},
-		DefaultModelHandlerChain: map[*Model]map[string]HandlersChain{},
+		DefaultModelHandlerChain: map[reflect.Type]map[string]HandlersChain{},
 		ToyKernel: ToyKernel{
 			CacheModels:       map[reflect.Type]*Model{},
 			CacheMiddleModels: map[reflect.Type]*Model{},
@@ -77,8 +77,8 @@ func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
 }
 
 func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
-	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
-	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
+	handlers := make(HandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model.ReflectType][option]))
+	handlers = append(handlers, t.DefaultModelHandlerChain[model.ReflectType][option]...)
 	handlers = append(handlers, t.DefaultHandlerChain[option]...)
 	return handlers
 }

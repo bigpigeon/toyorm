@@ -69,10 +69,10 @@ type Post struct {
 	Reply  []Post
 }
 
-type IDGenerator map[*toyorm.Model]chan int
+type IDGenerator map[reflect.Type]chan int
 
 func (g IDGenerator) CollectionIDGenerate(ctx *toyorm.CollectionContext) error {
-	if g[ctx.Brick.Model] == nil {
+	if g[ctx.Brick.Model.ReflectType] == nil {
 		idGenerate := make(chan int)
 		go func() {
 			current := 1
@@ -83,12 +83,12 @@ func (g IDGenerator) CollectionIDGenerate(ctx *toyorm.CollectionContext) error {
 			}
 
 		}()
-		g[ctx.Brick.Model] = idGenerate
+		g[ctx.Brick.Model.ReflectType] = idGenerate
 	}
 	primaryKey := ctx.Brick.Model.GetOnePrimary()
 	for _, record := range ctx.Result.Records.GetRecords() {
 		if field := record.Field(primaryKey.Name()); field.IsValid() == false || toyorm.IsZero(field) {
-			v := <-g[ctx.Brick.Model]
+			v := <-g[ctx.Brick.Model.ReflectType]
 			record.SetField(primaryKey.Name(), reflect.ValueOf(v))
 		}
 	}

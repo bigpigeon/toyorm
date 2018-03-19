@@ -652,10 +652,10 @@ func createCollectionTableUnit(brick *CollectionBrick) func(t *testing.T) {
 	}
 }
 
-var idGenerator = map[*Model]chan int{}
+var idGenerator = map[reflect.Type]chan int{}
 
 func CollectionIDGenerate(ctx *CollectionContext) error {
-	if idGenerator[ctx.Brick.Model] == nil {
+	if idGenerator[ctx.Brick.Model.ReflectType] == nil {
 		idGenerate := make(chan int)
 		go func() {
 			current := 1
@@ -665,12 +665,12 @@ func CollectionIDGenerate(ctx *CollectionContext) error {
 			}
 
 		}()
-		idGenerator[ctx.Brick.Model] = idGenerate
+		idGenerator[ctx.Brick.Model.ReflectType] = idGenerate
 	}
 	primaryKey := ctx.Brick.Model.GetOnePrimary()
 	for _, record := range ctx.Result.Records.GetRecords() {
 		if field := record.Field(primaryKey.Name()); field.IsValid() == false || IsZero(field) {
-			v := <-idGenerator[ctx.Brick.Model]
+			v := <-idGenerator[ctx.Brick.Model.ReflectType]
 			record.SetField(primaryKey.Name(), reflect.ValueOf(v))
 		}
 	}

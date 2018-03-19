@@ -44,7 +44,7 @@ func dbPrimaryKeySelector(n int, keys ...interface{}) int {
 type ToyCollection struct {
 	dbs                      []*sql.DB
 	DefaultHandlerChain      map[string]CollectionHandlersChain
-	DefaultModelHandlerChain map[*Model]map[string]CollectionHandlersChain
+	DefaultModelHandlerChain map[reflect.Type]map[string]CollectionHandlersChain
 	ToyKernel
 }
 
@@ -70,7 +70,7 @@ func OpenCollection(driverName string, dataSourceName ...string) (*ToyCollection
 			"HardDeleteWithPrimaryKey": {HandlerCollectionPreloadDelete, HandlerCollectionSearchWithPrimaryKey, CollectionHandlerAssignToAllDb, HandlerCollectionHardDelete},
 			"SoftDeleteWithPrimaryKey": {HandlerCollectionPreloadDelete, HandlerCollectionSearchWithPrimaryKey, CollectionHandlerAssignToAllDb, HandlerCollectionSoftDelete},
 		},
-		DefaultModelHandlerChain: map[*Model]map[string]CollectionHandlersChain{},
+		DefaultModelHandlerChain: map[reflect.Type]map[string]CollectionHandlersChain{},
 	}
 	switch driverName {
 	case "mysql":
@@ -101,17 +101,17 @@ func (t *ToyCollection) Model(v interface{}) *CollectionBrick {
 }
 
 func (t *ToyCollection) ModelHandlers(option string, model *Model) CollectionHandlersChain {
-	handlers := make(CollectionHandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model][option]))
-	handlers = append(handlers, t.DefaultModelHandlerChain[model][option]...)
+	handlers := make(CollectionHandlersChain, 0, len(t.DefaultHandlerChain[option])+len(t.DefaultModelHandlerChain[model.ReflectType][option]))
+	handlers = append(handlers, t.DefaultModelHandlerChain[model.ReflectType][option]...)
 	handlers = append(handlers, t.DefaultHandlerChain[option]...)
 	return handlers
 }
 
 func (t *ToyCollection) SetModelHandlers(option string, model *Model, handlers CollectionHandlersChain) {
-	if t.DefaultModelHandlerChain[model] == nil {
-		t.DefaultModelHandlerChain[model] = map[string]CollectionHandlersChain{}
+	if t.DefaultModelHandlerChain[model.ReflectType] == nil {
+		t.DefaultModelHandlerChain[model.ReflectType] = map[string]CollectionHandlersChain{}
 	}
-	t.DefaultModelHandlerChain[model][option] = handlers
+	t.DefaultModelHandlerChain[model.ReflectType][option] = handlers
 }
 
 func (t *ToyCollection) MiddleModel(v, sv interface{}) *CollectionBrick {

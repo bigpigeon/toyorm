@@ -32,7 +32,6 @@ type Model struct {
 	ReflectType       reflect.Type
 	AllFields         []*modelField
 	SqlFields         []*modelField
-	FieldsPos         map[*modelField]int
 	OffsetFields      map[uintptr]*modelField
 	NameFields        map[string]*modelField
 	SqlFieldMap       map[string]*modelField
@@ -168,7 +167,6 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	model := &Model{
 		Name:              modelName,
 		ReflectType:       _type,
-		FieldsPos:         map[*modelField]int{},
 		OffsetFields:      map[uintptr]*modelField{},
 		NameFields:        map[string]*modelField{},
 		SqlFieldMap:       map[string]*modelField{},
@@ -195,7 +193,6 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	for i := 0; i < len(model.AllFields); i++ {
 		field := model.AllFields[i]
 
-		model.FieldsPos[field] = i
 		model.OffsetFields[field.offset] = field
 		if _, ok := model.NameFields[field.field.Name]; ok {
 			panic(ErrRepeatField{model.Name, field.field.Name})

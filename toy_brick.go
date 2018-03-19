@@ -65,13 +65,6 @@ func (t *ToyBrick) Or() ToyBrickOr {
 	return ToyBrickOr{t}
 }
 
-func (t *ToyBrick) Clone() *ToyBrick {
-	newt := &ToyBrick{
-		Toy: t.Toy,
-	}
-	return newt
-}
-
 func (t *ToyBrick) Scope(fn func(*ToyBrick) *ToyBrick) *ToyBrick {
 	ret := fn(t)
 	return ret
