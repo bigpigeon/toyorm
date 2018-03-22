@@ -29,6 +29,7 @@ type Dialect interface {
 	GroupByExec(*Model, []Column) ExecValue
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
+	CountExec(*Model) ExecValue
 }
 
 type DefaultDialect struct{}
@@ -80,7 +81,7 @@ func (dia DefaultDialect) UpdateExec(model *Model, columnValues []ColumnValue) (
 }
 
 func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
-	exec.Query = fmt.Sprintf("DELETE FROM %s", model.Name)
+	exec.Query = fmt.Sprintf("DELETE FROM `%s`", model.Name)
 	return
 }
 
@@ -145,7 +146,12 @@ func (dia DefaultDialect) AddForeignKey(model, relationModel *Model, ForeignKeyF
 
 func (dia DefaultDialect) DropForeignKey(model *Model, ForeignKeyField Field) (exec ExecValue) {
 	exec.Query = fmt.Sprintf(
-		"ALTER TABLE %s DROP FOREIGN KEY (%s)", model.Name, ForeignKeyField.Column(),
+		"ALTER TABLE `%s` DROP FOREIGN KEY (%s)", model.Name, ForeignKeyField.Column(),
 	)
+	return
+}
+
+func (dia DefaultDialect) CountExec(model *Model) (exec ExecValue) {
+	exec.Query = fmt.Sprintf("SELECT count(*) FROM `%s`", model.Name)
 	return
 }

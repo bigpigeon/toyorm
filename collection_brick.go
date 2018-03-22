@@ -596,7 +596,7 @@ func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
 }
 
 func (t *CollectionBrick) CountExec() (exec ExecValue) {
-	exec.Query = fmt.Sprintf("SELECT count(*) FROM %s", t.Model.Name)
+	exec = t.Toy.Dialect.CountExec(t.Model)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)

@@ -2079,6 +2079,10 @@ func TestCollectionTableNameProtect(t *testing.T) {
 		t.Error(err)
 	}
 
+	count, err := orderBrick.Count()
+	assert.Nil(t, err)
+	assert.Equal(t, count, 1)
+
 	var scanData []User
 	result, err = brick.Find(&scanData)
 	assert.Nil(t, err)
@@ -2091,4 +2095,29 @@ func TestCollectionTableNameProtect(t *testing.T) {
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestCollectionCount(t *testing.T) {
+	var tab TestCountTable
+	brick := TestCollectionDB.Model(&tab)
+	createCollectionTableUnit(brick)(t)
+
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+	// insert data
+	var data []TestCountTable
+	for i := 0; i < 21; i++ {
+		data = append(data, TestCountTable{Data: fmt.Sprintf("test count %d", i)})
+	}
+	result, err := brick.Insert(data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	count, err := brick.Count()
+	assert.Nil(t, err)
+	assert.Equal(t, count, 21)
 }

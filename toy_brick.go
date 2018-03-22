@@ -703,7 +703,7 @@ func (t *ToyBrick) HasTableExec(dialect Dialect) (exec ExecValue) {
 }
 
 func (t *ToyBrick) CountExec() (exec ExecValue) {
-	exec.Query = fmt.Sprintf("SELECT count(*) FROM %s", t.Model.Name)
+	exec = t.Toy.Dialect.CountExec(t.Model)
 	cExec := t.ConditionExec()
 	exec.Query += " " + cExec.Query
 	exec.Args = append(exec.Args, cExec.Args...)

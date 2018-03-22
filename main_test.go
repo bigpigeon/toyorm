@@ -586,8 +586,13 @@ type SqlTypeTable struct {
 	Money sql.NullFloat64
 }
 
+type TestCountTable struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Data string
+}
+
 type Order struct {
-	ModelDefault
+	ID     uint32 `toyorm:"primary key;auto_increment"`
 	UserID uint32 `toyorm:"foreign key"`
 	Name   string
 	Num    int
