@@ -65,7 +65,7 @@ func (dia DefaultDialect) FindExec(model *Model, columns []Column) (exec ExecVal
 	for _, column := range columns {
 		_list = append(_list, column.Column())
 	}
-	exec.Query = fmt.Sprintf("SELECT %s FROM %s", strings.Join(_list, ","), model.Name)
+	exec.Query = fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(_list, ","), model.Name)
 	return
 }
 
@@ -75,7 +75,7 @@ func (dia DefaultDialect) UpdateExec(model *Model, columnValues []ColumnValue) (
 		recordList = append(recordList, r.Column()+"=?")
 		exec.Args = append(exec.Args, r.Value().Interface())
 	}
-	exec.Query = fmt.Sprintf("UPDATE %s SET %s", model.Name, strings.Join(recordList, ","))
+	exec.Query = fmt.Sprintf("UPDATE `%s` SET %s", model.Name, strings.Join(recordList, ","))
 	return
 }
 
@@ -99,7 +99,7 @@ func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) (
 	fieldStr += strings.Join(columnList, ",")
 	qStr += strings.Join(qList, ",")
 
-	exec.Query = fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s)", model.Name, fieldStr, qStr)
+	exec.Query = fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr)
 	return
 }
 
@@ -118,7 +118,7 @@ func (dia DefaultDialect) ReplaceExec(model *Model, columnValues []ColumnValue) 
 	fieldStr += strings.Join(columnList, ",")
 	qStr += strings.Join(qList, ",")
 
-	exec.Query = fmt.Sprintf("Replace INTO %s(%s) VALUES(%s)", model.Name, fieldStr, qStr)
+	exec.Query = fmt.Sprintf("Replace INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr)
 	return
 }
 
@@ -136,7 +136,7 @@ func (dia DefaultDialect) GroupByExec(model *Model, columns []Column) (exec Exec
 
 func (dia DefaultDialect) AddForeignKey(model, relationModel *Model, ForeignKeyField Field) (exec ExecValue) {
 	exec.Query = fmt.Sprintf(
-		"ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(%s)",
+		"ALTER TABLE `%s` ADD FOREIGN KEY (%s) REFERENCES %s(%s)",
 		model.Name, ForeignKeyField.Column(),
 		relationModel.Name, relationModel.GetOnePrimary().Column(),
 	)

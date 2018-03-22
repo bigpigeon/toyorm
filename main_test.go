@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
-	"time"
 )
 
 var (
@@ -579,21 +578,27 @@ type Address struct {
 	ProductID uint32 `toyorm:"index"`
 }
 
-type User struct {
-	ModelDefault
-	Birthday time.Time `toyorm:"index;NULL"`
-	Name     string    `toyorm:"unique index"`
-	Age      int
-	Height   int
-	Sex      bool
-}
-
 type SqlTypeTable struct {
 	ID    int32 `toyorm:"primary key;auto_increment"`
 	Name  sql.NullString
 	Age   sql.NullInt64
 	Sex   sql.NullBool
 	Money sql.NullFloat64
+}
+
+type Order struct {
+	ModelDefault
+	UserID uint32 `toyorm:"foreign key"`
+	Name   string
+	Num    int
+	User   *User
+}
+
+type User struct {
+	ModelDefault
+	Name     string `toyorm:"unique index"`
+	Password string
+	Orders   []Order
 }
 
 // use to create many to many preload which have foreign key

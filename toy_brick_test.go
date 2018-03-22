@@ -2040,11 +2040,9 @@ func TestPreloadCheck(t *testing.T) {
 
 // some database cannot use table name like "order, group"
 func TestTableNameProtect(t *testing.T) {
-	type Order struct {
-		ModelDefault
-		Name string
-	}
-	brick := TestDB.Model(&Order{}).Debug()
+
+	brick := TestDB.Model(&User{}).Debug().
+		Preload(Offsetof(User{}.Orders)).Enter()
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -2052,6 +2050,48 @@ func TestTableNameProtect(t *testing.T) {
 	}
 
 	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data := User{
+		Name:     "admin",
+		Password: "12345",
+		Orders: []Order{
+			{Name: "MacBook", Num: 1},
+		},
+	}
+	result, err = brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	data.Orders[0].Num += 1
+	result, err = brick.Save(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	orderBrick := brick.Preload(Offsetof(User{}.Orders))
+	result, err = orderBrick.Update(Order{
+		Name: "Surface",
+	})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	var scanData []User
+	result, err = brick.Find(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.Delete(&data)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
