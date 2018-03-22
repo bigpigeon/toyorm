@@ -34,7 +34,7 @@ type Dialect interface {
 type DefaultDialect struct{}
 
 func (dia DefaultDialect) DropTable(m *Model) ExecValue {
-	return ExecValue{fmt.Sprintf("DROP TABLE %s", m.Name), nil}
+	return ExecValue{fmt.Sprintf("DROP TABLE `%s`", m.Name), nil}
 }
 
 func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, orderBy []Column) (exec ExecValue) {

@@ -55,7 +55,7 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 		)
 	}
 
-	sqlStr := fmt.Sprintf("CREATE TABLE %s (%s)",
+	sqlStr := fmt.Sprintf("CREATE TABLE `%s` (%s)",
 		model.Name,
 		strings.Join(strList, ","),
 	)
@@ -67,7 +67,7 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 		for _, f := range fieldList {
 			fieldStrList = append(fieldStrList, f.Column())
 		}
-		indexStrList = append(indexStrList, fmt.Sprintf("CREATE INDEX %s ON %s(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
+		indexStrList = append(indexStrList, fmt.Sprintf("CREATE INDEX %s ON `%s`(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
 	}
 	uniqueIndexStrList := []string{}
 	for key, fieldList := range model.GetUniqueIndexMap() {
@@ -75,7 +75,7 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 		for _, f := range fieldList {
 			fieldStrList = append(fieldStrList, f.Column())
 		}
-		uniqueIndexStrList = append(uniqueIndexStrList, fmt.Sprintf("CREATE UNIQUE INDEX %s ON %s(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
+		uniqueIndexStrList = append(uniqueIndexStrList, fmt.Sprintf("CREATE UNIQUE INDEX %s ON `%s`(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
 	}
 	for _, indexStr := range indexStrList {
 		execlist = append(execlist, ExecValue{indexStr, nil})

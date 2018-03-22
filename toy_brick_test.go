@@ -2037,3 +2037,23 @@ func TestPreloadCheck(t *testing.T) {
 	_, err = brick.Find(&missingManyToManyID{})
 	assert.Equal(t, err.Error(), "struct of the ManyToMany field missing ID field")
 }
+
+// some database cannot use table name like "order, group"
+func TestTableNameProtect(t *testing.T) {
+	type Order struct {
+		ModelDefault
+		Name string
+	}
+	brick := TestDB.Model(&Order{}).Debug()
+	result, err := brick.DropTableIfExist()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+
+	result, err = brick.CreateTable()
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+}

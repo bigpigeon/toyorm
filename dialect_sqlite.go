@@ -65,7 +65,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKe
 		)
 	}
 
-	sqlStr := fmt.Sprintf("CREATE TABLE %s (%s)",
+	sqlStr := fmt.Sprintf("CREATE TABLE `%s` (%s)",
 		model.Name,
 		strings.Join(strList, ","),
 	)
@@ -77,7 +77,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKe
 		for _, f := range fieldList {
 			fieldStrList = append(fieldStrList, f.Column())
 		}
-		indexStrList = append(indexStrList, fmt.Sprintf("CREATE INDEX %s ON %s(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
+		indexStrList = append(indexStrList, fmt.Sprintf("CREATE INDEX %s ON `%s`(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
 	}
 	uniqueIndexStrList := []string{}
 	for key, fieldList := range model.GetUniqueIndexMap() {
