@@ -115,3 +115,7 @@ func TestPanicConditionKey(t *testing.T) {
 	// error example
 	TestDB.Model(&TestSearchTable{}).Where(ExprAnd, Offsetof(TestSearchTable{}.A))
 }
+
+func TestPanicFieldCompare(t *testing.T) {
+
+}

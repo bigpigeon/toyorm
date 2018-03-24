@@ -118,10 +118,7 @@ func (t *CollectionBrick) Enter() *CollectionBrick {
 func (t *CollectionBrick) RightValuePreload(fv interface{}) *CollectionBrick {
 	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
 		field := t.Model.fieldSelect(fv)
-		// TODO
-		//if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok  {
-		//	return subBrick
-		//}
+
 		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
 		newSubt := NewCollectionBrick(t.Toy, subModel).CopyStatus(t)
 

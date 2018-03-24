@@ -113,19 +113,20 @@ func (m *ModelOffsetMapRecords) Add(v reflect.Value) ModelRecord {
 }
 
 func (m *ModelOffsetMapRecords) GetFieldType(name string) reflect.Type {
-	fieldType := m.model.GetFieldWithName(name).StructField().Type
-	t := LoopTypeIndirect(fieldType)
-	if _, ok := reflect.Zero(t).Interface().(time.Time); ok {
-		return fieldType
+	field := m.model.GetFieldWithName(name)
+	fieldType := field.StructField().Type
+
+	// TODO check the field is or not container field ?
+	if field.Column() == "" || field.SqlType() == "" {
+		t := LoopTypeIndirect(fieldType)
+		switch t.Kind() {
+		case reflect.Struct:
+			return reflect.TypeOf(map[uintptr]interface{}{})
+		case reflect.Slice:
+			return reflect.TypeOf([]map[uintptr]interface{}{})
+		}
 	}
-	switch t.Kind() {
-	case reflect.Struct:
-		return reflect.TypeOf(map[uintptr]interface{}{})
-	case reflect.Slice:
-		return reflect.TypeOf([]map[uintptr]interface{}{})
-	default:
-		return fieldType
-	}
+	return fieldType
 }
 
 func (m *ModelOffsetMapRecords) GetFieldAddressType(name string) reflect.Type {

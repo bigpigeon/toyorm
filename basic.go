@@ -132,16 +132,6 @@ func IsZero(v reflect.Value) bool {
 	}
 }
 
-// if map value type is different with current value type ,try to convert it
-func SafeMapSet(m, k, x reflect.Value) {
-	eType, xType := m.Type().Elem(), x.Type()
-	if eType != xType {
-		m.SetMapIndex(k, x.Convert(eType))
-	} else {
-		m.SetMapIndex(k, x)
-	}
-}
-
 // if value type is different with current value type ,try to convert it
 func safeSet(v, x reflect.Value) {
 	vType, xType := v.Type(), x.Type()

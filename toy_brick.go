@@ -106,10 +106,7 @@ func (t *ToyBrick) Enter() *ToyBrick {
 func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		field := t.Model.fieldSelect(fv)
-		// TODO
-		//if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok  {
-		//	return subBrick
-		//}
+
 		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
 		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
 
@@ -320,6 +317,7 @@ func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface
 		for _, pair := range pairs {
 			search = search.Condition(pair, ExprEqual, expr)
 		}
+		// avoid "or" condition effected by priority
 		if expr == ExprOr {
 			search = append(search, NewSearchBranch(ExprIgnore))
 		}

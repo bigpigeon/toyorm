@@ -247,3 +247,55 @@ func TestOffsetMapRecordGroupBy(t *testing.T) {
 		t.Logf("group with value %v %v", key, source)
 	}
 }
+
+func TestRecordFieldType(t *testing.T) {
+	type Extra struct {
+		Name string
+		Val  string
+	}
+	type User struct {
+		ModelDefault
+		Tags     []int `toyorm:"type:VARCHAR(1024)"`
+		JsonData Extra `toyorm:"type:VARCHAR(1024)"`
+	}
+	model := NewModel(reflect.ValueOf(User{}).Type())
+	{
+
+		// struct data
+		data := []User{
+			{
+				ModelDefault: ModelDefault{
+					ID: 1,
+				},
+				JsonData: Extra{"key", "222"},
+			},
+		}
+		records := NewRecords(model, reflect.ValueOf(&data).Elem())
+		assert.Equal(t, records.GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
+		assert.Equal(t, records.GetFieldType("Tags"), reflect.TypeOf([]int{}))
+	}
+	{
+		// name map data
+		data := []map[string]interface{}{
+			{
+				"ID":       1,
+				"JsonData": Extra{"key", "222"},
+			},
+		}
+		records := NewRecords(model, reflect.ValueOf(&data).Elem())
+		assert.Equal(t, records.GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
+		assert.Equal(t, records.GetFieldType("Tags"), reflect.TypeOf([]int{}))
+	}
+	{
+		// name map data
+		data := []map[uintptr]interface{}{
+			{
+				Offsetof(User{}.ID):       1,
+				Offsetof(User{}.JsonData): Extra{"key", "222"},
+			},
+		}
+		records := NewRecords(model, reflect.ValueOf(&data).Elem())
+		assert.Equal(t, records.GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
+		assert.Equal(t, records.GetFieldType("Tags"), reflect.TypeOf([]int{}))
+	}
+}
