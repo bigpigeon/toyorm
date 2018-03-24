@@ -1,0 +1,29 @@
+<!DOCTYPE>
+<html>
+<head>
+{{ template "head" . }}
+</head>
+<body>
+{{ template "topnav" . }}
+<form id="post-user" method="post" action="/user">
+    <p>username: <input name="name" type="text" required></p>
+    <p>password: <input id="password" name="password" type="password" pattern="(?=.*\d)(?=.*[a-z,A-Z]).{8,}" title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters" required></p>
+
+    <p>check password: <input id="check-password" name="check_password" type="password"></p>
+    <input type="submit" value="Submit">
+</form>
+<script>
+    var postUser = document.getElementById("post-user");
+    postUser.onsubmit = function () {
+        var password = document.getElementById("password");
+        var checkPassword = document.getElementById("check-password");
+        if(password.value !== checkPassword.value){
+            alert("check password must same with password")
+            return false
+        }
+        return true
+    }
+</script>
+
+</body>
+</html>

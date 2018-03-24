@@ -1,0 +1,17 @@
+{{ define "topnav" }}
+    <div id="topnav">
+        <div class="banner-left">
+            <a class="active" href="/">Home</a>
+        </div>
+        <div class="banner-right">
+            {{ with .current }}
+                <a href="/edit/user/{{ .ID }}">{{ .Name }}</a>
+                <a href="/logout">Logout</a>
+            {{ else }}
+                <a href="/login">Login</a>
+                <a href="/register">Register</a>
+            {{ end }}
+        </div>
+
+    </div>
+{{ end }}

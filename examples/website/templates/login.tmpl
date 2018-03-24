@@ -1,0 +1,16 @@
+<!DOCTYPE>
+<html>
+<head>
+{{ template "head" . }}
+</head>
+<body>
+{{ template "topnav" . }}
+<form method="post"  action="/session">
+    <p>username: <input name="name" type="text"></p>
+    <p>password: <input name="password" type="password"></p>
+    <input type="submit" name="login">
+</form>
+
+
+</body>
+</html>

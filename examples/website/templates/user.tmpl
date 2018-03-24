@@ -1,0 +1,23 @@
+<!DOCTYPE>
+<html>
+<head>
+{{ template "head" . }}
+</head>
+<body>
+{{ template "topnav" . }}
+{{ with .user }}
+    <p>name: {{ .Name }}</p>
+    <p>password: ******</p>
+    <p>created time: {{ .CreatedAt.Format "2006-01-02T15:04:05Z07:00" }}</p>
+    <p>updated time: {{ .UpdatedAt.Format "2006-01-02T15:04:05Z07:00" }} </p>
+    <p> orders: </p>
+    <ul>
+    {{ range .Orders }}
+        <li>
+            <a>{{ .Name }}</a> - <a>{{ .Num }}</a>
+        </li>
+    {{ end }}
+    </ul>
+{{ end }}
+</body>
+</html>

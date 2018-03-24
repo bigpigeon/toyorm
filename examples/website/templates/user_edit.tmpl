@@ -1,0 +1,36 @@
+<!DOCTYPE>
+<html>
+<head>
+{{ template "head" . }}
+</head>
+<body>
+{{ template "topnav" . }}
+{{ with .current }}
+    <form method="post" action="/update/user">
+        <input name="id" type="hidden" value="{{ .ID }}">
+        <p>name: <input name="name" type="text" value="{{ .Name }}" required></p>
+        <p>password: ******</p>
+        <p>created time: {{ .CreatedAt.Format "2006-01-02T15:04:05Z07:00" }}</p>
+        <p>updated time: {{ .UpdatedAt.Format "2006-01-02T15:04:05Z07:00" }} </p>
+        <p> orders: </p>
+        <input type="submit" value="Submit">
+    </form>
+
+    <ul>
+    {{ range .Orders }}
+        <li>
+            <a>{{ .Name }}</a> - <a>{{ .Num }}</a>
+        </li>
+    {{ end }}
+        <li>
+            <form method="post" action="/order">
+                <a><input name="name" type="text" required></a> -
+                <a><input name="num" type="number" required></a>
+                <input type="submit" value="+">
+            </form>
+        </li>
+    </ul>
+
+{{ end }}
+</body>
+</html>

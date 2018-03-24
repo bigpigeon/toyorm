@@ -1,0 +1,33 @@
+<!DOCTYPE>
+<html>
+<head>
+    {{ template "head" . }}
+</head>
+<body>
+    {{ template "topnav" . }}
+    <p>users</p>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Create Time</th>
+            <th>Orders</th>
+        </tr>
+
+    {{ range .users }}
+        <tr>
+            <td><a href="/user/{{ .ID }}">{{ .Name }}</a></td>
+            <td>{{ .CreatedAt.Format "2006-01-02T15:04:05Z07:00" }}</td>
+            <td>
+                <ul>
+                {{ range .Orders }}
+                    <li>
+                        <a>{{ .Name }}</a> - <a>{{ .Num }}</a>
+                    </li>
+                {{ end }}
+                </ul>
+            </td>
+        </tr>
+    {{ end }}
+    </table>
+</body>
+</html>
