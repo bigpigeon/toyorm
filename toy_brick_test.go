@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -572,6 +573,44 @@ func TestCombinationConditionFind(t *testing.T) {
 		for _, tab := range tabs {
 			assert.True(t, tab.A == "a" || tab.B == "b")
 		}
+	}
+}
+
+func TestOrderByFind(t *testing.T) {
+	brick := TestDB.Model(&TestSearchTable{}).Debug()
+	{
+		brick := brick.OrderBy(Offsetof(TestSearchTable{}.C))
+		var data []TestSearchTable
+		result, err := brick.Find(&data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		var cList []string
+		for _, tab := range data {
+			cList = append(cList, tab.C)
+		}
+		fmt.Printf("c: %s\n", cList)
+		assert.True(t, sort.StringsAreSorted(cList))
+	}
+	{
+		brick := brick.OrderBy(brick.ToDesc(Offsetof(TestSearchTable{}.C)))
+		var data []TestSearchTable
+		result, err := brick.Find(&data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		var cList []string
+		for _, tab := range data {
+			cList = append(cList, tab.C)
+		}
+		fmt.Printf("c: %s\n", cList)
+		assert.True(t, sort.SliceIsSorted(cList, func(i, j int) bool {
+			return cList[i] > cList[j]
+		}))
 	}
 }
 
