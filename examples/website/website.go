@@ -308,24 +308,25 @@ func main() {
 	e := Engine{toy, map[string]uint32{}}
 	createTableAndFillData(e)
 
+	// init gin engine
 	router := gin.Default()
 	router.LoadHTMLGlob("templates/*")
 	group := router.Group("/", e.GetUserWithSession)
 
+	// init page url
 	group.GET("/", e.MainPage)
 	group.GET("/login", e.LoginPage)
 	group.GET("/register", e.RegisterPage)
 	group.GET("/user/:id", e.UserPage)
 	group.GET("/edit/user/:id", e.UserEditPage)
 
+	// init api
 	group.GET("/logout", e.Logout)
-
 	group.POST("/user", e.PostNewUser)
 	group.POST("/order", e.PostOrder)
 	group.POST("/update/user", e.UpdateUser)
-
 	router.POST("/session", e.PostSession)
 
+	// start server
 	router.Run(":8080")
-
 }

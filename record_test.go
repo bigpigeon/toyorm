@@ -259,43 +259,33 @@ func TestRecordFieldType(t *testing.T) {
 		JsonData Extra `toyorm:"type:VARCHAR(1024)"`
 	}
 	model := NewModel(reflect.ValueOf(User{}).Type())
-	{
-
-		// struct data
-		data := []User{
+	for _, data := range []interface{}{
+		[]User{
 			{
 				ModelDefault: ModelDefault{
 					ID: 1,
 				},
 				JsonData: Extra{"key", "222"},
 			},
-		}
-		records := NewRecords(model, reflect.ValueOf(&data).Elem())
-		assert.Equal(t, records.GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
-		assert.Equal(t, records.GetFieldType("Tags"), reflect.TypeOf([]int{}))
-	}
-	{
-		// name map data
-		data := []map[string]interface{}{
+		},
+		[]map[string]interface{}{
 			{
 				"ID":       1,
 				"JsonData": Extra{"key", "222"},
 			},
-		}
-		records := NewRecords(model, reflect.ValueOf(&data).Elem())
-		assert.Equal(t, records.GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
-		assert.Equal(t, records.GetFieldType("Tags"), reflect.TypeOf([]int{}))
-	}
-	{
-		// name map data
-		data := []map[uintptr]interface{}{
+		},
+		[]map[uintptr]interface{}{
 			{
 				Offsetof(User{}.ID):       1,
 				Offsetof(User{}.JsonData): Extra{"key", "222"},
 			},
-		}
-		records := NewRecords(model, reflect.ValueOf(&data).Elem())
+		},
+	} {
+		records := NewRecords(model, reflect.ValueOf(&data).Elem().Elem())
 		assert.Equal(t, records.GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
 		assert.Equal(t, records.GetFieldType("Tags"), reflect.TypeOf([]int{}))
+		assert.Equal(t, records.GetRecord(0).GetFieldType("JsonData"), reflect.TypeOf(Extra{}))
+		assert.Equal(t, records.GetRecord(0).GetFieldType("Tags"), reflect.TypeOf([]int{}))
 	}
+
 }
