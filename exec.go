@@ -73,11 +73,15 @@ func (e QToSExec) Query() string {
 	for ; i < len(data); i++ {
 		switch e.query[i] {
 		case '?':
-			if isEscaping != true {
+			if isEscaping == false {
 				buff.Write(data[pre:i])
 				buff.Write(append([]byte{'$'}, []byte(strconv.Itoa(pNum))...))
 				pre = i + 1
 				pNum++
+			} else {
+				buff.Write(data[pre : i-1])
+				buff.WriteByte(data[i])
+				pre = i + 1
 			}
 		case '\\':
 			isEscaping = true

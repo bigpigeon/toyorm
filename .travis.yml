@@ -28,6 +28,8 @@ after_success:
 
 services:
   - mysql
+
+services:
   - postgresql
 
 addons:
