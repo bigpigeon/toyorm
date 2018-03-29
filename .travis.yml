@@ -6,7 +6,6 @@ go:
 go_import_path: github.com/bigpigeon/toyorm
 
 before_install:
-  - sudo /etc/init.d/postgresql start
   - go get -t -v ./...
   - go get -u github.com/client9/misspell/cmd/misspell
 
@@ -32,15 +31,3 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-
-
-
-addons:
-  postgresql: "10"
-  apt:
-      packages:
-      - postgresql-10
-      - postgresql-client-10
-  env:
-    global:
-    - PGPORT=5432
