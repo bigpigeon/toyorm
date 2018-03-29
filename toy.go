@@ -30,6 +30,8 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		dialect = MySqlDialect{}
 	case "sqlite3":
 		dialect = Sqlite3Dialect{}
+	case "postgres":
+		dialect = PostgreSqlDialect{}
 	default:
 		panic(ErrNotMatchDialect)
 	}
@@ -84,6 +86,9 @@ func (t *Toy) ModelHandlers(option string, model *Model) HandlersChain {
 }
 
 func (t *Toy) Close() error {
+	if t == nil {
+		return nil
+	}
 	return t.db.Close()
 }
 

@@ -188,7 +188,7 @@ type ExecAction struct {
 }
 
 func (r ExecAction) String() string {
-	return fmt.Sprintf("%s args:%s", r.Exec.Query, r.Exec.JsonArgs())
+	return fmt.Sprintf("%s args:%s", r.Exec.Query(), r.Exec.JsonArgs())
 }
 
 func (r ExecAction) Type() SqlActionType {
@@ -221,9 +221,9 @@ func (r QueryAction) String() string {
 		}
 	}
 	if len(errors) != 0 {
-		return fmt.Sprintf("%s args:%s error(%v)", r.Exec.Query, r.Exec.JsonArgs(), errors)
+		return fmt.Sprintf("%s args:%s error(%v)", r.Exec.Query(), r.Exec.JsonArgs(), errors)
 	}
-	return fmt.Sprintf("%s args:%s", r.Exec.Query, r.Exec.JsonArgs())
+	return fmt.Sprintf("%s args:%s", r.Exec.Query(), r.Exec.JsonArgs())
 }
 
 func (r QueryAction) Type() SqlActionType {
@@ -262,9 +262,9 @@ type CollectionExecAction struct {
 
 func (r CollectionExecAction) String() string {
 	if r.Error != nil {
-		return fmt.Sprintf("db[%d] %s args:%s error(%v)", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs(), r.Error)
+		return fmt.Sprintf("db[%d] %s args:%s error(%v)", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs(), r.Error)
 	}
-	return fmt.Sprintf("db[%d] %s args:%s", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs())
+	return fmt.Sprintf("db[%d] %s args:%s", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs())
 }
 
 func (r CollectionExecAction) Type() SqlActionType {
@@ -298,9 +298,9 @@ func (r CollectionQueryAction) String() string {
 		}
 	}
 	if len(errors) != 0 {
-		return fmt.Sprintf("db[%d] %s args:%s error(%v)", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs(), errors)
+		return fmt.Sprintf("db[%d] %s args:%s error(%v)", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs(), errors)
 	}
-	return fmt.Sprintf("db[%d] %s args:%s", r.dbIndex, r.Exec.Query, r.Exec.JsonArgs())
+	return fmt.Sprintf("db[%d] %s args:%s", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs())
 }
 
 func (r CollectionQueryAction) Type() SqlActionType {

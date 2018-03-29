@@ -16,7 +16,7 @@ type Sqlite3Dialect struct {
 }
 
 func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
-	return ExecValue{
+	return DefaultExec{
 		`select count(*) from sqlite_master where type="table" and name= ? `,
 		[]interface{}{model.Name},
 	}
@@ -69,7 +69,7 @@ func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKe
 		model.Name,
 		strings.Join(strList, ","),
 	)
-	execlist = append(execlist, ExecValue{sqlStr, nil})
+	execlist = append(execlist, DefaultExec{sqlStr, nil})
 
 	indexStrList := []string{}
 	for key, fieldList := range model.GetIndexMap() {
@@ -89,10 +89,10 @@ func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKe
 	}
 
 	for _, indexStr := range indexStrList {
-		execlist = append(execlist, ExecValue{indexStr, nil})
+		execlist = append(execlist, DefaultExec{indexStr, nil})
 	}
 	for _, indexStr := range uniqueIndexStrList {
-		execlist = append(execlist, ExecValue{indexStr, nil})
+		execlist = append(execlist, DefaultExec{indexStr, nil})
 	}
 	return
 }

@@ -500,7 +500,6 @@ func (t *ToyBrick) hardDelete(records ModelRecords) (*Result, error) {
 
 func (t *ToyBrick) find(value reflect.Value) (*Context, error) {
 	handlers := t.Toy.ModelHandlers("Find", t.Model)
-
 	if value.Kind() == reflect.Slice {
 		records := NewRecords(t.Model, value)
 		ctx := NewContext(handlers, t, records)
@@ -542,7 +541,7 @@ func (t *ToyBrick) DropTableIfExist() (*Result, error) {
 }
 
 func (t *ToyBrick) HasTable() (b bool, err error) {
-	exec := t.HasTableExec(t.Toy.Dialect)
+	exec := t.Toy.Dialect.HasTable(t.Model)
 	err = t.QueryRow(exec).Scan(&b)
 	return b, err
 }
@@ -628,49 +627,47 @@ func (t *ToyBrick) DeleteWithConditions() (*Result, error) {
 	return t.delete(nil)
 }
 
-func (t *ToyBrick) Exec(exec ExecValue) (result sql.Result, err error) {
-	if t.tx == nil {
-		result, err = t.Toy.db.Exec(exec.Query, exec.Args...)
-	} else {
-		result, err = t.tx.Exec(exec.Query, exec.Args...)
-	}
-
+func (t *ToyBrick) debugPrint(query string, args string, err error) {
 	if t.debug {
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s faiure reason %s\n", t.tx, exec.Query, exec.JsonArgs(), err)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s faiure reason %s\n", t.tx, query, args, err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s\n", t.tx, exec.Query, exec.JsonArgs())
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s\n", t.tx, query, args)
 		}
 	}
+}
+
+func (t *ToyBrick) Exec(exec ExecValue) (result sql.Result, err error) {
+	query := exec.Query()
+	if t.tx == nil {
+		result, err = t.Toy.db.Exec(query, exec.Args()...)
+	} else {
+		result, err = t.tx.Exec(query, exec.Args()...)
+	}
+
+	t.debugPrint(query, exec.JsonArgs(), err)
 	return
 }
 
 func (t *ToyBrick) Query(exec ExecValue) (rows *sql.Rows, err error) {
+	query := exec.Query()
 	if t.tx == nil {
-		rows, err = t.Toy.db.Query(exec.Query, exec.Args...)
+		rows, err = t.Toy.db.Query(query, exec.Args()...)
 	} else {
-		rows, err = t.tx.Query(exec.Query, exec.Args...)
+		rows, err = t.tx.Query(query, exec.Args()...)
 	}
-	if t.debug {
-		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s faiure reason %s\n", t.tx, exec.Query, exec.JsonArgs(), err)
-		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s\n", t.tx, exec.Query, exec.JsonArgs())
-		}
-	}
+	t.debugPrint(query, exec.JsonArgs(), err)
 	return
 }
 
 func (t *ToyBrick) QueryRow(exec ExecValue) (row *sql.Row) {
+	query := exec.Query()
 	if t.tx == nil {
-		row = t.Toy.db.QueryRow(exec.Query, exec.Args...)
+		row = t.Toy.db.QueryRow(query, exec.Args()...)
 	} else {
-		row = t.tx.QueryRow(exec.Query, exec.Args...)
+		row = t.tx.QueryRow(query, exec.Args()...)
 	}
-	if t.debug {
-
-		fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s, args:%s\n", t.tx, exec.Query, exec.JsonArgs())
-	}
+	t.debugPrint(query, exec.JsonArgs(), nil)
 	return
 }
 
@@ -682,34 +679,20 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 	} else {
 		stmt, err = t.tx.Prepare(query)
 	}
-	if t.debug {
-		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, stmt query:%s, error: %s\n", t.tx, query, err)
-		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, stmt query:%s\n", t.tx, query)
-		}
-	}
+	t.debugPrint(query, "", err)
 	return stmt, err
-}
-
-func (t *ToyBrick) DropTableExec() (exec ExecValue) {
-	return ExecValue{fmt.Sprintf("DROP TABLE %s", t.Model.Name), nil}
-}
-
-func (t *ToyBrick) HasTableExec(dialect Dialect) (exec ExecValue) {
-	return dialect.HasTable(t.Model)
 }
 
 func (t *ToyBrick) CountExec() (exec ExecValue) {
 	exec = t.Toy.Dialect.CountExec(t.Model)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
+
 	return
 }
 
 func (t *ToyBrick) ConditionExec() ExecValue {
-	return t.Toy.Dialect.ConditionExec(t.Search, t.limit, t.offset, t.orderBy)
+	return t.Toy.Dialect.ConditionExec(t.Search, t.limit, t.offset, t.orderBy, t.groupBy)
 }
 
 func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
@@ -721,28 +704,21 @@ func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
 	exec := t.Toy.Dialect.FindExec(t.Model, columns)
 
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
-
-	gExec := t.Toy.Dialect.GroupByExec(t.Model, t.groupBy)
-	exec.Query += " " + gExec.Query
-	exec.Args = append(exec.Args, gExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
 func (t *ToyBrick) UpdateExec(record ModelRecord) ExecValue {
 	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record))
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
 func (t *ToyBrick) DeleteExec() ExecValue {
 	exec := t.Toy.Dialect.DeleteExec(t.Model)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
@@ -750,8 +726,7 @@ func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
 	exec := t.Toy.Dialect.InsertExec(t.Model, recorders)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
@@ -759,7 +734,6 @@ func (t *ToyBrick) ReplaceExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
 	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }

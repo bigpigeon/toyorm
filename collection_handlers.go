@@ -246,7 +246,14 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 		action.Exec = ctx.Brick.InsertExec(record)
-		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
+		action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
+			ctx.Brick.Toy.dbs[action.dbIndex],
+			action.Exec,
+			func(query string, args string, err error) {
+				ctx.Brick.debugPrint(action.dbIndex, query, args, err)
+			},
+		)
+
 		if action.Error == nil {
 			// set primary field value if model is autoincrement
 			if setInsertId {
@@ -645,7 +652,13 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 
 			action.Exec = ctx.Brick.InsertExec(record)
-			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
+			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
+				ctx.Brick.Toy.dbs[action.dbIndex],
+				action.Exec,
+				func(query string, args string, err error) {
+					ctx.Brick.debugPrint(action.dbIndex, query, args, err)
+				},
+			)
 			if action.Error == nil {
 				// set primary field value if model is autoincrement
 				if setInsertId {

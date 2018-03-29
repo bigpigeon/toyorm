@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -703,6 +704,13 @@ func TestMain(m *testing.M) {
 		{"sqlite3", ":memory:",
 			[]string{"", ""},
 		},
+		{
+			"postgres", "user=postgres dbname=toyorm sslmode=disable",
+			[]string{
+				"user=postgres dbname=toyorm1 sslmode=disable",
+				"user=postgres dbname=toyorm2 sslmode=disable",
+			},
+		},
 	} {
 		var err error
 		TestDB, err = Open(sqldata.Driver, sqldata.Source)
@@ -715,6 +723,9 @@ func TestMain(m *testing.M) {
 				fmt.Printf("Error: cannot test sql %s because (%s)\n", sqldata.Driver, err)
 				goto Close
 			}
+		} else {
+			fmt.Printf("Error: cannot open %s\n", err)
+			goto Close
 		}
 
 		TestCollectionDB, err = OpenCollection(sqldata.Driver, sqldata.CollectionSources...)
@@ -726,10 +737,13 @@ func TestMain(m *testing.M) {
 					goto Close
 				}
 			}
+		} else {
+			fmt.Printf("Error: cannot open %s\n", err)
+			goto Close
 		}
 		m.Run()
 	Close:
-		TestDB.db.Close()
+		TestDB.Close()
 		TestCollectionDB.Close()
 	}
 }

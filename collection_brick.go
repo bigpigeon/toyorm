@@ -559,49 +559,48 @@ func (t *CollectionBrick) DeleteWithConditions() (*Result, error) {
 	return t.delete(nil)
 }
 
-func (t *CollectionBrick) Exec(exec ExecValue, i int) (sql.Result, error) {
-	result, err := t.Toy.dbs[i].Exec(exec.Query, exec.Args...)
+func (t *CollectionBrick) debugPrint(i int, query string, args string, err error) {
 	if t.debug {
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s faiure reason %s\n", i, exec.Query, exec.JsonArgs(), err)
+			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s faiure reason %s\n", i, query, args, err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, exec.Query, exec.JsonArgs())
+			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, query, args)
 		}
 	}
+}
+
+func (t *CollectionBrick) Exec(exec ExecValue, i int) (sql.Result, error) {
+	query := exec.Query()
+	result, err := t.Toy.dbs[i].Exec(query, exec.Args()...)
+	t.debugPrint(i, query, exec.JsonArgs(), err)
+
 	return result, err
 }
 
 func (t *CollectionBrick) Query(exec ExecValue, i int) (*sql.Rows, error) {
-	rows, err := t.Toy.dbs[i].Query(exec.Query, exec.Args...)
-	if t.debug {
-		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s faiure reason %s\n", i, exec.Query, exec.JsonArgs(), err)
-		} else {
-			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, exec.Query, exec.JsonArgs())
-		}
-	}
+	query := exec.Query()
+	rows, err := t.Toy.dbs[i].Query(query, exec.Args()...)
+	t.debugPrint(i, query, exec.JsonArgs(), err)
 
 	return rows, err
 }
 
 func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
-	row := t.Toy.dbs[i].QueryRow(exec.Query, exec.Args...)
-	if t.debug {
-		fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, exec.Query, exec.JsonArgs())
-	}
+	query := exec.Query()
+	row := t.Toy.dbs[i].QueryRow(query, exec.Args()...)
+	t.debugPrint(i, query, exec.JsonArgs(), nil)
 	return row
 }
 
 func (t *CollectionBrick) CountExec() (exec ExecValue) {
 	exec = t.Toy.Dialect.CountExec(t.Model)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return
 }
 
 func (t *CollectionBrick) ConditionExec() ExecValue {
-	return t.Toy.Dialect.ConditionExec(t.Search, 0, 0, nil)
+	return t.Toy.Dialect.ConditionExec(t.Search, 0, 0, nil, nil)
 }
 
 func (t *CollectionBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
@@ -613,28 +612,21 @@ func (t *CollectionBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
 	exec := t.Toy.Dialect.FindExec(t.Model, columns)
 
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
-
-	gExec := t.Toy.Dialect.GroupByExec(t.Model, nil)
-	exec.Query += " " + gExec.Query
-	exec.Args = append(exec.Args, gExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
 func (t *CollectionBrick) UpdateExec(record ModelRecord) ExecValue {
 	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record))
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
 func (t *CollectionBrick) DeleteExec() ExecValue {
 	exec := t.Toy.Dialect.DeleteExec(t.Model)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
@@ -642,8 +634,7 @@ func (t *CollectionBrick) InsertExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
 	exec := t.Toy.Dialect.InsertExec(t.Model, recorders)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
@@ -651,7 +642,6 @@ func (t *CollectionBrick) ReplaceExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
 	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders)
 	cExec := t.ConditionExec()
-	exec.Query += " " + cExec.Query
-	exec.Args = append(exec.Args, cExec.Args...)
+	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }

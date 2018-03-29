@@ -123,3 +123,15 @@ type ErrZeroPrimaryKey struct{ Model *Model }
 func (e ErrZeroPrimaryKey) Error() string {
 	return fmt.Sprintf("%s have zero primary key", e.Model.Name)
 }
+
+type ErrNotSupportRowsAffected struct{}
+
+func (e ErrNotSupportRowsAffected) Error() string {
+	return "not support rows affected method"
+}
+
+type ErrLastInsertId struct{}
+
+func (e ErrLastInsertId) Error() string {
+	return "cannot scan last insert id"
+}

@@ -77,6 +77,8 @@ func OpenCollection(driverName string, dataSourceName ...string) (*ToyCollection
 		t.Dialect = MySqlDialect{}
 	case "sqlite3":
 		t.Dialect = Sqlite3Dialect{}
+	case "postgres":
+		t.Dialect = PostgreSqlDialect{}
 	default:
 		panic(ErrNotMatchDialect)
 	}
@@ -131,6 +133,9 @@ func (t *ToyCollection) GetMiddleModel(_type reflect.Type) *Model {
 }
 
 func (t *ToyCollection) Close() error {
+	if t == nil {
+		return nil
+	}
 	errs := ErrCollectionQueryRow{}
 	for i, db := range t.dbs {
 		err := db.Close()

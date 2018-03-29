@@ -177,12 +177,25 @@ func HandlerInsertTimeGenerate(ctx *Context) error {
 }
 
 func HandlerInsert(ctx *Context) error {
+
 	// current insert
 	setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{affectData: []int{i}}
 		action.Exec = ctx.Brick.InsertExec(record)
-		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
+		var executor Executor
+		if ctx.Brick.tx != nil {
+			executor = ctx.Brick.tx
+		} else {
+			executor = ctx.Brick.Toy.db
+		}
+		action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
+			executor,
+			action.Exec,
+			func(query string, args string, err error) {
+				ctx.Brick.debugPrint(query, args, err)
+			},
+		)
 		if action.Error == nil {
 			// set primary field value if model is autoincrement
 			if setInsertId {
@@ -480,7 +493,19 @@ func HandlerSave(ctx *Context) error {
 			action = ExecAction{affectData: []int{i}}
 
 			action.Exec = ctx.Brick.InsertExec(record)
-			action.Result, action.Error = ctx.Brick.Exec(action.Exec)
+			var executor Executor
+			if ctx.Brick.tx != nil {
+				executor = ctx.Brick.tx
+			} else {
+				executor = ctx.Brick.Toy.db
+			}
+			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
+				executor,
+				action.Exec,
+				func(query string, args string, err error) {
+					ctx.Brick.debugPrint(query, args, err)
+				},
+			)
 			if action.Error == nil {
 				// set primary field value if model is autoincrement
 				if setInsertId {
@@ -750,7 +775,7 @@ func HandlerCreateTable(ctx *Context) error {
 					}
 				} else if preload := parent.ManyToManyPreload[containerField.Name()]; preload != nil {
 					if preload.SubRelationField.Name() == field.Name() {
-						foreign[field.Name()] = ForeignKey{preload.Model, preload.SubModel.GetOnePrimary()}
+						foreign[field.Name()] = ForeignKey{preload.SubModel, preload.SubModel.GetOnePrimary()}
 					} else if preload.RelationField.Name() == field.Name() {
 						foreign[field.Name()] = ForeignKey{preload.Model, preload.Model.GetOnePrimary()}
 					}

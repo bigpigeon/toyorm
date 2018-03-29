@@ -1532,6 +1532,7 @@ func TestForeignKey(t *testing.T) {
 	}
 	result, err = brick.Insert(&data)
 	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}

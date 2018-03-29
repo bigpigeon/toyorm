@@ -16,7 +16,7 @@ type MySqlDialect struct {
 }
 
 func (dia MySqlDialect) HasTable(model *Model) ExecValue {
-	return ExecValue{
+	return DefaultExec{
 		"SELECT count(*) FROM INFORMATION_SCHEMA.TABLES WHERE  table_schema = (SELECT DATABASE()) AND table_name = ?",
 		[]interface{}{model.Name},
 	}
@@ -51,7 +51,7 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 	for name, key := range foreign {
 		f := model.GetFieldWithName(name)
 		strList = append(strList,
-			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s(%s)", f.Column(), key.Model.Name, key.Field.Column()),
+			fmt.Sprintf("FOREIGN KEY (%s) REFERENCES `%s`(%s)", f.Column(), key.Model.Name, key.Field.Column()),
 		)
 	}
 
@@ -59,7 +59,7 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 		model.Name,
 		strings.Join(strList, ","),
 	)
-	execlist = append(execlist, ExecValue{sqlStr, nil})
+	execlist = append(execlist, DefaultExec{sqlStr, nil})
 
 	indexStrList := []string{}
 	for key, fieldList := range model.GetIndexMap() {
@@ -78,10 +78,45 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 		uniqueIndexStrList = append(uniqueIndexStrList, fmt.Sprintf("CREATE UNIQUE INDEX %s ON `%s`(%s)", key, model.Name, strings.Join(fieldStrList, ",")))
 	}
 	for _, indexStr := range indexStrList {
-		execlist = append(execlist, ExecValue{indexStr, nil})
+		execlist = append(execlist, DefaultExec{indexStr, nil})
 	}
 	for _, indexStr := range uniqueIndexStrList {
-		execlist = append(execlist, ExecValue{indexStr, nil})
+		execlist = append(execlist, DefaultExec{indexStr, nil})
 	}
 	return
+}
+
+// replace will failure when have foreign key
+func (dia MySqlDialect) ReplaceExec(model *Model, columnValues []ColumnValue) ExecValue {
+	fieldStr := ""
+	qStr := ""
+	columnList := []string{}
+	qList := []string{}
+	var args []interface{}
+	for _, r := range columnValues {
+		columnList = append(columnList, r.Column())
+		qList = append(qList, "?")
+		args = append(args, r.Value().Interface())
+	}
+	fieldStr += strings.Join(columnList, ",")
+	qStr += strings.Join(qList, ",")
+
+	var exec ExecValue = DefaultExec{}
+	exec = exec.Append(
+		fmt.Sprintf("Insert INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
+		args...,
+	)
+
+	var recordList []string
+	var recordArgs []interface{}
+
+	for _, r := range columnValues {
+		recordList = append(recordList, r.Column()+" = ?")
+		recordArgs = append(recordArgs, r.Value().Interface())
+	}
+	exec = exec.Append(fmt.Sprintf(" ON DUPLICATE KEY UPDATE %s",
+		strings.Join(recordList, ","),
+	), recordArgs...)
+
+	return exec
 }
