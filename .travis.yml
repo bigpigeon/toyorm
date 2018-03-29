@@ -6,6 +6,7 @@ go:
 go_import_path: github.com/bigpigeon/toyorm
 
 before_install:
+  - sudo /etc/init.d/postgresql start
   - go get -t -v ./...
   - go get -u github.com/client9/misspell/cmd/misspell
 
