@@ -6,9 +6,9 @@ go:
 go_import_path: github.com/bigpigeon/toyorm
 
 before_install:
-  - sh -c "if [ '$DB' = 'mysql' ]; mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
-  - sh -c "if [ '$DB' = 'mysql' ]; mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
-  - sh -c "if [ '$DB' = 'mysql' ]; mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
+  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
+  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
+  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
 
   - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE toyorm;' -U postgres; fi"
   - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE toyorm1;' -U postgres; fi"
