@@ -8,6 +8,7 @@ package toyorm
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -689,7 +690,14 @@ func CollectionIDGenerate(ctx *CollectionContext) error {
 
 }
 
+var currentDB = flag.String("db", "", "current test db")
+
 func TestMain(m *testing.M) {
+	flag.Parse()
+
+	if *currentDB == "sqlite" {
+		*currentDB = "sqlite3"
+	}
 	for _, sqldata := range []struct {
 		Driver            string
 		Source            string
@@ -712,6 +720,9 @@ func TestMain(m *testing.M) {
 			},
 		},
 	} {
+		if *currentDB != "" && *currentDB != sqldata.Driver {
+			continue
+		}
 		var err error
 		TestDB, err = Open(sqldata.Driver, sqldata.Source)
 		fmt.Printf("=========== %s ===========\n", sqldata.Driver)
