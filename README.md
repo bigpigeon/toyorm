@@ -88,6 +88,8 @@ import database driver
 _ "github.com/go-sql-driver/mysql"
 // if database is sqlite3
 _ "github.com/mattn/go-sqlite3"
+// when database is postgres
+_ "github.com/lib/pq"
 ```
 
 create a toy
@@ -97,6 +99,8 @@ create a toy
 toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
 // if database is sqlite3
 toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
+// when database is postgres
+toy, err = toyorm.Open("postgres", "user=postgres dbname=toyorm sslmode=disable")
 ```
 
 
@@ -877,9 +881,9 @@ Find                | no       | no          | no                             | 
 
 
 
-### Full Feature Example
+### preload example
 
-[here](examples/full_feature_example)
+[here](examples/preload_example)
 
 ## Collection
 

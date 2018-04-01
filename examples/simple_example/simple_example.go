@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bigpigeon/toyorm"
+	"reflect"
 	. "unsafe"
 
 	// when database is mysql
-	_ "github.com/go-sql-driver/mysql"
+	//_ "github.com/go-sql-driver/mysql"
 	// when database is sqlite3
-	//_ "github.com/mattn/go-sqlite3"
-	"reflect"
+	_ "github.com/mattn/go-sqlite3"
+	// when database is postgres
+	//_ "github.com/lib/pq"
 )
 
 func JsonEncode(v interface{}) string {
@@ -43,9 +45,11 @@ func main() {
 	var toy *toyorm.Toy
 	var result *toyorm.Result
 	// when database is mysql, make sure your mysql have toyorm_example schema
-	toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
+	//toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
 	// when database is sqlite3
-	//toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
+	toy, err = toyorm.Open("sqlite3", "toyorm_test.db")
+	// when database is postgres
+	//toy, err = toyorm.Open("postgres", "user=postgres dbname=toyorm sslmode=disable")
 
 	brick := toy.Model(&Product{}).Debug()
 	result, err = brick.DropTableIfExist()

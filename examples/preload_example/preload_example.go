@@ -13,6 +13,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	// when database is sqlite3
 	//_ "github.com/mattn/go-sqlite3"
+	// when database is postgres
+	//_ "github.com/lib/pq"
 )
 
 type Extra map[string]interface{}
@@ -81,6 +83,8 @@ func main() {
 	toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
 	// when database is sqlite3
 	//toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
+	// when database is postgres
+	//toy, err = toyorm.Open("postgres", "user=postgres dbname=toyorm sslmode=disable")
 
 	var result *toyorm.Result
 	if err != nil {

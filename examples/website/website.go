@@ -2,21 +2,23 @@ package main
 
 import (
 	"crypto/sha1"
+	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/bigpigeon/toyorm"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"net/http"
 	"os"
 	. "unsafe"
 
 	// when database is mysql
-	_ "github.com/go-sql-driver/mysql"
+	//_ "github.com/go-sql-driver/mysql"
 	// when database is sqlite3
 	//_ "github.com/mattn/go-sqlite3"
-	"database/sql"
-	"errors"
-	"github.com/google/uuid"
+	// when database is postgres
+	_ "github.com/lib/pq"
 )
 
 type PostUser struct {
@@ -298,9 +300,11 @@ func createTableAndFillData(e Engine) {
 
 func main() {
 	// when database is mysql, make sure your mysql have toyorm_example schema
-	toy, err := toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
+	//toy, err := toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
 	// when database is sqlite3
 	//toy, err := toyorm.Open("sqlite3", ":memory")
+	// when database is postgres
+	toy, err := toyorm.Open("postgres", "user=postgres dbname=toyorm_example sslmode=disable")
 	if err != nil {
 		panic(err)
 	}

@@ -6,6 +6,8 @@ import (
 	"github.com/bigpigeon/toyorm"
 	. "unsafe"
 
+	// when database is postgres
+	//_ "github.com/lib/pq"
 	// when database is mysql
 	//_ "github.com/go-sql-driver/mysql"
 	// when database is sqlite3
@@ -20,25 +22,6 @@ func JsonEncode(v interface{}) string {
 		panic(err)
 	}
 	return string(jsonData)
-}
-
-func idSelector(n int, keys ...interface{}) int {
-	sum := 0
-	for _, k := range keys {
-		switch val := k.(type) {
-		case int:
-			sum += val
-		case int32:
-			sum += int(val)
-		case uint:
-			sum += int(val)
-		case uint32:
-			sum += int(val)
-		default:
-			panic("primary key type not match")
-		}
-	}
-	return sum % n
 }
 
 func PostsEncode(p *Post, indent string) string {
@@ -101,13 +84,22 @@ func main() {
 	var toy *toyorm.ToyCollection
 	var result *toyorm.Result
 	idGenerate := IDGenerator{}
+	// when database is postgres, make sure your mysql have toyorm_example schema
+	//toy, err = toyorm.OpenCollection("postgres", []string{
+	//	"user=postgres dbname=toyorm1 sslmode=disable",
+	//	"user=postgres dbname=toyorm2 sslmode=disable",
+	//}...)
+
 	// when database is mysql, make sure your mysql have toyorm_example schema
 	//toy, err = toyorm.OpenCollection("mysql", []string{
 	//	"root:@tcp(localhost:3306)/toyorm1?charset=utf8&parseTime=True",
 	//	"root:@tcp(localhost:3306)/toyorm2?charset=utf8&parseTime=True",
-	//})
+	//}...)
 	// when database is sqlite3
 	toy, err = toyorm.OpenCollection("sqlite3", []string{"", ""}...)
+	if err != nil {
+		panic(err)
+	}
 
 	userBrick := toy.Model(&User{})
 	brick := toy.Model(&Post{}).
@@ -127,7 +119,7 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
 
 	result, err = brick.CreateTableIfNotExist()
@@ -135,8 +127,10 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
+	fmt.Printf("create table report:\n%s\n", result.Report())
+
 	fmt.Printf("add users \n")
 	users := []User{
 		{Name: "Turing"},
@@ -149,7 +143,7 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
 	fmt.Printf("report:\n%s", result.Report())
 
@@ -219,7 +213,7 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
 	fmt.Printf("insert report:\n%s", result.Report())
 	fmt.Println("posts")
@@ -235,7 +229,7 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
 	fmt.Printf("find report:\n%s\n", result.Report())
 	fmt.Println("posts")
@@ -251,7 +245,7 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
 	fmt.Printf("delete report:\n%s\n", result.Report())
 
@@ -260,7 +254,7 @@ func main() {
 		panic(err)
 	}
 	if resultErr := result.Err(); resultErr != nil {
-		fmt.Print(resultErr)
+		fmt.Println(resultErr)
 	}
 
 	fmt.Printf("delete report:\n%s\n", result.Report())
@@ -273,7 +267,7 @@ func main() {
 			panic(err)
 		}
 		if resultErr := result.Err(); resultErr != nil {
-			fmt.Print(resultErr)
+			fmt.Println(resultErr)
 		}
 		fmt.Printf("find report:\n%s\n", result.Report())
 		fmt.Println("posts")
