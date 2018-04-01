@@ -135,3 +135,11 @@ type ErrLastInsertId struct{}
 func (e ErrLastInsertId) Error() string {
 	return "cannot scan last insert id"
 }
+
+type ErrTemplateExecInvalidWord struct {
+	Word string
+}
+
+func (e ErrTemplateExecInvalidWord) Error() string {
+	return fmt.Sprintf("template exec have invalid word %s", e.Word)
+}

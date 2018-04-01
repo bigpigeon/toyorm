@@ -2121,3 +2121,81 @@ func TestCollectionCount(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, count, 21)
 }
+
+func TestCollectionCustomExec(t *testing.T) {
+	brick := TestCollectionDB.Model(&TestCustomExecTable{})
+	createCollectionTableUnit(brick)(t)
+
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	}
+
+	data := []TestCustomExecTable{
+		{Data: "test custom exec table 1", Sync: 1},
+		{Data: "test custom exec table 2", Sync: 2},
+	}
+	var result *Result
+	var err error
+	if TestDriver == "postgres" {
+		result, err = brick.Template("INSERT INTO $ModelName($Columns) Values($Values) RETURNING $FN-ID").Insert(&data)
+	} else {
+		result, err = brick.Template("INSERT INTO $ModelName($Columns) Values($Values)").Insert(&data)
+	}
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	if TestDriver == "postgres" {
+		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5,$6) RETURNING id")
+	} else {
+		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?,?)")
+	}
+
+	var scanData []TestCustomExecTable
+	result, err = brick.Template("SELECT $Columns FROM $ModelName").Find(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table")
+	assert.Equal(t, len(scanData), len(data))
+	sort.Slice(scanData, func(i, j int) bool {
+		return scanData[i].ID < scanData[j].ID
+	})
+	for i := range data {
+		assert.Equal(t, data[i].ID, scanData[i].ID)
+		assert.Equal(t, data[i].Data, scanData[i].Data)
+		assert.NotZero(t, scanData[i].CreatedAt)
+		assert.NotZero(t, scanData[i].UpdatedAt)
+	}
+
+	var scanOne TestCustomExecTable
+	result, err = brick.Where(ExprEqual, Offsetof(scanOne.ID), 2).Template("SELECT $Columns FROM $ModelName $Conditions").Find(&scanOne)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	if TestDriver == "postgres" {
+		assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table  WHERE deleted_at IS NULL AND id = $1")
+	} else {
+		assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table  WHERE deleted_at IS NULL AND id = ?")
+	}
+	assert.Equal(t, len(scanData), len(data))
+
+	result, err = brick.Template("UPDATE $ModelName SET $Values WHERE id = ?", 2).Update(&TestCustomExecTable{Sync: 5})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	if TestDriver == "postgres" {
+		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = $1,sync = $2 WHERE id = $3")
+	} else {
+		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = ?,sync = ? WHERE id = ?")
+	}
+
+}

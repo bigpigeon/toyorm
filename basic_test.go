@@ -44,3 +44,69 @@ func TestSafeAppend(t *testing.T) {
 	}
 
 }
+
+func TestTemplateExecWord(t *testing.T) {
+	{
+		exec, err := getTemplateExec(BasicExec{
+			query: "Select $ModelName $db $1",
+		}, map[string]BasicExec{
+			"ModelName": {"user", nil},
+			"db":        {"toyorm", nil},
+			"1":         {"args1", nil},
+		})
+		assert.Nil(t, err)
+		t.Log(exec.query)
+		assert.Equal(t, exec.query, "Select user toyorm args1")
+	}
+	{
+		exec, err := getTemplateExec(BasicExec{
+			query: "Select $ModelName-$db_$1",
+		}, map[string]BasicExec{
+			"ModelName": {"user", nil},
+			"db":        {"toyorm", nil},
+			"1":         {"args1", nil},
+		})
+		assert.Nil(t, err)
+		t.Log(exec.query)
+		assert.Equal(t, exec.query, "Select user-toyorm_args1")
+	}
+	{
+		_, err := getTemplateExec(BasicExec{
+			query: "Select $-",
+		}, map[string]BasicExec{})
+		assert.Equal(t, err, ErrTemplateExecInvalidWord{"$"})
+	}
+	{
+		_, err := getTemplateExec(BasicExec{
+			query: "Select $User-",
+		}, map[string]BasicExec{})
+		assert.Equal(t, err, ErrTemplateExecInvalidWord{"$User"})
+	}
+
+	{
+		exec, err := getTemplateExec(BasicExec{
+			query: "Select \\$User",
+		}, map[string]BasicExec{})
+		assert.Nil(t, err)
+		t.Log(exec.query)
+		assert.Equal(t, exec.query, "Select $User")
+	}
+}
+
+func TestTemplateExec(t *testing.T) {
+	{
+		exec, err := getTemplateExec(BasicExec{
+			query: "Select * From $ModelName $Condition Or id = ? $Limit",
+			args:  []interface{}{2},
+		}, map[string]BasicExec{
+			"ModelName": {"user", nil},
+			"Condition": {"WHERE age > ? AND id = ?", []interface{}{20, 1}},
+			"Limit":     {"Limit = ?", []interface{}{10}},
+		})
+		assert.Nil(t, err)
+		t.Log(exec.query, exec.args)
+		assert.Equal(t, exec.query, "Select * From user WHERE age > ? AND id = ? Or id = ? Limit = ?")
+		assert.Equal(t, exec.args, []interface{}{20, 1, 2, 10})
+	}
+
+}

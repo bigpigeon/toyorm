@@ -40,6 +40,7 @@ type Dialect interface {
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 	CountExec(*Model) ExecValue
 	SearchExec(search SearchList) ExecValue
+	TemplateExec(BasicExec, map[string]BasicExec) (ExecValue, error)
 }
 
 type DefaultDialect struct{}
@@ -261,8 +262,8 @@ func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
 func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) ExecValue {
 	fieldStr := ""
 	qStr := ""
-	columnList := []string{}
-	qList := []string{}
+	var columnList []string
+	var qList []string
 	var args []interface{}
 	for _, r := range columnValues {
 		columnList = append(columnList, r.Column())
@@ -320,4 +321,13 @@ func (dia DefaultDialect) DropForeignKey(model *Model, ForeignKeyField Field) Ex
 
 func (dia DefaultDialect) CountExec(model *Model) ExecValue {
 	return DefaultExec{fmt.Sprintf("SELECT count(*) FROM `%s`", model.Name), nil}
+}
+
+func (dia DefaultDialect) TemplateExec(tExec BasicExec, execs map[string]BasicExec) (ExecValue, error) {
+	exec, err := getTemplateExec(tExec, execs)
+	if err != nil {
+		return nil, err
+	}
+	return DefaultExec{exec.query, exec.args}, nil
+
 }

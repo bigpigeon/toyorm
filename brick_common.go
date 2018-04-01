@@ -89,7 +89,7 @@ func (t *BrickCommon) getFieldValuePairWithRecord(mode Mode, record ModelRecord)
 	return columnValues
 }
 
-func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) []Field {
+func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) []Column {
 	var fields []Field
 	if len(t.FieldsSelector[ModeSelect]) > 0 {
 		fields = t.FieldsSelector[ModeSelect]
@@ -98,7 +98,12 @@ func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) []Field {
 	} else {
 		fields = t.Model.GetSqlFields()
 	}
-	return getFieldsWithRecords(fields, records)
+	fields = getFieldsWithRecords(fields, records)
+	var columns []Column
+	for _, field := range fields {
+		columns = append(columns, field)
+	}
+	return columns
 }
 
 func (t *BrickCommon) getScanFields(records ModelRecordFieldTypes) []Field {

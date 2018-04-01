@@ -2162,3 +2162,79 @@ func TestCount(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, count, 21)
 }
+
+func TestInsertFailure(t *testing.T) {
+	type NotExistTable struct {
+		ModelDefault
+		Data string
+	}
+	brick := TestDB.Model(&NotExistTable{}).Debug()
+	data := NotExistTable{
+		Data: "not exist table 1",
+	}
+	result, err := brick.Insert(&data)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Log(err)
+	} else {
+		t.Error("insert failure need return error")
+	}
+}
+
+func TestCustomExec(t *testing.T) {
+	brick := TestDB.Model(&TestCustomExecTable{})
+	createTableUnit(brick)(t)
+
+	data := []TestCustomExecTable{
+		{Data: "test custom exec table 1", Sync: 1},
+		{Data: "test custom exec table 2", Sync: 2},
+	}
+	var result *Result
+	var err error
+	if TestDriver == "postgres" {
+		result, err = brick.Template("INSERT INTO $ModelName($Columns) Values($Values) RETURNING $FN-ID").Insert(&data)
+	} else {
+		result, err = brick.Template("INSERT INTO $ModelName($Columns) Values($Values)").Insert(&data)
+	}
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	if TestDriver == "postgres" {
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5) RETURNING id")
+	} else {
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?)")
+	}
+
+	var scanData []TestCustomExecTable
+	result, err = brick.Template("SELECT $Columns FROM $ModelName").Find(&scanData)
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	assert.Equal(t, result.ActionFlow[0].(QueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table")
+	assert.Equal(t, len(scanData), len(data))
+	for i := range data {
+		assert.Equal(t, data[i].ID, scanData[i].ID)
+		assert.Equal(t, data[i].Data, scanData[i].Data)
+		assert.NotZero(t, scanData[i].CreatedAt)
+		assert.NotZero(t, scanData[i].UpdatedAt)
+	}
+
+	result, err = brick.Template("UPDATE $ModelName SET $Values WHERE id = ?", 2).Update(&TestCustomExecTable{Sync: 5})
+	assert.Nil(t, err)
+	if err := result.Err(); err != nil {
+		t.Error(err)
+	}
+	t.Logf("report:\n%s\n", result.Report())
+	if TestDriver == "postgres" {
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = $1,sync = $2 WHERE id = $3")
+	} else {
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = ?,sync = ? WHERE id = ?")
+	}
+
+	// TODO test save
+
+}

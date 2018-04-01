@@ -386,3 +386,11 @@ func (dia PostgreSqlDialect) DropForeignKey(model *Model, ForeignKeyField Field)
 func (dia PostgreSqlDialect) CountExec(model *Model) ExecValue {
 	return QToSExec{DefaultExec{fmt.Sprintf(`SELECT count(*) FROM "%s"`, model.Name), nil}}
 }
+
+func (dia PostgreSqlDialect) TemplateExec(tExec BasicExec, execs map[string]BasicExec) (ExecValue, error) {
+	exec, err := getTemplateExec(tExec, execs)
+	if err != nil {
+		return nil, err
+	}
+	return QToSExec{DefaultExec{exec.query, exec.args}}, nil
+}

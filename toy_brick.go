@@ -26,12 +26,12 @@ type ToyBrick struct {
 	debug bool
 	tx    *sql.Tx
 
-	orderBy []Column
-	Search  SearchList
-	offset  int
-	limit   int
-	groupBy []Column
-
+	orderBy  []Column
+	Search   SearchList
+	offset   int
+	limit    int
+	groupBy  []Column
+	template *BasicExec
 	BrickCommon
 }
 
@@ -405,6 +405,18 @@ func (t *ToyBrick) GroupBy(vList ...interface{}) *ToyBrick {
 	})
 }
 
+func (t *ToyBrick) Template(temp string, args ...interface{}) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		if temp == "" && len(args) == 0 {
+			newt.template = nil
+		} else {
+			newt.template = &BasicExec{temp, args}
+		}
+		return &newt
+	})
+}
+
 func (t *ToyBrick) Begin() *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
@@ -696,12 +708,8 @@ func (t *ToyBrick) ConditionExec() ExecValue {
 }
 
 func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
-	var columns []Column
-	for _, mField := range t.getSelectFields(records) {
-		columns = append(columns, mField)
-	}
 
-	exec := t.Toy.Dialect.FindExec(t.Model, columns)
+	exec := t.Toy.Dialect.FindExec(t.Model, t.getSelectFields(records))
 
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)

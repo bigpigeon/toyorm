@@ -3,31 +3,33 @@ go:
   - 1.9
   - master
 
+services:
+  - mysql
+  - postgresql
+
+git:
+  depth: 3
+
 go_import_path: github.com/bigpigeon/toyorm
+
+
 
 before_install:
   - go get -t -v ./...
   - go get -u github.com/client9/misspell/cmd/misspell
-
-before_script:
-  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
-  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
-  - sh -c "if [ '$DB' = 'mysql' ]; then mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'; fi"
-
-  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE toyorm;' -U postgres; fi"
-  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE toyorm1;' -U postgres; fi"
-  - sh -c "if [ '$DB' = 'postgres' ]; then psql -c 'CREATE DATABASE toyorm2;' -U postgres; fi"
+  - mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+  - mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+  - mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+  - psql -c 'CREATE DATABASE toyorm;' -U postgres;
+  - psql -c 'CREATE DATABASE toyorm1;' -U postgres;
+  - psql -c 'CREATE DATABASE toyorm2;' -U postgres;
   - go vet .
   - diff=$(gofmt -s -d .);if [ -n "$diff" ]; then exit 1; fi;
   - misspell -error .
 
-env:
-  - DB=sqlite
-  - DB=mysql
-  - DB=postgres
 
 script:
-  - go test -race -coverprofile=coverage.txt -covermode=atomic -db $DB $(go list ./...|grep -v /examples/)
+  - go test -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...|grep -v /examples/)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

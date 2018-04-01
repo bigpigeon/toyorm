@@ -7,9 +7,11 @@
 package toyorm
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -266,4 +268,146 @@ func ModelName(_type reflect.Type) string {
 		modelName = SqlNameConvert(_type.Name())
 	}
 	return modelName
+}
+
+func DefaultTemplateExec(ctx *Context) map[string]BasicExec {
+	cExec := ctx.Brick.ConditionExec()
+	result := map[string]BasicExec{
+		"ModelName":  {ctx.Brick.Model.Name, nil},
+		"Conditions": {cExec.Query(), cExec.Args()},
+	}
+	for _, field := range ctx.Brick.Model.GetSqlFields() {
+		// add field name placeholder exec
+		result["FN-"+field.Name()] = BasicExec{field.Column(), nil}
+		// add field offset placeholder exec
+		result[fmt.Sprintf("FO-%d", field.Offset())] = BasicExec{field.Column(), nil}
+	}
+	return result
+}
+
+func DefaultCollectionTemplateExec(ctx *CollectionContext) map[string]BasicExec {
+	cExec := ctx.Brick.ConditionExec()
+	result := map[string]BasicExec{
+		"ModelName":  {ctx.Brick.Model.Name, nil},
+		"Conditions": {cExec.Query(), cExec.Args()},
+		"DBIndex":    {fmt.Sprintf("%d", ctx.Brick.dbIndex), nil},
+	}
+	for _, field := range ctx.Brick.Model.GetSqlFields() {
+		// add field name placeholder exec
+		result["FN-"+field.Name()] = BasicExec{field.Column(), nil}
+		// add field offset placeholder exec
+		result[fmt.Sprintf("FO-%d", field.Offset())] = BasicExec{field.Column(), nil}
+	}
+	return result
+}
+
+// placeholder format:
+// $Name   ok
+// $name   ok
+// $1Name  ok
+// $User-Name  ok
+// $user_name  ok
+// $User-  no, the placeholder are interception as $User
+// $user_name_ no, the placeholder are interception as $user_name
+// $-   error, placeholder is null
+func getTemplateExec(exec BasicExec, execs map[string]BasicExec) (BasicExec, error) {
+	buff := bytes.Buffer{}
+	var pre, i int
+	var args []interface{}
+	isEscaping := false
+	qNum := 0
+	for i < len(exec.query) {
+		switch exec.query[i] {
+		case '$':
+			if isEscaping == false {
+				buff.WriteString(exec.query[pre:i])
+				i++
+				pre = i
+				end := i
+				for i < len(exec.query) {
+					c := exec.query[i]
+					i++
+					if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+						end = i
+					} else if c == '-' || c == '_' {
+
+					} else {
+						break
+					}
+				}
+				word := exec.query[pre:end]
+				if word == "" {
+					return BasicExec{}, ErrTemplateExecInvalidWord{"$"}
+				} else if match, ok := execs[word]; ok {
+					buff.WriteString(match.query)
+					args = append(args, match.args...)
+				} else {
+					return BasicExec{}, ErrTemplateExecInvalidWord{"$" + word}
+				}
+
+				pre, i = end, end
+			} else {
+				buff.WriteString(exec.query[pre : i-1])
+				buff.WriteByte(exec.query[i])
+
+				pre, i = i+1, i+1
+			}
+		case '?':
+			args = append(args, exec.args[qNum])
+			qNum++
+			i++
+		case '\\':
+			i++
+			isEscaping = true
+			continue
+		default:
+			i++
+		}
+		isEscaping = false
+	}
+	args = append(args, exec.args[qNum:]...)
+
+	buff.WriteString(exec.query[pre:i])
+	return BasicExec{buff.String(), args}, nil
+}
+
+func columnsValueToColumn(values []ColumnValue) []Column {
+	var columns []Column
+	for _, field := range values {
+		columns = append(columns, field)
+	}
+	return columns
+}
+
+func getColumnExec(columns []Column) BasicExec {
+	var _list []string
+	for _, column := range columns {
+		_list = append(_list, column.Column())
+	}
+	return BasicExec{strings.Join(_list, ","), nil}
+}
+
+// e.g return BasicExec{query: "?,?,?" args:[1,2,3]}
+func getValuesExec(values []ColumnValue) BasicExec {
+	var args []interface{}
+	var qList []string
+	for _, value := range values {
+		qList = append(qList, "?")
+		args = append(args, value.Value().Interface())
+	}
+
+	return BasicExec{strings.Join(qList, ","), args}
+}
+
+// e.g return BasicExec{query: "a = ?,b = ?,c = ?" args:[1,2,3]}
+func getUpdateValuesExec(values []ColumnValue) BasicExec {
+	var args []interface{}
+	var _list []string
+
+	for _, value := range values {
+		_list = append(_list, value.Column()+" = ?")
+		args = append(args, value.Value().Interface())
+	}
+
+	return BasicExec{strings.Join(_list, ","), args}
 }

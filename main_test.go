@@ -20,6 +20,7 @@ import (
 
 var (
 	TestDB           *Toy
+	TestDriver       string
 	TestCollectionDB *ToyCollection
 )
 
@@ -608,6 +609,12 @@ type User struct {
 	Orders   []Order
 }
 
+type TestCustomExecTable struct {
+	ModelDefault
+	Data string
+	Sync int
+}
+
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {
@@ -690,13 +697,13 @@ func CollectionIDGenerate(ctx *CollectionContext) error {
 
 }
 
-var currentDB = flag.String("db", "", "current test db")
+var currentDriver = flag.String("db", "", "current test db")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	if *currentDB == "sqlite" {
-		*currentDB = "sqlite3"
+	if *currentDriver == "sqlite" {
+		*currentDriver = "sqlite3"
 	}
 	for _, sqldata := range []struct {
 		Driver            string
@@ -720,10 +727,11 @@ func TestMain(m *testing.M) {
 			},
 		},
 	} {
-		if *currentDB != "" && *currentDB != sqldata.Driver {
+		if *currentDriver != "" && *currentDriver != sqldata.Driver {
 			continue
 		}
 		var err error
+		TestDriver = sqldata.Driver
 		TestDB, err = Open(sqldata.Driver, sqldata.Source)
 		fmt.Printf("=========== %s ===========\n", sqldata.Driver)
 		fmt.Printf("connect to %s \n\n", sqldata.Source)
@@ -752,6 +760,8 @@ func TestMain(m *testing.M) {
 			fmt.Printf("Error: cannot open %s\n", err)
 			goto Close
 		}
+		// reset id generate
+		idGenerator = map[reflect.Type]chan int{}
 		m.Run()
 	Close:
 		TestDB.Close()

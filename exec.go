@@ -20,6 +20,11 @@ type ExecValue interface {
 	JsonArgs() string
 }
 
+type BasicExec struct {
+	query string
+	args  []interface{}
+}
+
 // not process source str, Source() == Query()
 type DefaultExec struct {
 	query string

@@ -245,7 +245,19 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 	setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
-		action.Exec = ctx.Brick.InsertExec(record)
+		var err error
+		if ctx.Brick.template == nil {
+			action.Exec = ctx.Brick.InsertExec(record)
+		} else {
+			tempMap := DefaultCollectionTemplateExec(ctx)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
+			tempMap["Values"] = getValuesExec(values)
+			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+			if err != nil {
+				return err
+			}
+		}
 		action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 			ctx.Brick.Toy.dbs[action.dbIndex],
 			action.Exec,
@@ -648,10 +660,23 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 			}
 		}
 		var action CollectionExecAction
+		var err error
 		if tryInsert {
 			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 
-			action.Exec = ctx.Brick.InsertExec(record)
+			if ctx.Brick.template == nil {
+				action.Exec = ctx.Brick.InsertExec(record)
+			} else {
+				tempMap := DefaultCollectionTemplateExec(ctx)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
+				tempMap["Values"] = getValuesExec(values)
+				tempMap["UpdateValues"] = getUpdateValuesExec(values)
+				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+				if err != nil {
+					return err
+				}
+			}
 			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 				ctx.Brick.Toy.dbs[action.dbIndex],
 				action.Exec,
@@ -675,7 +700,19 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 			}
 		} else {
 			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
-			action.Exec = ctx.Brick.ReplaceExec(record)
+			if ctx.Brick.template == nil {
+				action.Exec = ctx.Brick.ReplaceExec(record)
+			} else {
+				tempMap := DefaultCollectionTemplateExec(ctx)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record)
+				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
+				tempMap["Values"] = getValuesExec(values)
+				tempMap["UpdateValues"] = getUpdateValuesExec(values)
+				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+				if err != nil {
+					return err
+				}
+			}
 			action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		}
 		ctx.Result.AddRecord(action)
@@ -837,8 +874,19 @@ func CollectionHandlerFind(ctx *CollectionContext) error {
 		return ErrDbIndexNotSet{}
 	}
 	action := CollectionQueryAction{
-		Exec:    ctx.Brick.FindExec(ctx.Result.Records),
 		dbIndex: ctx.Brick.dbIndex,
+	}
+	var err error
+	// use template or use default exec
+	if ctx.Brick.template == nil {
+		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
+	} else {
+		tempMap := DefaultCollectionTemplateExec(ctx)
+		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records))
+		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+		if err != nil {
+			return err
+		}
 	}
 	rows, err := ctx.Brick.Query(action.Exec, action.dbIndex)
 	if err != nil {
@@ -877,6 +925,7 @@ func CollectionHandlerFindOneAssignDbIndex(ctx *CollectionContext) error {
 		dbCtx := NewCollectionContext(ctx.handlers[ctx.index+1:], ctx.Brick.DBIndex(i), ctx.Result.Records)
 		err := dbCtx.Next()
 		if err != nil {
+			fmt.Printf("not row %v\n", err)
 			return err
 		}
 
@@ -894,8 +943,19 @@ func CollectionHandlerFindOne(ctx *CollectionContext) error {
 		return ErrDbIndexNotSet{}
 	}
 	action := CollectionQueryAction{
-		Exec:    ctx.Brick.FindExec(ctx.Result.Records),
 		dbIndex: ctx.Brick.dbIndex,
+	}
+	var err error
+	// use template or use default exec
+	if ctx.Brick.template == nil {
+		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
+	} else {
+		tempMap := DefaultCollectionTemplateExec(ctx)
+		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records))
+		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+		if err != nil {
+			return err
+		}
 	}
 	rows, err := ctx.Brick.Query(action.Exec, action.dbIndex)
 	if err != nil {
@@ -949,7 +1009,20 @@ func CollectionHandlerUpdate(ctx *CollectionContext) error {
 		return ErrDbIndexNotSet{}
 	}
 	for i, record := range ctx.Result.Records.GetRecords() {
-		action := CollectionExecAction{Exec: ctx.Brick.UpdateExec(record), affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
+		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
+		var err error
+		if ctx.Brick.template == nil {
+			action.Exec = ctx.Brick.UpdateExec(record)
+		} else {
+			tempMap := DefaultCollectionTemplateExec(ctx)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record)
+			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
+			tempMap["Values"] = getUpdateValuesExec(values)
+			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+			if err != nil {
+				return err
+			}
+		}
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		ctx.Result.AddRecord(action)
 	}

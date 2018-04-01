@@ -32,6 +32,7 @@ type CollectionBrick struct {
 	//offset int
 	//limit  int
 	//groupBy []Column
+	template *BasicExec
 
 	selector DBPrimarySelector
 	dbIndex  int
@@ -344,6 +345,18 @@ func (t *CollectionBrick) DBIndex(i int) *CollectionBrick {
 	})
 }
 
+func (t *CollectionBrick) Template(temp string, args ...interface{}) *CollectionBrick {
+	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
+		newt := *t
+		if temp == "" && len(args) == 0 {
+			newt.template = nil
+		} else {
+			newt.template = &BasicExec{temp, args}
+		}
+		return &newt
+	})
+}
+
 func (t *CollectionBrick) IgnoreMode(s Mode, ignore IgnoreMode) *CollectionBrick {
 	newt := *t
 	newt.ignoreModeSelector[s] = ignore
@@ -604,12 +617,7 @@ func (t *CollectionBrick) ConditionExec() ExecValue {
 }
 
 func (t *CollectionBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
-	var columns []Column
-	for _, mField := range t.getSelectFields(records) {
-		columns = append(columns, mField)
-	}
-
-	exec := t.Toy.Dialect.FindExec(t.Model, columns)
+	exec := t.Toy.Dialect.FindExec(t.Model, t.getSelectFields(records))
 
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
