@@ -280,7 +280,7 @@ func DefaultTemplateExec(ctx *Context) map[string]BasicExec {
 		// add field name placeholder exec
 		result["FN-"+field.Name()] = BasicExec{field.Column(), nil}
 		// add field offset placeholder exec
-		result[fmt.Sprintf("FO-%d", field.Offset())] = BasicExec{field.Column(), nil}
+		result[fmt.Sprintf("0x%x", field.Offset())] = BasicExec{field.Column(), nil}
 	}
 	return result
 }

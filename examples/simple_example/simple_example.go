@@ -330,4 +330,56 @@ func main() {
 			fmt.Printf("group %#v\n", g)
 		}
 	}
+	// custom insert
+	{
+		data := Product{
+			Name:  "bag",
+			Price: 9999,
+			Count: 2,
+			Tag:   "container",
+		}
+		result, err := brick.Template("INSERT INTO $ModelName($Columns) Values($Values)").Insert(&data)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+	}
+	// custom find
+	{
+		var data Product
+		// if driver is mysql use "USE INDEX" replace "INDEXED BY"
+		result, err := brick.Template("SELECT $Columns FROM $ModelName INDEXED BY idx_product_name $Conditions").
+			Where("=", Offsetof(Product{}.Name), "bag").Find(&data)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		fmt.Printf("find where name = bag %v\n", data)
+	}
+	// custom update
+	{
+		fmt.Printf("the template source %s\n", fmt.Sprintf("UPDATE $ModelName SET $Values,$FN-Count = $0x%x + ? $Conditions", Offsetof(Product{}.Count)))
+		result, err := brick.Template(fmt.Sprintf("UPDATE $ModelName SET $Values,$FN-Count = $0x%x + ? $Conditions", Offsetof(Product{}.Count)), 2).
+			Where("=", Offsetof(Product{}.Name), "bag").Update(&Product{Price: 200})
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+		var data Product
+		result, err = brick.Where("=", Offsetof(Product{}.Name), "bag").Find(&data)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+
+		fmt.Printf("now bag product count is %d\n", data.Count)
+	}
 }
