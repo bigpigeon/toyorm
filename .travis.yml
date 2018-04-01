@@ -17,9 +17,9 @@ go_import_path: github.com/bigpigeon/toyorm
 before_install:
   - go get -t -v ./...
   - go get -u github.com/client9/misspell/cmd/misspell
-  - mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-  - mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-  - mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+  - mysql -e 'CREATE DATABASE toyorm DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
+  - mysql -e 'CREATE DATABASE toyorm1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
+  - mysql -e 'CREATE DATABASE toyorm2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;'
   - psql -c 'CREATE DATABASE toyorm;' -U postgres;
   - psql -c 'CREATE DATABASE toyorm1;' -U postgres;
   - psql -c 'CREATE DATABASE toyorm2;' -U postgres;
