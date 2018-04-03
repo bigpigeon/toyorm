@@ -32,6 +32,10 @@ type ToyBrick struct {
 	limit    int
 	groupBy  []Column
 	template *BasicExec
+	// use join to association query in one command
+	BelongToJoin map[string]*BelongToPreload
+	OneToOneJoin map[string]*OneToOnePreload
+
 	BrickCommon
 }
 
@@ -77,6 +81,22 @@ func (t *ToyBrick) CopyStatus(statusBrick *ToyBrick) *ToyBrick {
 	newt.ignoreModeSelector = t.ignoreModeSelector
 
 	return &newt
+}
+
+func (t *ToyBrick) CopyBelongToJoin() map[string]*BelongToPreload {
+	preloadMap := map[string]*BelongToPreload{}
+	for k, v := range t.BelongToJoin {
+		preloadMap[k] = v
+	}
+	return preloadMap
+}
+
+func (t *ToyBrick) CopyOneToOneJoin() map[string]*OneToOnePreload {
+	preloadMap := map[string]*OneToOnePreload{}
+	for k, v := range t.OneToOneJoin {
+		preloadMap[k] = v
+	}
+	return preloadMap
 }
 
 // return it parent ToyBrick
@@ -157,6 +177,30 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 			panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), field.Name()})
 		}
 		return newSubt
+	})
+}
+
+// use join to association query
+func (t *ToyBrick) Join(fv interface{}) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		field := t.Model.fieldSelect(fv)
+
+		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
+		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+
+		newt := *t
+		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+		newt.MapPreloadBrick[field.Name()] = newSubt
+		newSubt.preBrick = PreToyBrick{&newt, field}
+		if preload := newt.Toy.BelongToPreload(newt.Model, field); preload != nil {
+			newt.BelongToJoin = t.CopyBelongToJoin()
+			newt.BelongToJoin[field.Name()] = preload
+		} else if preload := newt.Toy.OneToOnePreload(newt.Model, field); preload != nil {
+			newt.OneToOneJoin = t.CopyOneToOneJoin()
+			newt.OneToOneJoin[field.Name()] = preload
+		}
+
+		return &newt
 	})
 }
 
