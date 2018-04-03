@@ -64,7 +64,7 @@ this is powerful sql orm library for Golang, have some funny features
 
 ### Support database
 
-[sqlite3](https://www.sqlite.org/)  [mysql](https://www.mysql.com/)
+[sqlite3](https://www.sqlite.org/)  [mysql](https://www.mysql.com/) [postgresql](https://www.postgresql.org/)
 
 ### Go version
 
