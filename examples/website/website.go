@@ -100,7 +100,10 @@ func (e Engine) UserPage(ctx *gin.Context) {
 
 func (e Engine) UserEditPage(ctx *gin.Context) {
 	if ctx.Keys["current"] == nil {
-		ctx.AbortWithError(400, errors.New("current session is nil"))
+		ctx.HTML(400, "error.tmpl", gin.H{
+			"error":   errors.New("current session is nil"),
+			"current": ctx.Keys["current"],
+		})
 		return
 	}
 	brick := e.Toy.Model(&User{}).Where("=", Offsetof(User{}.ID), ctx.Keys["current"].(*User).ID).
@@ -112,7 +115,10 @@ func (e Engine) UserEditPage(ctx *gin.Context) {
 			"current": &user,
 		})
 	} else {
-		ctx.AbortWithError(400, errors.New("user not found"))
+		ctx.HTML(400, "error.tmpl", gin.H{
+			"error":   errors.New("user not found"),
+			"current": ctx.Keys["current"],
+		})
 	}
 }
 
@@ -139,7 +145,10 @@ func (e Engine) PostNewUser(ctx *gin.Context) {
 		if ResultProcess(result, err, ctx) {
 			session, err := uuid.NewRandom()
 			if err != nil {
-				ctx.AbortWithError(500, err)
+				ctx.HTML(500, "error.tmpl", gin.H{
+					"error":   err,
+					"current": ctx.Keys["current"],
+				})
 			}
 			e.Session[session.String()] = user.ID
 			ctx.SetCookie("session", session.String(), 0, "", "", false, false)
@@ -149,7 +158,10 @@ func (e Engine) PostNewUser(ctx *gin.Context) {
 			})
 		}
 	} else {
-		ctx.AbortWithError(500, err)
+		ctx.HTML(500, "error.tmpl", gin.H{
+			"error":   err,
+			"current": ctx.Keys["current"],
+		})
 	}
 }
 
@@ -171,10 +183,16 @@ func (e Engine) UpdateUser(ctx *gin.Context) {
 				})
 			}
 		} else {
-			ctx.AbortWithError(500, err)
+			ctx.HTML(500, "error.tmpl", gin.H{
+				"error":   err,
+				"current": ctx.Keys["current"],
+			})
 		}
 	} else {
-		ctx.AbortWithError(400, errors.New("session is nil or id not match"))
+		ctx.HTML(400, "error.tmpl", gin.H{
+			"error":   errors.New("session is nil or id not match"),
+			"current": ctx.Keys["current"],
+		})
 	}
 }
 
@@ -214,10 +232,16 @@ func (e Engine) PostOrder(ctx *gin.Context) {
 			}
 
 		} else {
-			ctx.AbortWithError(400, err)
+			ctx.HTML(400, "error.tmpl", gin.H{
+				"error":   err,
+				"current": ctx.Keys["current"],
+			})
 		}
 	} else {
-		ctx.AbortWithError(400, errors.New("session invalid"))
+		ctx.HTML(400, "error.tmpl", gin.H{
+			"error":   errors.New("session invalid"),
+			"current": ctx.Keys["current"],
+		})
 	}
 
 }
@@ -236,13 +260,19 @@ func (e Engine) PostSession(ctx *gin.Context) {
 			Find(&findData)
 		fmt.Printf("check user password and name user:\n")
 		if err == sql.ErrNoRows {
-			ctx.AbortWithError(400, err)
+			ctx.HTML(400, "error.tmpl", gin.H{
+				"error":   err,
+				"current": ctx.Keys["current"],
+			})
 			return
 		}
 		if ResultProcess(result, err, ctx) {
 			session, err := uuid.NewRandom()
 			if err != nil {
-				ctx.AbortWithError(500, err)
+				ctx.HTML(500, "error.tmpl", gin.H{
+					"error":   err,
+					"current": ctx.Keys["current"],
+				})
 			}
 			e.Session[session.String()] = findData.ID
 			ctx.SetCookie("session", session.String(), 0, "", "", false, false)
@@ -251,7 +281,10 @@ func (e Engine) PostSession(ctx *gin.Context) {
 			})
 		}
 	} else {
-		ctx.AbortWithError(500, err)
+		ctx.HTML(500, "error.tmpl", gin.H{
+			"error":   err,
+			"current": ctx.Keys["current"],
+		})
 	}
 }
 
