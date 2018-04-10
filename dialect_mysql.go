@@ -103,7 +103,7 @@ func (dia MySqlDialect) ReplaceExec(model *Model, columnValues []ColumnValue) Ex
 
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
-		fmt.Sprintf("Insert INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
+		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
 		args...,
 	)
 

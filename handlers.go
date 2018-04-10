@@ -187,7 +187,7 @@ func HandlerInsert(ctx *Context) error {
 			action.Exec = ctx.Brick.InsertExec(record)
 		} else {
 			tempMap := DefaultTemplateExec(ctx)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getValuesExec(values)
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
@@ -230,12 +230,14 @@ func HandlerInsert(ctx *Context) error {
 func HandlerFind(ctx *Context) error {
 	var action QueryAction
 	var err error
+	columns, scannersGen := FindColumnFactory(ctx.Result.Records, ctx.Brick)
+
 	// use template or use default exec
 	if ctx.Brick.template == nil {
-		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
+		action.Exec = ctx.Brick.FindExec(columns)
 	} else {
 		tempMap := DefaultTemplateExec(ctx)
-		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records))
+		tempMap["Columns"] = getColumnExec(columns)
 		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 		if err != nil {
 			return err
@@ -254,12 +256,7 @@ func HandlerFind(ctx *Context) error {
 		elem := reflect.New(ctx.Result.Records.ElemType()).Elem()
 		ctx.Result.Records.Len()
 		record := ctx.Result.Records.Add(elem)
-
-		var scanners []interface{}
-		for _, field := range ctx.Brick.getScanFields(ctx.Result.Records) {
-			value := record.Field(field.Name())
-			scanners = append(scanners, value.Addr().Interface())
-		}
+		scanners := scannersGen(record)
 		err := rows.Scan(scanners...)
 		action.Error = append(action.Error, err)
 	}
@@ -495,7 +492,7 @@ func HandlerUpdate(ctx *Context) error {
 			action.Exec = ctx.Brick.UpdateExec(record)
 		} else {
 			tempMap := DefaultTemplateExec(ctx)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getUpdateValuesExec(values)
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
@@ -532,7 +529,7 @@ func HandlerSave(ctx *Context) error {
 				action.Exec = ctx.Brick.InsertExec(record)
 			} else {
 				tempMap := DefaultTemplateExec(ctx)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
 				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 				tempMap["Values"] = getValuesExec(values)
 				tempMap["UpdateValues"] = getUpdateValuesExec(values)
@@ -574,7 +571,7 @@ func HandlerSave(ctx *Context) error {
 				action.Exec = ctx.Brick.ReplaceExec(record)
 			} else {
 				tempMap := DefaultTemplateExec(ctx)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record).ToValueList()
 				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 				tempMap["Values"] = getValuesExec(values)
 				tempMap["UpdateValues"] = getUpdateValuesExec(values)
@@ -621,7 +618,8 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 		}
 
 		if primaryKeys.Len() > 0 {
-			action.Exec = brick.Where(ExprIn, primaryField, primaryKeys.Interface()).FindExec(ctx.Result.Records)
+			columns := brick.getSelectFields(ctx.Result.Records)
+			action.Exec = brick.Where(ExprIn, primaryField, primaryKeys.Interface()).FindExec(columns.ToColumnList())
 
 			rows, err := brick.Query(action.Exec)
 			if err != nil {

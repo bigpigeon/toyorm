@@ -31,7 +31,7 @@ type Dialect interface {
 	CreateTable(*Model, map[string]ForeignKey) []ExecValue
 	DropTable(*Model) ExecValue
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) ExecValue
-	FindExec(model *Model, columns []Column) ExecValue
+	FindExec(model *Model, columns []Column, alias string) ExecValue
 	UpdateExec(*Model, []ColumnValue) ExecValue
 	DeleteExec(*Model) ExecValue
 	InsertExec(*Model, []ColumnValue) ExecValue
@@ -41,6 +41,7 @@ type Dialect interface {
 	CountExec(*Model) ExecValue
 	SearchExec(search SearchList) ExecValue
 	TemplateExec(BasicExec, map[string]BasicExec) (ExecValue, error)
+	JoinExec(*JoinSwap) ExecValue
 }
 
 type DefaultDialect struct{}
@@ -230,13 +231,17 @@ func (dia DefaultDialect) SearchExec(s SearchList) ExecValue {
 	return stack[0]
 }
 
-func (dia DefaultDialect) FindExec(model *Model, columns []Column) ExecValue {
+func (dia DefaultDialect) FindExec(model *Model, columns []Column, alias string) ExecValue {
 	var _list []string
 	for _, column := range columns {
 		_list = append(_list, column.Column())
 	}
 	var exec ExecValue = DefaultExec{}
-	exec = exec.Append(fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(_list, ","), model.Name))
+	if alias != "" {
+		exec = exec.Append(fmt.Sprintf("SELECT %s FROM `%s` as `%s`", strings.Join(_list, ","), model.Name, alias))
+	} else {
+		exec = exec.Append(fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(_list, ","), model.Name))
+	}
 	return exec
 }
 
@@ -330,4 +335,24 @@ func (dia DefaultDialect) TemplateExec(tExec BasicExec, execs map[string]BasicEx
 	}
 	return DefaultExec{exec.query, exec.args}, nil
 
+}
+
+func (dia DefaultDialect) JoinExec(mainSwap *JoinSwap) ExecValue {
+	var strList []string
+	for name := range mainSwap.JoinMap {
+		join := mainSwap.JoinMap[name]
+		swap := mainSwap.SwapMap[name]
+		strList = append(strList, fmt.Sprintf("JOIN `%s` AS `%s` ON %s.%s = %s.%s",
+			join.SubModel.Name,
+			swap.Alias,
+			mainSwap.Alias, join.OnMain.Column(),
+			swap.Alias, join.OnSub.Column(),
+		))
+	}
+	var exec ExecValue = DefaultExec{strings.Join(strList, " "), nil}
+	for _, subSwap := range mainSwap.SwapMap {
+		subExec := dia.JoinExec(subSwap)
+		exec = exec.Append(" "+subExec.Source(), subExec.Args()...)
+	}
+	return exec
 }

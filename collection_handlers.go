@@ -250,7 +250,7 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 			action.Exec = ctx.Brick.InsertExec(record)
 		} else {
 			tempMap := DefaultCollectionTemplateExec(ctx)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getValuesExec(values)
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
@@ -668,7 +668,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 				action.Exec = ctx.Brick.InsertExec(record)
 			} else {
 				tempMap := DefaultCollectionTemplateExec(ctx)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
 				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 				tempMap["Values"] = getValuesExec(values)
 				tempMap["UpdateValues"] = getUpdateValuesExec(values)
@@ -704,7 +704,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 				action.Exec = ctx.Brick.ReplaceExec(record)
 			} else {
 				tempMap := DefaultCollectionTemplateExec(ctx)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record).ToValueList()
 				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 				tempMap["Values"] = getValuesExec(values)
 				tempMap["UpdateValues"] = getUpdateValuesExec(values)
@@ -882,7 +882,7 @@ func CollectionHandlerFind(ctx *CollectionContext) error {
 		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
 	} else {
 		tempMap := DefaultCollectionTemplateExec(ctx)
-		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records))
+		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records).ToColumnList())
 		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 		if err != nil {
 			return err
@@ -951,7 +951,7 @@ func CollectionHandlerFindOne(ctx *CollectionContext) error {
 		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
 	} else {
 		tempMap := DefaultCollectionTemplateExec(ctx)
-		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records))
+		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records).ToColumnList())
 		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 		if err != nil {
 			return err
@@ -1015,7 +1015,7 @@ func CollectionHandlerUpdate(ctx *CollectionContext) error {
 			action.Exec = ctx.Brick.UpdateExec(record)
 		} else {
 			tempMap := DefaultCollectionTemplateExec(ctx)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getUpdateValuesExec(values)
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)

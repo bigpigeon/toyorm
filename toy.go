@@ -152,6 +152,22 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 	return nil
 }
 
+func (t *Toy) Join(model *Model, field Field) *Join {
+	_type := LoopTypeIndirect(field.StructField().Type)
+	subModel := t.GetModel(_type)
+	containerName := field.Container()
+	if model.JoinWithMap[containerName] != nil && subModel.JoinWithMap[containerName] != nil {
+		return &Join{
+			model,
+			subModel,
+			field,
+			model.JoinWithMap[containerName],
+			subModel.JoinWithMap[containerName],
+		}
+	}
+	return nil
+}
+
 func (t *Toy) BelongToBind(model, subModel *Model, containerField, relationField Field) *BelongToPreload {
 	if LoopTypeIndirect(relationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("relation key must have same type with sub model primary key")

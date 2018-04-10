@@ -615,6 +615,35 @@ type TestCustomExecTable struct {
 	Sync int
 }
 
+type TestJoinNameTable struct {
+	ID      uint32 `toyorm:"primary key;auto_increment"`
+	Name    string `toyorm:"index;join:NameJoin"`
+	SubData string
+}
+
+type TestJoinPriceSubStarTable struct {
+	ID      uint32 `toyorm:"primary key;auto_increment"`
+	Star    int    `toyorm:"index;join:StarJoin"`
+	SubData string
+}
+
+type TestJoinPriceTable struct {
+	ID       uint32 `toyorm:"primary key;auto_increment"`
+	Price    int    `toyorm:"index;join:Price"`
+	Star     int    `toyorm:"index;join:StarJoin"`
+	StarJoin TestJoinPriceSubStarTable
+	SubData  string
+}
+
+type TestJoinTable struct {
+	ModelDefault
+	Name      string `toyorm:"index;join:NameJoin"`
+	Price     int    `toyorm:"index;join:Price"`
+	Data      string
+	NameJoin  TestJoinNameTable
+	PriceJoin TestJoinPriceTable `toyorm:"container:Price"`
+}
+
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {

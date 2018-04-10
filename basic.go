@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 )
@@ -372,9 +373,9 @@ func getTemplateExec(exec BasicExec, execs map[string]BasicExec) (BasicExec, err
 }
 
 func columnsValueToColumn(values []ColumnValue) []Column {
-	var columns []Column
-	for _, field := range values {
-		columns = append(columns, field)
+	columns := make([]Column, len(values))
+	for i := range values {
+		columns[i] = values[i]
 	}
 	return columns
 }
@@ -410,4 +411,60 @@ func getUpdateValuesExec(values []ColumnValue) BasicExec {
 	}
 
 	return BasicExec{strings.Join(_list, ","), args}
+}
+
+func joinSwap(swap *JoinSwap, brick *ToyBrick) *JoinSwap {
+	currentJoinSwap := JoinSwap{
+		OwnOrderBy:     brick.OwnOrderBy,
+		OwnGroupBy:     brick.OwnGroupBy,
+		OwnSearch:      brick.OwnSearch,
+		Alias:          brick.alias,
+		FieldsSelector: brick.FieldsSelector,
+		SwapMap:        brick.SwapMap,
+		JoinMap:        brick.JoinMap,
+	}
+	if swap != nil {
+		brick.OwnOrderBy = swap.OwnOrderBy
+		brick.OwnGroupBy = swap.OwnGroupBy
+		brick.OwnSearch = swap.OwnSearch
+		brick.alias = swap.Alias
+		brick.FieldsSelector = swap.FieldsSelector
+		brick.SwapMap = swap.SwapMap
+		brick.JoinMap = swap.JoinMap
+	}
+	return &currentJoinSwap
+}
+
+// get columns and scanner generator
+func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Column, func(ModelRecord) []interface{}) {
+	columns := brick.getSelectFields(fieldTypes).ToColumnList()
+	names := make([]string, 0, len(brick.JoinMap))
+	for name := range brick.JoinMap {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	nameFnMap := map[string]func(records ModelRecord) []interface{}{}
+	for _, name := range names {
+		joinBrick := brick.Join(name)
+		subRecord := MakeRecord(brick.JoinMap[name].SubModel, fieldTypes.GetFieldType(name))
+
+		var subColumns []Column
+		subColumns, nameFnMap[name] = FindColumnFactory(subRecord, joinBrick)
+		columns = append(columns, subColumns...)
+	}
+	var fn func(records ModelRecord) []interface{}
+	fn = func(record ModelRecord) []interface{} {
+		var scanners []interface{}
+		for _, field := range brick.getScanFields(record) {
+			value := record.FieldAddress(field.Name())
+			scanners = append(scanners, value.Interface())
+		}
+		for _, name := range names {
+			subRecord := NewRecord(brick.JoinMap[name].SubModel, record.Field(name))
+			scanners = append(scanners, nameFnMap[name](subRecord)...)
+		}
+
+		return scanners
+	}
+	return columns, fn
 }

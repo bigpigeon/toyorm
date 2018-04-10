@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+	. "unsafe"
 )
 
 func TestSqlNameConvert(t *testing.T) {
@@ -108,5 +109,27 @@ func TestTemplateExec(t *testing.T) {
 		assert.Equal(t, exec.query, "Select * From user WHERE age > ? AND id = ? Or id = ? Limit = ?")
 		assert.Equal(t, exec.args, []interface{}{20, 1, 2, 10})
 	}
+}
 
+func TestFindColumnFactory(t *testing.T) {
+	var tab TestJoinTable
+	var priceTab TestJoinPriceTable
+	brick := TestDB.Model(&tab).
+		Join(Offsetof(tab.NameJoin)).Swap().
+		Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
+	record := NewRecord(brick.Model, reflect.ValueOf(&TestJoinTable{}).Elem())
+	columns, scannersGen := FindColumnFactory(record, brick)
+	var colStrList []string
+
+	for _, c := range columns {
+		colStrList = append(colStrList, c.Column())
+	}
+	t.Log(colStrList)
+	scanners := scannersGen(record)
+	var scanTypes []reflect.Type
+	for _, scanner := range scanners {
+		scanTypes = append(scanTypes, reflect.TypeOf(scanner).Elem())
+	}
+	t.Log(scanTypes)
+	assert.Equal(t, len(columns), len(scanners))
 }

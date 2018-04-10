@@ -22,21 +22,45 @@ func (t ToyBrickAnd) Conditions(search SearchList) *ToyBrick {
 		}
 		newSearch := make(SearchList, len(t.Search), len(t.Search)+len(search))
 		copy(newSearch, t.Search)
+		newOwnSearch := make([]int, len(t.OwnSearch), len(t.OwnSearch)+len(search))
+		copy(newOwnSearch, t.OwnSearch)
 		if len(t.Search) != 0 {
 			// AND have high priority
 			if newSearch[len(newSearch)-1].Type == ExprOr {
-				newSearch = newSearch[:len(newSearch)-1]
+				start := len(newSearch) - 1
+				newSearch = newSearch[:start]
 				newSearch = append(newSearch, search...)
+				// add join own information
+				for i, s := range newSearch[start:] {
+					if s.Type.IsBranch() == false {
+						newOwnSearch = append(newOwnSearch, i)
+					}
+				}
 				newSearch = append(newSearch, NewSearchBranch(ExprAnd), NewSearchBranch(ExprOr))
 			} else {
+				start := len(newSearch)
 				newSearch = append(newSearch, search...)
+				// add join own information
+				for i, s := range newSearch[start:] {
+					if s.Type.IsBranch() == false {
+						newOwnSearch = append(newOwnSearch, i)
+					}
+				}
 				newSearch = append(newSearch, NewSearchBranch(ExprAnd))
 			}
 		} else {
+			start := len(newSearch)
 			newSearch = append(newSearch, search...)
+			// add join own information
+			for i, s := range newSearch[start:] {
+				if s.Type.IsBranch() == false {
+					newOwnSearch = append(newOwnSearch, i)
+				}
+			}
 		}
 		newt := *t
 		newt.Search = newSearch
+		newt.OwnSearch = newOwnSearch
 		return &newt
 	})
 
@@ -58,14 +82,31 @@ func (t ToyBrickOr) Conditions(search SearchList) *ToyBrick {
 		}
 		newSearch := make(SearchList, len(t.Search), len(t.Search)+len(search))
 		copy(newSearch, t.Search)
+		newOwnSearch := make([]int, len(t.OwnSearch), len(t.OwnSearch)+len(search))
+		copy(newOwnSearch, t.OwnSearch)
 		if len(newSearch) != 0 {
+			start := len(newSearch)
 			newSearch = append(newSearch, search...)
+			// add join own information
+			for i, s := range newSearch[start:] {
+				if s.Type.IsBranch() == false {
+					newOwnSearch = append(newOwnSearch, i)
+				}
+			}
 			newSearch = append(newSearch, NewSearchBranch(ExprOr))
 		} else {
+			start := len(newSearch)
 			newSearch = append(newSearch, search...)
+			// add join own information
+			for i, s := range newSearch[start:] {
+				if s.Type.IsBranch() == false {
+					newOwnSearch = append(newOwnSearch, i)
+				}
+			}
 		}
 		newt := *t
 		newt.Search = newSearch
+		newt.OwnSearch = newOwnSearch
 		return &newt
 	})
 }

@@ -2238,3 +2238,128 @@ func TestCustomExec(t *testing.T) {
 	// TODO test save
 
 }
+
+func TestToyBrickReadOnly(t *testing.T) {
+	var tab TestPreloadTable
+	brick := TestDB.Model(&tab)
+	{
+		debugBrick := brick.Debug()
+		assert.True(t, debugBrick.debug)
+		assert.False(t, brick.debug)
+	}
+	{
+		searchBrick := brick.Where(ExprEqual, Offsetof(tab.Name), "22").Offset(2).Limit(3)
+
+		assert.Equal(t, brick.Search, SearchList(nil))
+		assert.Equal(t, brick.offset, 0)
+		assert.Equal(t, brick.limit, 0)
+
+		searchBrick2 := searchBrick.And().Condition(ExprEqual, Offsetof(tab.Name), "33")
+		sExec := DefaultDialect{}.SearchExec(searchBrick.Search)
+		assert.Equal(t, sExec.Source(), "name = ?")
+		assert.Equal(t, sExec.Args(), []interface{}{"22"})
+		assert.Equal(t, searchBrick.offset, 2)
+		assert.Equal(t, searchBrick.limit, 3)
+
+		s2Exec := DefaultDialect{}.SearchExec(searchBrick2.Search)
+		assert.Equal(t, s2Exec.Source(), "name = ? AND name = ?")
+		assert.Equal(t, s2Exec.Args(), []interface{}{"22", "33"})
+	}
+	{
+		preloadBrick := brick.Preload(Offsetof(tab.BelongTo)).Enter()
+		assert.Zero(t, len(brick.MapPreloadBrick))
+		assert.Zero(t, len(brick.BelongToPreload))
+
+		preloadBrick2 := preloadBrick.Preload(Offsetof(tab.OneToOne)).Enter()
+		assert.Equal(t, len(preloadBrick.MapPreloadBrick), 1)
+		assert.Zero(t, len(preloadBrick.OneToOnePreload))
+
+		preloadBrick3 := preloadBrick2.Preload(Offsetof(tab.OneToMany)).Enter()
+		assert.Equal(t, len(preloadBrick2.MapPreloadBrick), 2)
+		assert.Zero(t, len(preloadBrick2.OneToManyPreload))
+
+		preloadBrick4 := preloadBrick3.Preload(Offsetof(tab.ManyToMany)).Enter()
+		assert.Equal(t, len(preloadBrick3.MapPreloadBrick), 3)
+		assert.Zero(t, len(preloadBrick3.ManyToManyPreload))
+
+		assert.Equal(t, len(preloadBrick4.MapPreloadBrick), 4)
+		assert.Equal(t, len(preloadBrick4.BelongToPreload), 1)
+		assert.Equal(t, len(preloadBrick4.OneToOnePreload), 1)
+		assert.Equal(t, len(preloadBrick4.OneToManyPreload), 1)
+		assert.Equal(t, len(preloadBrick4.ManyToManyPreload), 1)
+
+	}
+	{
+		var tab TestJoinTable
+		var subTab TestJoinNameTable
+		joinBrick := TestDB.Model(&tab)
+		joinBrick2 := joinBrick.Join(Offsetof(tab.NameJoin))
+		joinBrick2 = joinBrick2.OrderBy(Offsetof(subTab.SubData), Offsetof(subTab.Name))
+		joinBrick2 = joinBrick2.GroupBy(Offsetof(subTab.Name))
+		joinBrick2 = joinBrick2.Where(ExprEqual, Offsetof(subTab.Name), "sub")
+		joinBrick2 = joinBrick2.Alias("sub")
+		mainBrick := joinBrick2.Swap()
+		assert.Equal(t, joinBrick.alias, "")
+		assert.Equal(t, mainBrick.alias, "m")
+		assert.Equal(t, mainBrick.Model, joinBrick.Model)
+
+		assert.Equal(t, len(joinBrick2.OwnSearch), 1)
+		assert.Equal(t, len(joinBrick2.OwnGroupBy), 1)
+		assert.Equal(t, len(joinBrick2.OwnOrderBy), 2)
+		assert.Equal(t, len(mainBrick.OwnSearch), 0)
+		assert.Equal(t, len(mainBrick.OwnGroupBy), 0)
+		assert.Equal(t, len(mainBrick.OwnOrderBy), 0)
+	}
+}
+
+func TestJoin(t *testing.T) {
+	var tab TestJoinTable
+	var nameTab TestJoinNameTable
+	var priceTab TestJoinPriceTable
+	var starTab TestJoinPriceSubStarTable
+	// create table
+	tabBrick := TestDB.Model(&tab)
+	nameTabBrick := TestDB.Model(&nameTab)
+	priceTabBrick := TestDB.Model(&priceTab)
+	starTabBrick := TestDB.Model(&starTab)
+	createTableUnit(tabBrick)(t)
+	createTableUnit(nameTabBrick)(t)
+	createTableUnit(priceTabBrick)(t)
+	createTableUnit(starTabBrick)(t)
+	// import data
+	tabBrick.Insert(TestJoinTable{Name: "name 1", Data: "test join 1", Price: 1})
+	tabBrick.Insert(TestJoinTable{Name: "name 2", Data: "test join 2", Price: 2})
+	tabBrick.Insert(TestJoinTable{Name: "name 3", Data: "test join 3", Price: 3})
+
+	nameTabBrick.Insert(TestJoinNameTable{Name: "name 1", SubData: "test join name 1"})
+	nameTabBrick.Insert(TestJoinNameTable{Name: "name 2", SubData: "test join name 2"})
+	nameTabBrick.Insert(TestJoinNameTable{Name: "name 3", SubData: "test join name 3"})
+
+	priceTabBrick.Insert(TestJoinPriceTable{Price: 1, SubData: "test join name 1", Star: 4})
+	priceTabBrick.Insert(TestJoinPriceTable{Price: 2, SubData: "test join name 2", Star: 5})
+	priceTabBrick.Insert(TestJoinPriceTable{Price: 3, SubData: "test join name 3", Star: 6})
+
+	starTabBrick.Insert(TestJoinPriceSubStarTable{Star: 4, SubData: "test join name 1"})
+	starTabBrick.Insert(TestJoinPriceSubStarTable{Star: 5, SubData: "test join name 2"})
+	starTabBrick.Insert(TestJoinPriceSubStarTable{Star: 6, SubData: "test join name 3"})
+	// join test
+	{
+		brick := tabBrick.Debug().
+			Join(Offsetof(tab.NameJoin)).Swap().
+			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
+		var scanData []TestJoinTable
+		result, err := brick.Find(&scanData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		t.Logf("report:\n%s\n", result.Report())
+
+		assert.Equal(t, len(scanData), 3)
+		for _, elem := range scanData {
+			assert.Equal(t, elem.Name, elem.NameJoin.Name)
+			assert.Equal(t, elem.Price, elem.PriceJoin.Price)
+			assert.Equal(t, elem.PriceJoin.Star, elem.PriceJoin.StarJoin.Star)
+		}
+	}
+}

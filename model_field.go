@@ -25,6 +25,8 @@ type Field interface {
 	Attrs() map[string]string
 	SqlType() string
 	StructField() reflect.StructField
+	Container() string
+	JoinWith() string
 }
 
 type modelField struct {
@@ -39,6 +41,8 @@ type modelField struct {
 	autoIncrement bool
 	isForeign     bool
 	field         reflect.StructField
+	container     string
+	joinWith      string
 }
 
 func (m *modelField) Column() string {
@@ -87,6 +91,17 @@ func (m *modelField) Attrs() map[string]string {
 
 func (m *modelField) SqlType() string {
 	return m.sqlType
+}
+
+func (m *modelField) Container() string {
+	if m.container == "" {
+		return m.Name()
+	}
+	return m.container
+}
+
+func (m *modelField) JoinWith() string {
+	return m.joinWith
 }
 
 func NewField(f *reflect.StructField, table_name string) *modelField {
@@ -138,6 +153,12 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 			field.column = val
 		case "-":
 			field.ignore = true
+		case "container":
+			field.container = val
+			// container field must be ignore in sql
+			field.ignore = true
+		case "join":
+			field.joinWith = val
 		default:
 			field.attrs[key] = val
 		}

@@ -91,3 +91,8 @@ func MakeRecords(model *Model, _type reflect.Type) ModelRecords {
 	v := reflect.New(_type).Elem()
 	return NewRecords(model, v)
 }
+
+func MakeRecord(model *Model, _type reflect.Type) ModelRecord {
+	v := reflect.New(_type).Elem()
+	return NewRecord(model, v)
+}

@@ -33,31 +33,25 @@ func (op SearchExpr) IsBranch() bool {
 	return op == ExprAnd || op == ExprOr || op == ExprNot || op == ExprIgnore
 }
 
-type SearchObjVal struct {
-	Field *modelField
-	Val   interface{}
-}
-
 type SearchCell struct {
 	Type SearchExpr
-	Val  ColumnValue
+	Val  *BrickColumnValue
 }
 
 func NewSearchBranch(op SearchExpr) SearchCell {
 	return SearchCell{
-		op,
-		nil,
+		Type: op,
 	}
 }
 
-func NewSearchLeaf(op SearchExpr, columnValue ColumnValue) SearchCell {
+func NewSearchLeaf(op SearchExpr, columnValue *BrickColumnValue) SearchCell {
 	return SearchCell{
 		op,
 		columnValue,
 	}
 }
 
-func (s SearchList) Condition(columnValue ColumnValue, expr, linkExpr SearchExpr) SearchList {
+func (s SearchList) Condition(columnValue *BrickColumnValue, expr, linkExpr SearchExpr) SearchList {
 	if len(s) == 0 {
 		return SearchList{NewSearchLeaf(expr, columnValue)}
 	}

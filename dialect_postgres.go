@@ -288,13 +288,17 @@ func (dia PostgreSqlDialect) SearchExec(s SearchList) ExecValue {
 	return stack[0]
 }
 
-func (dia PostgreSqlDialect) FindExec(model *Model, columns []Column) ExecValue {
+func (dia PostgreSqlDialect) FindExec(model *Model, columns []Column, alias string) ExecValue {
 	var _list []string
 	for _, column := range columns {
 		_list = append(_list, column.Column())
 	}
 	var exec ExecValue = QToSExec{}
-	exec = exec.Append(fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(_list, ","), model.Name))
+	if alias != "" {
+		exec = exec.Append(fmt.Sprintf(`SELECT %s FROM "%s" as "%s"`, strings.Join(_list, ","), model.Name, alias))
+	} else {
+		exec = exec.Append(fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(_list, ","), model.Name))
+	}
 	return exec
 }
 
@@ -393,4 +397,24 @@ func (dia PostgreSqlDialect) TemplateExec(tExec BasicExec, execs map[string]Basi
 		return nil, err
 	}
 	return QToSExec{DefaultExec{exec.query, exec.args}}, nil
+}
+
+func (dia PostgreSqlDialect) JoinExec(mainSwap *JoinSwap) ExecValue {
+	var strList []string
+	for name := range mainSwap.JoinMap {
+		join := mainSwap.JoinMap[name]
+		swap := mainSwap.SwapMap[name]
+		strList = append(strList, fmt.Sprintf(`JOIN "%s" as "%s" on %s.%s = %s.%s`,
+			join.SubModel.Name,
+			swap.Alias,
+			mainSwap.Alias, join.OnMain.Column(),
+			swap.Alias, join.OnSub.Column(),
+		))
+	}
+	var exec ExecValue = QToSExec{DefaultExec{strings.Join(strList, " "), nil}}
+	for _, subSwap := range mainSwap.SwapMap {
+		subExec := dia.JoinExec(subSwap)
+		exec = exec.Append(" "+subExec.Source(), subExec.Args()...)
+	}
+	return exec
 }

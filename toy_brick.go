@@ -18,6 +18,13 @@ type PreToyBrick struct {
 	Field  Field
 }
 
+type PreJoinSwap struct {
+	Swap    *JoinSwap
+	PreSwap *PreJoinSwap
+	Model   *Model
+	Field   Field
+}
+
 type ToyBrick struct {
 	Toy             *Toy
 	preBrick        PreToyBrick
@@ -26,15 +33,20 @@ type ToyBrick struct {
 	debug bool
 	tx    *sql.Tx
 
-	orderBy  []Column
+	orderBy  BrickColumnList
 	Search   SearchList
 	offset   int
 	limit    int
-	groupBy  []Column
+	groupBy  BrickColumnList
 	template *BasicExec
 	// use join to association query in one command
-	BelongToJoin map[string]*BelongToPreload
-	OneToOneJoin map[string]*OneToOnePreload
+	preSwap    *PreJoinSwap
+	OwnOrderBy []int
+	OwnGroupBy []int
+	OwnSearch  []int
+	alias      string
+	SwapMap    map[string]*JoinSwap
+	JoinMap    map[string]*Join
 
 	BrickCommon
 }
@@ -43,7 +55,8 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 	return &ToyBrick{
 		Toy:             toy,
 		MapPreloadBrick: map[string]*ToyBrick{},
-
+		SwapMap:         map[string]*JoinSwap{},
+		JoinMap:         map[string]*Join{},
 		BrickCommon: BrickCommon{
 			Model:             model,
 			BelongToPreload:   map[string]*BelongToPreload{},
@@ -81,22 +94,6 @@ func (t *ToyBrick) CopyStatus(statusBrick *ToyBrick) *ToyBrick {
 	newt.ignoreModeSelector = t.ignoreModeSelector
 
 	return &newt
-}
-
-func (t *ToyBrick) CopyBelongToJoin() map[string]*BelongToPreload {
-	preloadMap := map[string]*BelongToPreload{}
-	for k, v := range t.BelongToJoin {
-		preloadMap[k] = v
-	}
-	return preloadMap
-}
-
-func (t *ToyBrick) CopyOneToOneJoin() map[string]*OneToOnePreload {
-	preloadMap := map[string]*OneToOnePreload{}
-	for k, v := range t.OneToOneJoin {
-		preloadMap[k] = v
-	}
-	return preloadMap
 }
 
 // return it parent ToyBrick
@@ -180,24 +177,108 @@ func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
 	})
 }
 
+func (t *ToyBrick) CopyJoinSwap() map[string]*JoinSwap {
+	newMap := make(map[string]*JoinSwap, len(t.SwapMap))
+	for k, v := range t.SwapMap {
+		newMap[k] = v
+	}
+	return newMap
+}
+
+func (t *ToyBrick) CopyJoin() map[string]*Join {
+	newMap := make(map[string]*Join, len(t.JoinMap))
+	for k, v := range t.JoinMap {
+		newMap[k] = v
+	}
+	return newMap
+}
+
 // use join to association query
 func (t *ToyBrick) Join(fv interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		if t.alias == "" {
+			t = t.Alias("m")
+		}
 		field := t.Model.fieldSelect(fv)
 
-		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
-		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+		if join := t.JoinMap[field.Name()]; join != nil {
+			newt := *t
+			currentJoinSwap := joinSwap(t.SwapMap[field.Name()], &newt)
+			newt.Model = join.SubModel
+			newt.preSwap = &PreJoinSwap{currentJoinSwap, t.preSwap, t.Model, field}
+			return &newt
+		} else if join := t.Toy.Join(t.Model, field); join != nil {
+			newt := *t
+			newt.Model = join.SubModel
+			swap := &JoinSwap{
+				Alias:   fmt.Sprintf("%s_%d", t.alias, len(t.JoinMap)),
+				SwapMap: map[string]*JoinSwap{},
+				JoinMap: map[string]*Join{},
+			}
+			currentJoinSwap := joinSwap(swap, &newt)
 
+			// add field to pre swap
+			currentJoinSwap.JoinMap = t.CopyJoin()
+			currentJoinSwap.JoinMap[field.Name()] = join
+			currentJoinSwap.SwapMap = t.CopyJoinSwap()
+			currentJoinSwap.SwapMap[field.Name()] = swap
+
+			newt.preSwap = &PreJoinSwap{currentJoinSwap, t.preSwap, t.Model, field}
+			return &newt
+		} else {
+			panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), field.Name()})
+		}
+
+	})
+}
+
+func (t *ToyBrick) Swap() *ToyBrick {
+	if t.preSwap == nil {
+		panic("parent swap is nil")
+	}
+	newt := *t
+	field := t.preSwap.Field
+	newt.Model = t.preSwap.Model
+	currentJoinSwap := joinSwap(t.preSwap.Swap, &newt)
+	newt.SwapMap = newt.CopyJoinSwap()
+	newt.SwapMap[field.Name()] = currentJoinSwap
+
+	newt.preSwap = newt.preSwap.PreSwap
+	return &newt
+}
+
+func (t *ToyBrick) Alias(alias string) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
-		newt.MapPreloadBrick = t.CopyMapPreloadBrick()
-		newt.MapPreloadBrick[field.Name()] = newSubt
-		newSubt.preBrick = PreToyBrick{&newt, field}
-		if preload := newt.Toy.BelongToPreload(newt.Model, field); preload != nil {
-			newt.BelongToJoin = t.CopyBelongToJoin()
-			newt.BelongToJoin[field.Name()] = preload
-		} else if preload := newt.Toy.OneToOnePreload(newt.Model, field); preload != nil {
-			newt.OneToOneJoin = t.CopyOneToOneJoin()
-			newt.OneToOneJoin[field.Name()] = preload
+		newt.alias = alias
+		// reassignment all order by
+		if len(t.OwnOrderBy) != 0 {
+			newt.orderBy = make(BrickColumnList, len(t.orderBy))
+			copy(newt.orderBy, t.orderBy)
+			for _, i := range t.OwnOrderBy {
+				newt.orderBy[i] = &BrickColumn{alias, newt.orderBy[i].Column()}
+			}
+		}
+
+		// reassignment all group by
+		if len(t.OwnGroupBy) != 0 {
+			newt.groupBy = make(BrickColumnList, len(t.groupBy))
+			copy(newt.groupBy, t.groupBy)
+			for _, i := range t.OwnGroupBy {
+				newt.groupBy[i] = &BrickColumn{alias, newt.groupBy[i].Column()}
+			}
+		}
+
+		// reassignment all search
+		if len(t.OwnSearch) != 0 {
+			newt.Search = make(SearchList, len(t.Search))
+			copy(newt.Search, t.Search)
+			for _, i := range t.OwnSearch {
+				newt.Search[i].Val = &BrickColumnValue{
+					BrickColumn{alias, newt.Search[i].Val.Column()},
+					newt.Search[i].Val.Value(),
+				}
+			}
 		}
 
 		return &newt
@@ -353,6 +434,7 @@ func (t *ToyBrick) bindFields(mode Mode, fields ...Field) *ToyBrick {
 
 func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface{}) SearchList {
 	search := SearchList{}
+
 	switch expr {
 	case ExprAnd, ExprOr:
 		keyValue := LoopIndirect(reflect.ValueOf(key))
@@ -374,34 +456,37 @@ func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface
 		}
 		mField := t.Model.fieldSelect(key)
 
-		search = search.Condition(&modelFieldValue{mField, value}, expr, ExprAnd)
+		search = search.Condition(&BrickColumnValue{
+			BrickColumn{t.alias, mField.Column()},
+			value,
+		}, expr, ExprAnd)
 	}
 	return search
 }
 
 // where will clean old condition
 func (t *ToyBrick) Where(expr SearchExpr, key interface{}, v ...interface{}) *ToyBrick {
-	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		newt := *t
-		newt.Search = t.condition(expr, key, v...)
-		return &newt
-	})
+	return t.Conditions(t.condition(expr, key, v...))
 }
 
 func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		newt.OwnSearch = nil
 		if len(search) == 0 {
-			newt := *t
 			newt.Search = nil
 			return &newt
 		}
 		newSearch := make(SearchList, len(search), len(search)+1)
 		copy(newSearch, search)
-		// to protect search priority
+		// Avoid "or" condition effected by priority
 		newSearch = append(newSearch, NewSearchBranch(ExprIgnore))
-
-		newt := *t
 		newt.Search = newSearch
+		for i, s := range newt.Search {
+			if s.Type.IsBranch() == false {
+				newt.OwnSearch = append(newt.OwnSearch, i)
+			}
+		}
 		return &newt
 	})
 }
@@ -426,12 +511,14 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
 		newt.orderBy = nil
-		for _, v := range vList {
-			if column, ok := v.(Column); ok {
+		newt.OwnOrderBy = nil
+		for i, v := range vList {
+			if column, ok := v.(*BrickColumn); ok {
 				newt.orderBy = append(newt.orderBy, column)
 			} else {
-				newt.orderBy = append(newt.orderBy, t.Model.fieldSelect(v))
+				newt.orderBy = append(newt.orderBy, &BrickColumn{t.alias, t.Model.fieldSelect(v).Column()})
 			}
+			newt.OwnOrderBy = append(newt.OwnOrderBy, i)
 		}
 		return &newt
 	})
@@ -441,9 +528,11 @@ func (t *ToyBrick) GroupBy(vList ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
 		newt.groupBy = nil
-		for _, v := range vList {
+		newt.OwnGroupBy = nil
+		for i, v := range vList {
 			field := newt.Model.fieldSelect(v)
-			newt.groupBy = append(newt.groupBy, field)
+			newt.groupBy = append(newt.groupBy, &BrickColumn{t.alias, field.Column()})
+			newt.OwnGroupBy = append(newt.OwnGroupBy, i)
 		}
 		return &newt
 	})
@@ -748,20 +837,21 @@ func (t *ToyBrick) CountExec() (exec ExecValue) {
 }
 
 func (t *ToyBrick) ConditionExec() ExecValue {
-	return t.Toy.Dialect.ConditionExec(t.Search, t.limit, t.offset, t.orderBy, t.groupBy)
+	return t.Toy.Dialect.ConditionExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
 }
 
-func (t *ToyBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
+func (t *ToyBrick) FindExec(columns []Column) ExecValue {
 
-	exec := t.Toy.Dialect.FindExec(t.Model, t.getSelectFields(records))
-
+	exec := t.Toy.Dialect.FindExec(t.Model, columns, t.alias)
+	jExec := t.Toy.Dialect.JoinExec(joinSwap(nil, t))
+	exec = exec.Append(" "+jExec.Source(), jExec.Args()...)
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
 func (t *ToyBrick) UpdateExec(record ModelRecord) ExecValue {
-	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record))
+	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
@@ -776,7 +866,7 @@ func (t *ToyBrick) DeleteExec() ExecValue {
 
 func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-	exec := t.Toy.Dialect.InsertExec(t.Model, recorders)
+	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
@@ -784,8 +874,67 @@ func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 
 func (t *ToyBrick) ReplaceExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
-	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders)
+	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders.ToValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
+}
+
+func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) BrickColumnValueList {
+	var fields []Field
+	if len(t.FieldsSelector[mode]) > 0 {
+		fields = t.FieldsSelector[mode]
+	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
+		fields = t.FieldsSelector[ModeDefault]
+	}
+
+	var useIgnoreMode bool
+	if len(fields) == 0 {
+		fields = t.Model.GetSqlFields()
+		useIgnoreMode = record.IsVariableContainer() == false
+	}
+	var columnValues BrickColumnValueList
+	if useIgnoreMode {
+		for _, mField := range fields {
+			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
+				if t.ignoreModeSelector[mode].Ignore(fieldValue) == false {
+					if mField.IsPrimary() && IsZero(fieldValue) {
+
+					} else {
+						columnValues = append(columnValues, &BrickColumnValue{
+							BrickColumn{t.alias, mField.Column()},
+							fieldValue,
+						})
+					}
+				}
+			}
+		}
+	} else {
+		for _, mField := range fields {
+			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
+				columnValues = append(columnValues, &BrickColumnValue{
+					BrickColumn{t.alias, mField.Column()},
+					fieldValue,
+				})
+			}
+		}
+	}
+	return columnValues
+}
+
+func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) BrickColumnList {
+	var fields []Field
+	if len(t.FieldsSelector[ModeSelect]) > 0 {
+		fields = t.FieldsSelector[ModeSelect]
+	} else if len(t.FieldsSelector[ModeDefault]) > 0 {
+		fields = t.FieldsSelector[ModeDefault]
+	} else {
+		fields = t.Model.GetSqlFields()
+	}
+	fields = getFieldsWithRecords(fields, records)
+	var columns BrickColumnList
+	for _, field := range fields {
+		columns = append(columns, &BrickColumn{t.alias, field.Column()})
+	}
+	return columns
 }

@@ -39,6 +39,7 @@ type Model struct {
 	IndexFields       map[string][]*modelField
 	UniqueIndexFields map[string][]*modelField
 	StructFieldFields map[reflect.Type][]*modelField
+	JoinWithMap       map[string]*modelField
 }
 
 func (m *Model) GetPosFields(pos []int) []Field {
@@ -174,6 +175,7 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		IndexFields:       map[string][]*modelField{},
 		UniqueIndexFields: map[string][]*modelField{},
 		StructFieldFields: map[reflect.Type][]*modelField{},
+		JoinWithMap:       map[string]*modelField{},
 	}
 
 	for i := 0; i < _type.NumField(); i++ {
@@ -203,16 +205,13 @@ func newModel(_type reflect.Type, modelName string) *Model {
 			model.PrimaryFields = append(model.PrimaryFields, field)
 		}
 		if field.index != "" {
-			if _, ok := model.IndexFields[field.index]; ok == false {
-				model.IndexFields[field.index] = []*modelField{}
-			}
 			model.IndexFields[field.index] = append(model.IndexFields[field.index], field)
 		}
 		if field.uniqueIndex != "" {
-			if _, ok := model.UniqueIndexFields[field.uniqueIndex]; ok == false {
-				model.UniqueIndexFields[field.uniqueIndex] = []*modelField{}
-			}
 			model.UniqueIndexFields[field.uniqueIndex] = append(model.UniqueIndexFields[field.uniqueIndex], field)
+		}
+		if field.joinWith != "" {
+			model.JoinWithMap[field.joinWith] = field
 		}
 		if field.ignore == false {
 			if oldField, ok := model.SqlFieldMap[field.column]; ok {

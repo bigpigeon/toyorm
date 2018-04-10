@@ -7,6 +7,7 @@
 package toyorm
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -14,14 +15,30 @@ type Column interface {
 	Column() string
 }
 
-type StrColumn string
+type BrickColumn struct {
+	alias  string
+	column string
+}
 
-func (d StrColumn) Column() string {
-	return string(d)
+func (c BrickColumn) Column() string {
+	if c.alias != "" {
+		return fmt.Sprintf("%s.%s", c.alias, c.column)
+	}
+	return string(c.column)
+}
+
+type BrickColumnList []*BrickColumn
+
+func (l BrickColumnList) ToColumnList() []Column {
+	columns := make([]Column, len(l))
+	for i := range l {
+		columns[i] = *l[i]
+	}
+	return columns
 }
 
 type ColumnName interface {
-	Column() string
+	Column
 	Name() string
 }
 
@@ -33,6 +50,25 @@ type ScanField struct {
 type ColumnValue interface {
 	Column
 	Value() reflect.Value
+}
+
+type BrickColumnValue struct {
+	BrickColumn
+	value reflect.Value
+}
+
+func (v BrickColumnValue) Value() reflect.Value {
+	return v.value
+}
+
+type BrickColumnValueList []*BrickColumnValue
+
+func (l BrickColumnValueList) ToValueList() []ColumnValue {
+	values := make([]ColumnValue, len(l))
+	for i := range l {
+		values[i] = l[i]
+	}
+	return values
 }
 
 type modelFieldValue struct {
