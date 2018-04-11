@@ -1,3 +1,8 @@
+### Toyorm v0.3-alpha (Apr 01, 2018)
+
+- [NEW] support Join operation
+- [NEW] ModelField tag:alias
+
 ### Toyorm v0.2-alpha (Apr 01, 2018)
 
 - [NEW] support CreateTable/DropTable/HasTable operation
