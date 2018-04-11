@@ -221,7 +221,7 @@ auto_increment| void                    | recommend, if your table primary key h
 autoincrement | void                    | same as auto_increment
 foreign key   | void                   | to add foreign key feature when create table
 alias         | string                 | change field name with toyorm
-join          | string                 | to select related container field when call brick.Join
+join          | string                 | to select related field when call brick.Join
 
 other custom TAG will append to end of CREATE TABLE field
 
