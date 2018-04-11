@@ -52,7 +52,7 @@ type ProductDetail struct {
 	CustomPage string `toyorm:"type:text"`
 	Extra      Extra  `toyorm:"type:VARCHAR(2048)"`
 	Color      string `toyorm:"join:ColorDetail"`
-	ColorJoin  Color  `toyorm:"container:ColorDetail"`
+	ColorJoin  Color  `toyorm:"alias:ColorDetail"`
 	//TODO add preload
 }
 
