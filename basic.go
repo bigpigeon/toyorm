@@ -194,7 +194,7 @@ func GetRelationFieldName(subModel *Model) string {
 }
 
 func GetBelongsIDFieldName(subModel *Model, containerField Field) string {
-	return containerField.Name() + subModel.GetOnePrimary().Name()
+	return containerField.Container() + subModel.GetOnePrimary().Name()
 }
 
 func GetMiddleField(model, middleModel *Model, leftOrRight bool) Field {
@@ -446,7 +446,7 @@ func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Col
 	nameFnMap := map[string]func(records ModelRecord) []interface{}{}
 	for _, name := range names {
 		joinBrick := brick.Join(name)
-		subRecord := MakeRecord(brick.JoinMap[name].SubModel, fieldTypes.GetFieldType(name))
+		subRecord := MakeRecord(brick.JoinMap[name].SubModel, LoopTypeIndirect(fieldTypes.GetFieldType(name)))
 
 		var subColumns []Column
 		subColumns, nameFnMap[name] = FindColumnFactory(subRecord, joinBrick)
@@ -460,7 +460,7 @@ func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Col
 			scanners = append(scanners, value.Interface())
 		}
 		for _, name := range names {
-			subRecord := NewRecord(brick.JoinMap[name].SubModel, record.Field(name))
+			subRecord := NewRecord(brick.JoinMap[name].SubModel, LoopIndirectAndNew(record.Field(name)))
 			scanners = append(scanners, nameFnMap[name](subRecord)...)
 		}
 

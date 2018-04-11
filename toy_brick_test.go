@@ -2385,6 +2385,7 @@ func TestJoin(t *testing.T) {
 
 		assert.Equal(t, len(scanData), 3)
 		for _, elem := range scanData {
+			assert.NotNil(t, elem.NameJoin)
 			assert.Equal(t, elem.Name, elem.NameJoin.Name)
 			assert.Equal(t, elem.Price, elem.PriceJoin.Price)
 			assert.Equal(t, elem.PriceJoin.Star, elem.PriceJoin.StarJoin.Star)

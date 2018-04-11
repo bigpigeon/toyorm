@@ -640,7 +640,7 @@ type TestJoinTable struct {
 	Name      string `toyorm:"index;join:NameJoin"`
 	Price     int    `toyorm:"index;join:Price"`
 	Data      string
-	NameJoin  TestJoinNameTable
+	NameJoin  *TestJoinNameTable
 	PriceJoin TestJoinPriceTable `toyorm:"container:Price"`
 }
 
