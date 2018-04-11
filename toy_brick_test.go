@@ -2239,7 +2239,7 @@ func TestCustomExec(t *testing.T) {
 
 }
 
-func TestToyBrickReadOnly(t *testing.T) {
+func TestToyBrickCopyOnWrite(t *testing.T) {
 	var tab TestPreloadTable
 	brick := TestDB.Model(&tab)
 	{
@@ -2310,6 +2310,34 @@ func TestToyBrickReadOnly(t *testing.T) {
 		assert.Equal(t, len(mainBrick.OwnGroupBy), 0)
 		assert.Equal(t, len(mainBrick.OwnOrderBy), 0)
 	}
+	{
+		var tab TestJoinTable
+		var nameTab TestJoinNameTable
+		var priceTab TestJoinPriceTable
+		brick := TestDB.Model(&tab).Debug().OrderBy(Offsetof(tab.Name)).GroupBy(Offsetof(tab.Data)).
+			Where(ExprEqual, Offsetof(tab.Data), "test join 1").
+			Join(Offsetof(tab.NameJoin)).OrderBy(Offsetof(nameTab.SubData)).GroupBy(Offsetof(nameTab.Name)).
+			Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
+			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
+		brick2 := brick.OrderBy()
+		assert.Equal(t, len(brick.OwnOrderBy), 1)
+		assert.Equal(t, len(brick.Join(Offsetof(tab.NameJoin)).OwnOrderBy), 1)
+		assert.Equal(t, len(brick2.OwnOrderBy), 0)
+		assert.Equal(t, len(brick2.Join(Offsetof(tab.NameJoin)).OwnOrderBy), 0)
+
+		brick3 := brick.GroupBy()
+		assert.Equal(t, len(brick.OwnGroupBy), 1)
+		assert.Equal(t, len(brick.Join(Offsetof(tab.NameJoin)).OwnGroupBy), 1)
+		assert.Equal(t, len(brick3.OwnGroupBy), 0)
+		assert.Equal(t, len(brick3.Join(Offsetof(tab.NameJoin)).OwnGroupBy), 0)
+
+		brick4 := brick.Conditions(nil)
+		assert.Equal(t, len(brick.OwnSearch), 1)
+		assert.Equal(t, len(brick.Join(Offsetof(tab.NameJoin)).OwnSearch), 1)
+		assert.Equal(t, len(brick4.OwnSearch), 0)
+		assert.Equal(t, len(brick4.Join(Offsetof(tab.NameJoin)).OwnSearch), 0)
+	}
+
 }
 
 func TestJoin(t *testing.T) {
@@ -2360,6 +2388,85 @@ func TestJoin(t *testing.T) {
 			assert.Equal(t, elem.Name, elem.NameJoin.Name)
 			assert.Equal(t, elem.Price, elem.PriceJoin.Price)
 			assert.Equal(t, elem.PriceJoin.Star, elem.PriceJoin.StarJoin.Star)
+		}
+	}
+	// condition join test
+	{
+		brick := tabBrick.Debug().Where(ExprEqual, Offsetof(tab.Data), "test join 1").
+			Join(Offsetof(tab.NameJoin)).Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
+			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
+		var scanData []TestJoinTable
+		result, err := brick.Find(&scanData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		t.Logf("report:\n%s\n", result.Report())
+
+		assert.Equal(t, len(scanData), 2)
+
+		for _, elem := range scanData {
+			assert.Equal(t, elem.Name, elem.NameJoin.Name)
+			assert.Equal(t, elem.Price, elem.PriceJoin.Price)
+			assert.Equal(t, elem.PriceJoin.Star, elem.PriceJoin.StarJoin.Star)
+		}
+	}
+}
+
+// bug: when call brick.Conditions(brick.Search) will lose all ownSearch information
+func TestJoinAlias(t *testing.T) {
+	var tab TestJoinTable
+	var nameTab TestJoinNameTable
+	var priceTab TestJoinPriceTable
+	brick := TestDB.Model(&tab).Debug().OrderBy(Offsetof(tab.Name)).
+		Where(ExprEqual, Offsetof(tab.Data), "test join 1").
+		Join(Offsetof(tab.NameJoin)).
+		Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
+		Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
+
+	for _, i := range brick.OwnOrderBy {
+		assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+	}
+	for _, i := range brick.OwnGroupBy {
+		assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+	}
+	for _, i := range brick.OwnSearch {
+		assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+	}
+	for name := range brick.JoinMap {
+		brick := brick.Join(name)
+		for _, i := range brick.OwnOrderBy {
+			assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+		}
+		for _, i := range brick.OwnGroupBy {
+			assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+		}
+		for _, i := range brick.OwnSearch {
+			assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+		}
+	}
+
+	brick = brick.Alias("m1")
+	brick = brick.Join(Offsetof(tab.NameJoin)).Alias("n1").Swap()
+	for _, i := range brick.OwnOrderBy {
+		assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+	}
+	for _, i := range brick.OwnGroupBy {
+		assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+	}
+	for _, i := range brick.OwnSearch {
+		assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+	}
+	for name := range brick.JoinMap {
+		brick := brick.Join(name)
+		for _, i := range brick.OwnOrderBy {
+			assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+		}
+		for _, i := range brick.OwnGroupBy {
+			assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+		}
+		for _, i := range brick.OwnSearch {
+			assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
 		}
 	}
 }

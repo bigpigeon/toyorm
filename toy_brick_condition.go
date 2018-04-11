@@ -33,7 +33,7 @@ func (t ToyBrickAnd) Conditions(search SearchList) *ToyBrick {
 				// add join own information
 				for i, s := range newSearch[start:] {
 					if s.Type.IsBranch() == false {
-						newOwnSearch = append(newOwnSearch, i)
+						newOwnSearch = append(newOwnSearch, start+i)
 					}
 				}
 				newSearch = append(newSearch, NewSearchBranch(ExprAnd), NewSearchBranch(ExprOr))
@@ -43,7 +43,7 @@ func (t ToyBrickAnd) Conditions(search SearchList) *ToyBrick {
 				// add join own information
 				for i, s := range newSearch[start:] {
 					if s.Type.IsBranch() == false {
-						newOwnSearch = append(newOwnSearch, i)
+						newOwnSearch = append(newOwnSearch, start+i)
 					}
 				}
 				newSearch = append(newSearch, NewSearchBranch(ExprAnd))
@@ -54,7 +54,7 @@ func (t ToyBrickAnd) Conditions(search SearchList) *ToyBrick {
 			// add join own information
 			for i, s := range newSearch[start:] {
 				if s.Type.IsBranch() == false {
-					newOwnSearch = append(newOwnSearch, i)
+					newOwnSearch = append(newOwnSearch, start+i)
 				}
 			}
 		}
@@ -90,7 +90,7 @@ func (t ToyBrickOr) Conditions(search SearchList) *ToyBrick {
 			// add join own information
 			for i, s := range newSearch[start:] {
 				if s.Type.IsBranch() == false {
-					newOwnSearch = append(newOwnSearch, i)
+					newOwnSearch = append(newOwnSearch, start+i)
 				}
 			}
 			newSearch = append(newSearch, NewSearchBranch(ExprOr))
@@ -100,7 +100,7 @@ func (t ToyBrickOr) Conditions(search SearchList) *ToyBrick {
 			// add join own information
 			for i, s := range newSearch[start:] {
 				if s.Type.IsBranch() == false {
-					newOwnSearch = append(newOwnSearch, i)
+					newOwnSearch = append(newOwnSearch, start+i)
 				}
 			}
 		}

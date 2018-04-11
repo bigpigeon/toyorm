@@ -24,3 +24,8 @@ type JoinSwap struct {
 	SwapMap        map[string]*JoinSwap
 	JoinMap        map[string]*Join
 }
+
+func (m *JoinSwap) Copy() *JoinSwap {
+	newMap := *m
+	return &newMap
+}

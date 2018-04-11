@@ -275,7 +275,7 @@ func (t *ToyBrick) Alias(alias string) *ToyBrick {
 			copy(newt.Search, t.Search)
 			for _, i := range t.OwnSearch {
 				newt.Search[i].Val = &BrickColumnValue{
-					BrickColumn{alias, newt.Search[i].Val.Column()},
+					BrickColumn{alias, newt.Search[i].Val.column},
 					newt.Search[i].Val.Value(),
 				}
 			}
@@ -471,8 +471,7 @@ func (t *ToyBrick) Where(expr SearchExpr, key interface{}, v ...interface{}) *To
 
 func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		newt := *t
-		newt.OwnSearch = nil
+		newt := *t.CleanOwnSearch()
 		if len(search) == 0 {
 			newt.Search = nil
 			return &newt
@@ -509,9 +508,8 @@ func (t *ToyBrick) Offset(i int) *ToyBrick {
 
 func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		newt := *t
+		newt := *t.CleanOwnOrderBy()
 		newt.orderBy = nil
-		newt.OwnOrderBy = nil
 		for i, v := range vList {
 			if column, ok := v.(*BrickColumn); ok {
 				newt.orderBy = append(newt.orderBy, column)
@@ -526,9 +524,8 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 
 func (t *ToyBrick) GroupBy(vList ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		newt := *t
+		newt := *t.CleanOwnGroupBy()
 		newt.groupBy = nil
-		newt.OwnGroupBy = nil
 		for i, v := range vList {
 			field := newt.Model.fieldSelect(v)
 			newt.groupBy = append(newt.groupBy, &BrickColumn{t.alias, field.Column()})
@@ -937,4 +934,43 @@ func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) BrickColumnLis
 		columns = append(columns, &BrickColumn{t.alias, field.Column()})
 	}
 	return columns
+}
+
+func (t *ToyBrick) CleanOwnOrderBy() *ToyBrick {
+	newt := *t
+	newt.OwnOrderBy = nil
+	newt.SwapMap = t.CopyJoinSwap()
+	for name, swap := range newt.SwapMap {
+		if swap.OwnOrderBy != nil {
+			newt.SwapMap[name] = newt.SwapMap[name].Copy()
+			newt.SwapMap[name].OwnOrderBy = nil
+		}
+	}
+	return &newt
+}
+
+func (t *ToyBrick) CleanOwnGroupBy() *ToyBrick {
+	newt := *t
+	newt.OwnGroupBy = nil
+	newt.SwapMap = t.CopyJoinSwap()
+	for name, swap := range newt.SwapMap {
+		if swap.OwnGroupBy != nil {
+			newt.SwapMap[name] = newt.SwapMap[name].Copy()
+			newt.SwapMap[name].OwnGroupBy = nil
+		}
+	}
+	return &newt
+}
+
+func (t *ToyBrick) CleanOwnSearch() *ToyBrick {
+	newt := *t
+	newt.OwnSearch = nil
+	newt.SwapMap = t.CopyJoinSwap()
+	for name, swap := range newt.SwapMap {
+		if swap.OwnSearch != nil {
+			newt.SwapMap[name] = newt.SwapMap[name].Copy()
+			newt.SwapMap[name].OwnSearch = nil
+		}
+	}
+	return &newt
 }
