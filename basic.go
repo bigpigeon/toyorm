@@ -415,13 +415,18 @@ func getUpdateValuesExec(values []ColumnValue) BasicExec {
 
 func joinSwap(swap *JoinSwap, brick *ToyBrick) *JoinSwap {
 	currentJoinSwap := JoinSwap{
-		OwnOrderBy:     brick.OwnOrderBy,
-		OwnGroupBy:     brick.OwnGroupBy,
-		OwnSearch:      brick.OwnSearch,
-		Alias:          brick.alias,
-		FieldsSelector: brick.FieldsSelector,
-		SwapMap:        brick.SwapMap,
-		JoinMap:        brick.JoinMap,
+		OwnOrderBy:        brick.OwnOrderBy,
+		OwnGroupBy:        brick.OwnGroupBy,
+		OwnSearch:         brick.OwnSearch,
+		Alias:             brick.alias,
+		FieldsSelector:    brick.FieldsSelector,
+		SwapMap:           brick.SwapMap,
+		JoinMap:           brick.JoinMap,
+		MapPreloadBrick:   brick.MapPreloadBrick,
+		BelongToPreload:   brick.BelongToPreload,
+		OneToOnePreload:   brick.OneToOnePreload,
+		OneToManyPreload:  brick.OneToManyPreload,
+		ManyToManyPreload: brick.ManyToManyPreload,
 	}
 	if swap != nil {
 		brick.OwnOrderBy = swap.OwnOrderBy
@@ -431,6 +436,11 @@ func joinSwap(swap *JoinSwap, brick *ToyBrick) *JoinSwap {
 		brick.FieldsSelector = swap.FieldsSelector
 		brick.SwapMap = swap.SwapMap
 		brick.JoinMap = swap.JoinMap
+		brick.MapPreloadBrick = swap.MapPreloadBrick
+		brick.BelongToPreload = swap.BelongToPreload
+		brick.OneToOnePreload = swap.OneToOnePreload
+		brick.OneToManyPreload = swap.OneToManyPreload
+		brick.ManyToManyPreload = swap.ManyToManyPreload
 	}
 	return &currentJoinSwap
 }

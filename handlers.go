@@ -325,6 +325,43 @@ func HandlerPreloadContainerCheck(ctx *Context) error {
 	return nil
 }
 
+func HandlerPreloadOnJoinFind(ctx *Context) error {
+	for name := range ctx.Brick.JoinMap {
+		if len(ctx.Brick.SwapMap[name].MapPreloadBrick) != 0 {
+			brick := ctx.Brick.Join(name)
+			records := MakeRecordsWithElem(brick.Model, ctx.Result.Records.GetFieldAddressType(name))
+			for _, mainRecord := range ctx.Result.Records.GetRecords() {
+				records.Add(mainRecord.FieldAddress(name))
+			}
+			joinCtx := NewContext(ctx.handlers[ctx.index+1:], brick, records)
+			err := joinCtx.Next()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("action flow %#v\n", joinCtx.Result.ActionFlow)
+			for preloadName, result := range joinCtx.Result.Preload {
+				fieldName := fmt.Sprintf("j_%s_%s", name, preloadName)
+				ctx.Result.Preload[fieldName] = result
+				if relation, ok := joinCtx.Result.SimpleRelation[preloadName]; ok {
+					ctx.Result.SimpleRelation[fieldName] = relation
+				} else if relation, ok := joinCtx.Result.MultipleRelation[preloadName]; ok {
+					ctx.Result.MultipleRelation[fieldName] = relation
+				}
+			}
+			for joinFieldName, result := range joinCtx.Result.MiddleModelPreload {
+				fieldName := fmt.Sprintf("j_%s_%s", name, joinFieldName)
+				ctx.Result.MiddleModelPreload[fieldName] = result
+				if relation, ok := joinCtx.Result.SimpleRelation[joinFieldName]; ok {
+					ctx.Result.SimpleRelation[fieldName] = relation
+				} else if relation, ok := joinCtx.Result.MultipleRelation[joinFieldName]; ok {
+					ctx.Result.MultipleRelation[fieldName] = relation
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func HandlerPreloadFind(ctx *Context) error {
 	for fieldName, preload := range ctx.Brick.BelongToPreload {
 		mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()

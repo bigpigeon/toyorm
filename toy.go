@@ -43,7 +43,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"DropTableIfExist":         {HandlerDropTablePreload("DropTableIfExist"), HandlerNotExistTableAbort, HandlerDropTable},
 			"DropTable":                {HandlerDropTablePreload("DropTable"), HandlerDropTable},
 			"Insert":                   {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("Insert"), HandlerInsertTimeGenerate, HandlerInsert},
-			"Find":                     {HandlerPreloadContainerCheck, HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadFind},
+			"Find":                     {HandlerPreloadContainerCheck, HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadOnJoinFind, HandlerPreloadFind},
 			"Update":                   {HandlerSoftDeleteCheck, HandlerUpdateTimeGenerate, HandlerUpdate},
 			"Save":                     {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("Save"), HandlerSaveTimeGenerate, HandlerSave},
 			"HardDelete":               {HandlerPreloadDelete, HandlerHardDelete},

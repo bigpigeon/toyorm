@@ -615,10 +615,17 @@ type TestCustomExecTable struct {
 	Sync int
 }
 
+type TestJoinNameOneToManyTable struct {
+	ID                  uint32 `toyorm:"primary key;auto_increment"`
+	PreloadData         string
+	TestJoinNameTableID uint32 `toyorm:"index"`
+}
+
 type TestJoinNameTable struct {
-	ID      uint32 `toyorm:"primary key;auto_increment"`
-	Name    string `toyorm:"index;join:NameJoin"`
-	SubData string
+	ID        uint32 `toyorm:"primary key;auto_increment"`
+	Name      string `toyorm:"index;join:NameJoin"`
+	SubData   string
+	OneToMany []TestJoinNameOneToManyTable
 }
 
 type TestJoinPriceSubStarTable struct {

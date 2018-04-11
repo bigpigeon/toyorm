@@ -210,11 +210,7 @@ func (t *ToyBrick) Join(fv interface{}) *ToyBrick {
 		} else if join := t.Toy.Join(t.Model, field); join != nil {
 			newt := *t
 			newt.Model = join.SubModel
-			swap := &JoinSwap{
-				Alias:   fmt.Sprintf("%s_%d", t.alias, len(t.JoinMap)),
-				SwapMap: map[string]*JoinSwap{},
-				JoinMap: map[string]*Join{},
-			}
+			swap := NewJoinSwap(fmt.Sprintf("%s_%d", t.alias, len(t.JoinMap)))
 			currentJoinSwap := joinSwap(swap, &newt)
 
 			// add field to pre swap

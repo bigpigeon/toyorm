@@ -2347,7 +2347,7 @@ func TestJoin(t *testing.T) {
 	var starTab TestJoinPriceSubStarTable
 	// create table
 	tabBrick := TestDB.Model(&tab)
-	nameTabBrick := TestDB.Model(&nameTab)
+	nameTabBrick := TestDB.Model(&nameTab).Preload(Offsetof(nameTab.OneToMany)).Enter()
 	priceTabBrick := TestDB.Model(&priceTab)
 	starTabBrick := TestDB.Model(&starTab)
 	createTableUnit(tabBrick)(t)
@@ -2359,9 +2359,18 @@ func TestJoin(t *testing.T) {
 	tabBrick.Insert(TestJoinTable{Name: "name 2", Data: "test join 2", Price: 2})
 	tabBrick.Insert(TestJoinTable{Name: "name 3", Data: "test join 3", Price: 3})
 
-	nameTabBrick.Insert(TestJoinNameTable{Name: "name 1", SubData: "test join name 1"})
-	nameTabBrick.Insert(TestJoinNameTable{Name: "name 2", SubData: "test join name 2"})
-	nameTabBrick.Insert(TestJoinNameTable{Name: "name 3", SubData: "test join name 3"})
+	nameTabBrick.Insert(TestJoinNameTable{Name: "name 1", SubData: "test join name 1", OneToMany: []TestJoinNameOneToManyTable{
+		{PreloadData: "test name 1 one to many 1"},
+		{PreloadData: "test name 1 one to many 2"},
+	}})
+	nameTabBrick.Insert(TestJoinNameTable{Name: "name 2", SubData: "test join name 2", OneToMany: []TestJoinNameOneToManyTable{
+		{PreloadData: "test name 2 one to many 1"},
+		{PreloadData: "test name 2 one to many 2"},
+	}})
+	nameTabBrick.Insert(TestJoinNameTable{Name: "name 3", SubData: "test join name 3", OneToMany: []TestJoinNameOneToManyTable{
+		{PreloadData: "test name 3 one to many 1"},
+		{PreloadData: "test name 3 one to many 2"},
+	}})
 
 	priceTabBrick.Insert(TestJoinPriceTable{Price: 1, SubData: "test join name 1", Star: 4})
 	priceTabBrick.Insert(TestJoinPriceTable{Price: 2, SubData: "test join name 2", Star: 5})
@@ -2370,6 +2379,7 @@ func TestJoin(t *testing.T) {
 	starTabBrick.Insert(TestJoinPriceSubStarTable{Star: 4, SubData: "test join name 1"})
 	starTabBrick.Insert(TestJoinPriceSubStarTable{Star: 5, SubData: "test join name 2"})
 	starTabBrick.Insert(TestJoinPriceSubStarTable{Star: 6, SubData: "test join name 3"})
+
 	// join test
 	{
 		brick := tabBrick.Debug().
@@ -2411,6 +2421,31 @@ func TestJoin(t *testing.T) {
 			assert.Equal(t, elem.Price, elem.PriceJoin.Price)
 			assert.Equal(t, elem.PriceJoin.Star, elem.PriceJoin.StarJoin.Star)
 		}
+	}
+	// preload on join
+	{
+		brick := tabBrick.Debug().
+			Join(Offsetof(tab.NameJoin)).
+			Preload(Offsetof(nameTab.OneToMany)).Enter().Swap()
+
+		var scanData []TestJoinTable
+		result, err := brick.Find(&scanData)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		t.Logf("report:\n%s\n", result.Report())
+
+		assert.Equal(t, len(scanData), 3)
+		for _, elem := range scanData {
+			assert.NotNil(t, elem.NameJoin)
+			assert.Equal(t, elem.Name, elem.NameJoin.Name)
+			assert.Equal(t, len(elem.NameJoin.OneToMany), 2)
+			for _, subElem := range elem.NameJoin.OneToMany {
+				assert.Equal(t, subElem.TestJoinNameTableID, elem.NameJoin.ID)
+			}
+		}
+
 	}
 }
 

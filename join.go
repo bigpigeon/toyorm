@@ -16,13 +16,31 @@ type Join struct {
 
 // join will replace attribute
 type JoinSwap struct {
-	OwnOrderBy     []int
-	OwnGroupBy     []int
-	OwnSearch      []int
-	Alias          string
-	FieldsSelector [ModeEnd][]Field
-	SwapMap        map[string]*JoinSwap
-	JoinMap        map[string]*Join
+	OwnOrderBy        []int
+	OwnGroupBy        []int
+	OwnSearch         []int
+	Alias             string
+	FieldsSelector    [ModeEnd][]Field
+	SwapMap           map[string]*JoinSwap
+	JoinMap           map[string]*Join
+	MapPreloadBrick   map[string]*ToyBrick
+	BelongToPreload   map[string]*BelongToPreload
+	OneToOnePreload   map[string]*OneToOnePreload
+	OneToManyPreload  map[string]*OneToManyPreload
+	ManyToManyPreload map[string]*ManyToManyPreload
+}
+
+func NewJoinSwap(alias string) *JoinSwap {
+	return &JoinSwap{
+		Alias:             alias,
+		SwapMap:           map[string]*JoinSwap{},
+		JoinMap:           map[string]*Join{},
+		MapPreloadBrick:   map[string]*ToyBrick{},
+		BelongToPreload:   map[string]*BelongToPreload{},
+		OneToOnePreload:   map[string]*OneToOnePreload{},
+		OneToManyPreload:  map[string]*OneToManyPreload{},
+		ManyToManyPreload: map[string]*ManyToManyPreload{},
+	}
 }
 
 func (m *JoinSwap) Copy() *JoinSwap {
