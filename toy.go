@@ -67,6 +67,9 @@ func (t *Toy) Model(v interface{}) *ToyBrick {
 	// lazy init model
 	model = t.GetModel(vType)
 	toyBrick := NewToyBrick(t, model)
+	if t.debug {
+		toyBrick = toyBrick.Debug()
+	}
 	return toyBrick
 }
 

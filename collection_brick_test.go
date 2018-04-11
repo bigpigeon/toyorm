@@ -456,7 +456,7 @@ func TestCollectionFind(t *testing.T) {
 							C: strings.Repeat("c", k),
 							D: &d,
 						}
-						result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
+						result, err := TestCollectionDB.Model(&TestSearchTable{}).Insert(&t1)
 						assert.Nil(t, err)
 						if err := result.Err(); err != nil {
 							t.Error(err)
@@ -481,7 +481,7 @@ func TestCollectionFind(t *testing.T) {
 	// test find with struct
 	{
 		table := TestSearchTable{}
-		result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().Find(&table)
+		result, err := TestCollectionDB.Model(&TestSearchTable{}).Find(&table)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -493,7 +493,7 @@ func TestCollectionFind(t *testing.T) {
 	// test find with struct list
 	{
 		var tables []TestSearchTable
-		result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().Find(&tables)
+		result, err := TestCollectionDB.Model(&TestSearchTable{}).Find(&tables)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -511,7 +511,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestCollectionDB.Model(&TestSearchTable{}).
 			Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -527,7 +527,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE (a = ? OR b = ?), args:[]interface {}{"a", "bb"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestCollectionDB.Model(&TestSearchTable{}).
 			Where(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -542,7 +542,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestCollectionDB.Model(&TestSearchTable{}).
 			Where(ExprEqual, Offsetof(base.A), "a").
 			And().Condition(ExprEqual, Offsetof(base.B), "b").Find(&tabs)
 		assert.Nil(t, err)
@@ -559,7 +559,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE ((a = ? AND b = ? OR c = ?) OR d = ? AND a = ?), args:[]interface {}{"a", "b", "c", "d", "aa"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestCollectionDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestCollectionDB.Model(&TestSearchTable{}).
 			Where(ExprEqual, Offsetof(base.A), "a").And().
 			Condition(ExprEqual, Offsetof(base.B), "b").Or().
 			Condition(ExprEqual, Offsetof(base.C), "c").Or().
@@ -689,7 +689,7 @@ func TestCollectionUpdate(t *testing.T) {
 }
 
 func TestCollectionPreloadCreateTable(t *testing.T) {
-	brick := TestCollectionDB.Model(TestPreloadTable{}).Debug().
+	brick := TestCollectionDB.Model(TestPreloadTable{}).
 		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
@@ -713,11 +713,11 @@ func TestCollectionPreloadCreateTable(t *testing.T) {
 }
 
 func TestCollectionPreloadInsertData(t *testing.T) {
-	brick := TestCollectionDB.Model(TestPreloadTable{}).Debug().
-		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Debug().Enter().
-		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Debug().Enter().
-		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Debug().Enter().
-		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Debug().Enter()
+	brick := TestCollectionDB.Model(TestPreloadTable{}).
+		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
+		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
+		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
+		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Enter()
 	// add id generator
 	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
@@ -971,7 +971,7 @@ func TestCollectionPreloadSave(t *testing.T) {
 }
 
 func TestCollectionPreloadFind(t *testing.T) {
-	brick := TestCollectionDB.Model(TestPreloadTable{}).Debug().
+	brick := TestCollectionDB.Model(TestPreloadTable{}).
 		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
@@ -1020,7 +1020,7 @@ func TestCollectionPreloadDelete(t *testing.T) {
 	var result *Result
 
 	t.Run("Hard Delete", func(t *testing.T) {
-		brick := TestCollectionDB.Model(&hardTab).Debug().
+		brick := TestCollectionDB.Model(&hardTab).
 			Preload(Offsetof(hardTab.BelongTo)).Enter().
 			Preload(Offsetof(hardTab.OneToOne)).Enter().
 			Preload(Offsetof(hardTab.OneToMany)).Enter().
@@ -1115,7 +1115,7 @@ func TestCollectionPreloadDelete(t *testing.T) {
 		}
 	})
 	t.Run("SoftDelete", func(t *testing.T) {
-		brick := TestCollectionDB.Model(&softTab).Debug().
+		brick := TestCollectionDB.Model(&softTab).
 			Preload(Offsetof(softTab.BelongTo)).Enter().
 			Preload(Offsetof(softTab.OneToOne)).Enter().
 			Preload(Offsetof(softTab.OneToMany)).Enter().
@@ -1215,7 +1215,7 @@ func TestCollectionCustomPreload(t *testing.T) {
 	tableOne := TestCustomPreloadOneToOne{}
 	tableThree := TestCustomPreloadOneToMany{}
 	middleTable := TestCustomPreloadManyToManyMiddle{}
-	brick := TestCollectionDB.Model(&table).Debug().
+	brick := TestCollectionDB.Model(&table).
 		CustomOneToOnePreload(Offsetof(table.ChildOne), Offsetof(tableOne.ParentID)).Enter().
 		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
 		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
@@ -1278,7 +1278,7 @@ func TestCollectionCustomPreload(t *testing.T) {
 
 func TestCollectionFlow(t *testing.T) {
 	// create a brick with product
-	brick := TestCollectionDB.Model(&Product{}).Debug().
+	brick := TestCollectionDB.Model(&Product{}).
 		Preload(Offsetof(Product{}.Detail)).Enter().
 		Preload(Offsetof(Product{}.Address)).Enter().
 		Preload(Offsetof(Product{}.Tag)).Enter().
@@ -1444,7 +1444,7 @@ func TestCollectionFlow(t *testing.T) {
 
 func TestCollectionIgnorePreloadInsert(t *testing.T) {
 	var tab TestPreloadIgnoreTable
-	brick := TestCollectionDB.Model(&tab).Debug().
+	brick := TestCollectionDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter()
 
@@ -1488,7 +1488,7 @@ func TestCollectionMissPreloadFind(t *testing.T) {
 	var tab TestMissTable
 	var belongTab TestMissBelongTo
 	var manyToManyTab TestMissManyToMany
-	brick := TestCollectionDB.Model(&tab).Debug().
+	brick := TestCollectionDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter().
 		Preload(Offsetof(tab.OneToMany)).Enter().
@@ -1541,13 +1541,13 @@ func TestCollectionMissPreloadFind(t *testing.T) {
 		t.Error(err)
 	}
 	// remove belong to data and many to many data
-	result, err = TestCollectionDB.Model(&belongTab).Debug().
+	result, err = TestCollectionDB.Model(&belongTab).
 		Delete([]TestMissBelongTo{*missData[0].BelongTo, *missData[1].BelongTo})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
-	result, err = TestCollectionDB.Model(&manyToManyTab).Debug().
+	result, err = TestCollectionDB.Model(&manyToManyTab).
 		Delete([]TestMissManyToMany{missData[0].ManyToMany[0], missData[1].ManyToMany[0]})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -1568,7 +1568,7 @@ func TestCollectionMissPreloadFind(t *testing.T) {
 
 func TestCollectionSameBelongId(t *testing.T) {
 	var tab TestSameBelongIdTable
-	brick := TestCollectionDB.Model(&tab).Debug().
+	brick := TestCollectionDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter()
 
 	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
@@ -1605,7 +1605,7 @@ func TestCollectionSameBelongId(t *testing.T) {
 
 func TestCollectionPointContainerField(t *testing.T) {
 	var tab TestPointContainerTable
-	brick := TestCollectionDB.Model(&tab).Debug().
+	brick := TestCollectionDB.Model(&tab).
 		Preload(Offsetof(tab.OneToMany)).Enter().
 		Preload(Offsetof(tab.ManyToMany)).Enter()
 
@@ -1679,7 +1679,7 @@ func TestCollectionReport(t *testing.T) {
 	var tabSub2 TestReportSub2
 	var tabSub3 TestReportSub3
 	var tabSub4 TestReportSub4
-	brick := TestCollectionDB.Model(&tab).Debug().
+	brick := TestCollectionDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).
 		Preload(Offsetof(tabSub1.BelongTo)).Enter().
 		Preload(Offsetof(tabSub1.OneToOne)).Enter().
@@ -1888,7 +1888,7 @@ func TestCollectionRightValuePreload(t *testing.T) {
 
 func TestCollectionPreloadCheck(t *testing.T) {
 	var tab TestPreloadCheckTable
-	brick := TestCollectionDB.Model(&tab).Debug().
+	brick := TestCollectionDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter().
 		Preload(Offsetof(tab.OneToMany)).Enter().
@@ -2028,7 +2028,7 @@ func TestCollectionPreloadCheck(t *testing.T) {
 // some database cannot use table name like "order, group"
 func TestCollectionTableNameProtect(t *testing.T) {
 
-	brick := TestCollectionDB.Model(&User{}).Debug().
+	brick := TestCollectionDB.Model(&User{}).
 		Preload(Offsetof(User{}.Orders)).Enter()
 
 	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})

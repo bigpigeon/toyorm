@@ -99,6 +99,9 @@ func (t *ToyCollection) Model(v interface{}) *CollectionBrick {
 	// lazy init model
 	model = t.GetModel(vType)
 	brick := NewCollectionBrick(t, model)
+	if t.debug {
+		brick = brick.Debug()
+	}
 	return brick
 }
 

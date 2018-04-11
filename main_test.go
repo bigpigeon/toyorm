@@ -734,6 +734,7 @@ func CollectionIDGenerate(ctx *CollectionContext) error {
 }
 
 var currentDriver = flag.String("db", "", "current test db")
+var testDebug = flag.Bool("debug", false, "debug print")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -772,7 +773,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("=========== %s ===========\n", sqldata.Driver)
 		fmt.Printf("connect to %s \n\n", sqldata.Source)
 		if err == nil {
-
+			TestDB.SetDebug(*testDebug)
 			err = TestDB.db.Ping()
 			if err != nil {
 				fmt.Printf("Error: cannot test sql %s because (%s)\n", sqldata.Driver, err)
@@ -785,6 +786,7 @@ func TestMain(m *testing.M) {
 
 		TestCollectionDB, err = OpenCollection(sqldata.Driver, sqldata.CollectionSources...)
 		if err == nil {
+			TestCollectionDB.SetDebug(*testDebug)
 			for _, db := range TestCollectionDB.dbs {
 				err = db.Ping()
 				if err != nil {

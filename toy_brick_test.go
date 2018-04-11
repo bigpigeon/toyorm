@@ -368,7 +368,7 @@ func TestFind(t *testing.T) {
 							C: strings.Repeat("c", k),
 							D: &d,
 						}
-						result, err := TestDB.Model(&TestSearchTable{}).Debug().Insert(&t1)
+						result, err := TestDB.Model(&TestSearchTable{}).Insert(&t1)
 						assert.Nil(t, err)
 						if err := result.Err(); err != nil {
 							t.Error(err)
@@ -393,7 +393,7 @@ func TestFind(t *testing.T) {
 	// test find with struct
 	{
 		table := TestSearchTable{}
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().Find(&table)
+		result, err := TestDB.Model(&TestSearchTable{}).Find(&table)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -405,7 +405,7 @@ func TestFind(t *testing.T) {
 	// test find with struct list
 	{
 		var tables []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().Find(&tables)
+		result, err := TestDB.Model(&TestSearchTable{}).Find(&tables)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -423,7 +423,7 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestDB.Model(&TestSearchTable{}).
 			Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -439,7 +439,7 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE (a = ? OR b = ?), args:[]interface {}{"a", "bb"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestDB.Model(&TestSearchTable{}).
 			Where(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -454,7 +454,7 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestDB.Model(&TestSearchTable{}).
 			Where(ExprEqual, Offsetof(base.A), "a").
 			And().Condition(ExprEqual, Offsetof(base.B), "b").Find(&tabs)
 		assert.Nil(t, err)
@@ -471,7 +471,7 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE ((a = ? AND b = ? OR c = ?) OR d = ? AND a = ?), args:[]interface {}{"a", "b", "c", "d", "aa"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).Debug().
+		result, err := TestDB.Model(&TestSearchTable{}).
 			Where(ExprEqual, Offsetof(base.A), "a").And().
 			Condition(ExprEqual, Offsetof(base.B), "b").Or().
 			Condition(ExprEqual, Offsetof(base.C), "c").Or().
@@ -639,7 +639,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestPreloadCreateTable(t *testing.T) {
-	brick := TestDB.Model(TestPreloadTable{}).Debug().
+	brick := TestDB.Model(TestPreloadTable{}).
 		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
@@ -664,7 +664,7 @@ func TestPreloadCreateTable(t *testing.T) {
 }
 
 func TestPreloadInsertData(t *testing.T) {
-	brick := TestDB.Model(TestPreloadTable{}).Debug().
+	brick := TestDB.Model(TestPreloadTable{}).
 		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
@@ -908,7 +908,7 @@ func TestPreloadSave(t *testing.T) {
 }
 
 func TestPreloadFind(t *testing.T) {
-	brick := TestDB.Model(TestPreloadTable{}).Debug().
+	brick := TestDB.Model(TestPreloadTable{}).
 		Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter().
 		Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter().
@@ -988,7 +988,7 @@ func TestPreloadDelete(t *testing.T) {
 	}
 	// delete hard table
 	{
-		hardBrick := TestDB.Model(&hardTab).Debug().
+		hardBrick := TestDB.Model(&hardTab).
 			Preload(Offsetof(hardTab.BelongTo)).Enter().
 			Preload(Offsetof(hardTab.OneToOne)).Enter().
 			Preload(Offsetof(hardTab.OneToMany)).Enter().
@@ -1006,7 +1006,7 @@ func TestPreloadDelete(t *testing.T) {
 	}
 	// delete soft table
 	{
-		brick := TestDB.Model(&softTab).Debug().
+		brick := TestDB.Model(&softTab).
 			Preload(Offsetof(softTab.BelongTo)).Enter().
 			Preload(Offsetof(softTab.OneToOne)).Enter().
 			Preload(Offsetof(softTab.OneToMany)).Enter().
@@ -1024,32 +1024,32 @@ func TestPreloadDelete(t *testing.T) {
 	}
 	// have same target foreign key ,need create table following table first
 	{
-		result, err = TestDB.Model(&TestHardDeleteTableBelongTo{}).Debug().CreateTable()
+		result, err = TestDB.Model(&TestHardDeleteTableBelongTo{}).CreateTable()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err := TestDB.Model(&TestSoftDeleteTableBelongTo{}).Debug().CreateTable()
+		result, err := TestDB.Model(&TestSoftDeleteTableBelongTo{}).CreateTable()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = TestDB.Model(&hardTab).Debug().CreateTable()
+		result, err = TestDB.Model(&hardTab).CreateTable()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = TestDB.Model(&softTab).Debug().CreateTable()
+		result, err = TestDB.Model(&softTab).CreateTable()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 	}
 	t.Run("Hard Delete", func(t *testing.T) {
-		brick := TestDB.Model(&hardTab).Debug().
+		brick := TestDB.Model(&hardTab).
 			Preload(Offsetof(hardTab.BelongTo)).Enter().
 			Preload(Offsetof(hardTab.OneToOne)).Enter().
 			Preload(Offsetof(hardTab.OneToMany)).Enter().
@@ -1132,7 +1132,7 @@ func TestPreloadDelete(t *testing.T) {
 		}
 	})
 	t.Run("SoftDelete", func(t *testing.T) {
-		brick := TestDB.Model(&softTab).Debug().
+		brick := TestDB.Model(&softTab).
 			Preload(Offsetof(softTab.BelongTo)).Enter().
 			Preload(Offsetof(softTab.OneToOne)).Enter().
 			Preload(Offsetof(softTab.OneToMany)).Enter().
@@ -1221,7 +1221,7 @@ func TestCustomPreload(t *testing.T) {
 	tableOne := TestCustomPreloadOneToOne{}
 	tableThree := TestCustomPreloadOneToMany{}
 	middleTable := TestCustomPreloadManyToManyMiddle{}
-	brick := TestDB.Model(&table).Debug().
+	brick := TestDB.Model(&table).
 		CustomOneToOnePreload(Offsetof(table.ChildOne), Offsetof(tableOne.ParentID)).Enter().
 		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
 		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
@@ -1279,7 +1279,7 @@ func TestCustomPreload(t *testing.T) {
 
 func TestFlow(t *testing.T) {
 	// create a brick with product
-	brick := TestDB.Model(&Product{}).Debug().
+	brick := TestDB.Model(&Product{}).
 		Preload(Offsetof(Product{}.Detail)).Enter().
 		Preload(Offsetof(Product{}.Address)).Enter().
 		Preload(Offsetof(Product{}.Tag)).Enter().
@@ -1491,7 +1491,7 @@ func TestForeignKey(t *testing.T) {
 	var tab TestForeignKeyTable
 	var middleTab TestForeignKeyTableMiddle
 
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter().
 		Preload(Offsetof(tab.OneToMany)).Enter()
@@ -1558,7 +1558,7 @@ func TestForeignKey(t *testing.T) {
 
 func TestIgnorePreloadInsert(t *testing.T) {
 	var tab TestPreloadIgnoreTable
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter()
 
@@ -1595,7 +1595,7 @@ func TestMissPreloadFind(t *testing.T) {
 	var tab TestMissTable
 	var belongTab TestMissBelongTo
 	var manyToManyTab TestMissManyToMany
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter().
 		Preload(Offsetof(tab.OneToMany)).Enter().
@@ -1640,13 +1640,13 @@ func TestMissPreloadFind(t *testing.T) {
 		t.Error(err)
 	}
 	// remove belong to data and many to many data
-	result, err = TestDB.Model(&belongTab).Debug().
+	result, err = TestDB.Model(&belongTab).
 		Delete([]TestMissBelongTo{*missData[0].BelongTo, *missData[1].BelongTo})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
-	result, err = TestDB.Model(&manyToManyTab).Debug().
+	result, err = TestDB.Model(&manyToManyTab).
 		Delete([]TestMissManyToMany{missData[0].ManyToMany[0], missData[1].ManyToMany[0]})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -1667,7 +1667,7 @@ func TestMissPreloadFind(t *testing.T) {
 
 func TestSameBelongId(t *testing.T) {
 	var tab TestSameBelongIdTable
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter()
 
 	result, err := brick.DropTableIfExist()
@@ -1697,7 +1697,7 @@ func TestSameBelongId(t *testing.T) {
 
 func TestPointContainerField(t *testing.T) {
 	var tab TestPointContainerTable
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.OneToMany)).Enter().
 		Preload(Offsetof(tab.ManyToMany)).Enter()
 	createTableUnit(brick)(t)
@@ -1750,7 +1750,7 @@ func TestReport(t *testing.T) {
 	var tabSub2 TestReportSub2
 	var tabSub3 TestReportSub3
 	var tabSub4 TestReportSub4
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).
 		Preload(Offsetof(tabSub1.BelongTo)).Enter().
 		Preload(Offsetof(tabSub1.OneToOne)).Enter().
@@ -1941,7 +1941,7 @@ func TestRightValuePreload(t *testing.T) {
 
 func TestPreloadCheck(t *testing.T) {
 	var tab TestPreloadCheckTable
-	brick := TestDB.Model(&tab).Debug().
+	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter().
 		Preload(Offsetof(tab.OneToMany)).Enter().
@@ -2081,7 +2081,7 @@ func TestPreloadCheck(t *testing.T) {
 // some database cannot use table name like "order, group"
 func TestTableNameProtect(t *testing.T) {
 
-	brick := TestDB.Model(&User{}).Debug().
+	brick := TestDB.Model(&User{}).
 		Preload(Offsetof(User{}.Orders)).Enter()
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
@@ -2242,7 +2242,8 @@ func TestCustomExec(t *testing.T) {
 func TestToyBrickCopyOnWrite(t *testing.T) {
 	var tab TestPreloadTable
 	brick := TestDB.Model(&tab)
-	{
+
+	if TestDB.debug == false {
 		debugBrick := brick.Debug()
 		assert.True(t, debugBrick.debug)
 		assert.False(t, brick.debug)
@@ -2314,7 +2315,7 @@ func TestToyBrickCopyOnWrite(t *testing.T) {
 		var tab TestJoinTable
 		var nameTab TestJoinNameTable
 		var priceTab TestJoinPriceTable
-		brick := TestDB.Model(&tab).Debug().OrderBy(Offsetof(tab.Name)).GroupBy(Offsetof(tab.Data)).
+		brick := TestDB.Model(&tab).OrderBy(Offsetof(tab.Name)).GroupBy(Offsetof(tab.Data)).
 			Where(ExprEqual, Offsetof(tab.Data), "test join 1").
 			Join(Offsetof(tab.NameJoin)).OrderBy(Offsetof(nameTab.SubData)).GroupBy(Offsetof(nameTab.Name)).
 			Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
@@ -2382,7 +2383,7 @@ func TestJoin(t *testing.T) {
 
 	// join test
 	{
-		brick := tabBrick.Debug().
+		brick := tabBrick.
 			Join(Offsetof(tab.NameJoin)).Swap().
 			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
 		var scanData []TestJoinTable
@@ -2403,7 +2404,7 @@ func TestJoin(t *testing.T) {
 	}
 	// condition join test
 	{
-		brick := tabBrick.Debug().Where(ExprEqual, Offsetof(tab.Data), "test join 1").
+		brick := tabBrick.Where(ExprEqual, Offsetof(tab.Data), "test join 1").
 			Join(Offsetof(tab.NameJoin)).Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
 			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
 		var scanData []TestJoinTable
@@ -2424,7 +2425,7 @@ func TestJoin(t *testing.T) {
 	}
 	// preload on join
 	{
-		brick := tabBrick.Debug().
+		brick := tabBrick.
 			Join(Offsetof(tab.NameJoin)).
 			Preload(Offsetof(nameTab.OneToMany)).Enter().Swap()
 
@@ -2454,7 +2455,7 @@ func TestJoinAlias(t *testing.T) {
 	var tab TestJoinTable
 	var nameTab TestJoinNameTable
 	var priceTab TestJoinPriceTable
-	brick := TestDB.Model(&tab).Debug().OrderBy(Offsetof(tab.Name)).
+	brick := TestDB.Model(&tab).OrderBy(Offsetof(tab.Name)).
 		Where(ExprEqual, Offsetof(tab.Data), "test join 1").
 		Join(Offsetof(tab.NameJoin)).
 		Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
