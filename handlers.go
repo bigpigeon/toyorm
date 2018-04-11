@@ -338,7 +338,6 @@ func HandlerPreloadOnJoinFind(ctx *Context) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("action flow %#v\n", joinCtx.Result.ActionFlow)
 			for preloadName, result := range joinCtx.Result.Preload {
 				fieldName := fmt.Sprintf("j_%s_%s", name, preloadName)
 				ctx.Result.Preload[fieldName] = result

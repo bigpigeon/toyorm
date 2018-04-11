@@ -1,3 +1,8 @@
+### Toyorm v0.3.1-alpha (Apr 01, 2018)
+
+- [NEW] support Preload On Join
+- [NEW] Toy/ToyCollection can SetDebug
+
 ### Toyorm v0.3-alpha (Apr 01, 2018)
 
 - [NEW] support Join operation

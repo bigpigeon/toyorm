@@ -46,6 +46,12 @@ type Color struct {
 	Code int32
 }
 
+type Comment struct {
+	toyorm.ModelDefault
+	ProductDetailProductID uint32 `toyorm:"index"`
+	Data                   string `toyorm:"type:VARCHAR(1024)"`
+}
+
 type ProductDetail struct {
 	ProductID  uint32 `toyorm:"primary key;join:Detail"`
 	Title      string
@@ -53,7 +59,7 @@ type ProductDetail struct {
 	Extra      Extra  `toyorm:"type:VARCHAR(2048)"`
 	Color      string `toyorm:"join:ColorDetail"`
 	ColorJoin  Color  `toyorm:"alias:ColorDetail"`
-	//TODO add preload
+	Comment    []Comment
 }
 
 type Product struct {
@@ -79,7 +85,7 @@ func main() {
 	var detailTab ProductDetail
 	var colorTab Color
 	brick := toy.Model(&tab).Debug()
-	detailBrick := toy.Model(&detailTab).Debug()
+	detailBrick := toy.Model(&detailTab).Debug().Preload(Offsetof(detailTab.Comment)).Enter()
 	colorBrick := toy.Model(&colorTab).Debug()
 	// create table
 	for _, b := range []*toyorm.ToyBrick{brick, detailBrick, colorBrick} {
@@ -114,9 +120,18 @@ func main() {
 	}
 
 	details := []ProductDetail{
-		{ProductID: products[0].ID, Color: "white", Title: "cheap and quality clean stick", CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"}},
-		{ProductID: products[1].ID, Color: "orange", Title: "pipe with non-toxic material", CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"}},
-		{ProductID: products[2].ID, Color: "black", Title: "black cable", CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"}},
+		{ProductID: products[0].ID, Color: "white", Title: "cheap and quality clean stick",
+			CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"},
+			Comment: []Comment{{Data: "good quality but I like black color more"}, {Data: "why only has white color"}},
+		},
+		{ProductID: products[1].ID, Color: "orange", Title: "pipe with non-toxic material",
+			CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"},
+			Comment: []Comment{{Data: "very good"}, {Data: "I think iron material is better"}},
+		},
+		{ProductID: products[2].ID, Color: "black", Title: "black cable",
+			CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"},
+			Comment: []Comment{{Data: "good signal"}, {Data: "emmmm my cat like bite it"}},
+		},
 	}
 	result, err = detailBrick.Insert(&details)
 	if err != nil {
@@ -195,4 +210,22 @@ func main() {
 		}
 	}
 	// group by also work in join here not example
+
+	// preload on join
+	{
+		brick := toy.Model(&tab).Debug().
+			Join(Offsetof(tab.Detail)).Preload(Offsetof(detailTab.Comment)).Enter().
+			Join(Offsetof(detailTab.ColorJoin)).Swap().Swap()
+		var scanData []Product
+		result, err = brick.Find(&scanData)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		for _, product := range scanData {
+			fmt.Printf("product %s\n", JsonEncode(product))
+		}
+	}
 }

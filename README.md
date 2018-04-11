@@ -45,9 +45,19 @@ this is powerful sql orm library for Golang, have some funny features
       - [Placeholder](#placeholder)
     - [Thread safe](#thread-safe)
     - [Preload](#preload)
+      - [Preload example](#preload-example)
+      - [One to one](#one-to-one)
+      - [Belong to](#belong-to)
+      - [One to many](#one-to-many)
+      - [Many to many](#many-to-many)
+      - [Load preload](#load-preload)
+    - [Join](#join)
+      - [Example](#example)
+      - [Model Define](#model-define)
+      - [Join in Find](#join-in-find)
+      - [Preload On Join](#preload-on-join)
   - [Result](#result)
     - [Selector](#selector)
-  - [preload example](#preload-example)
 - [Collection](#collection)
   - [ToyCollection](#toycollection)
   - [CollectionBrick](#collectionbrick)
@@ -691,7 +701,11 @@ relations field is used to link the main record and sub record
 
 container field is used to hold sub record
 
-**one to one**
+##### Preload example
+
+[here](examples/preload_example)
+
+##### One to one
 
 relation field at sub model
 
@@ -717,7 +731,7 @@ brick = toy.Model(&User{}).Debug().Preload(OffsetOf(User.Detail)).Enter()
 
 ```
 
-**belong to**
+##### Belong to
 
 relation field at main model
 
@@ -740,7 +754,7 @@ type UserDetail struct {
 
 ```
 
-**one to many**
+##### One to many
 
 relation field at sub model
 
@@ -766,7 +780,7 @@ type Blog struct {
 
 ```
 
-**many to many**
+##### Many to many
 
 many to many not need to specified the relation ship,it relation field at middle model
 
@@ -778,7 +792,7 @@ type User struct {
 }
 ```
 
-**load preload**
+##### Load preload
 
 when you finish model definition, it time to load preload
 
@@ -812,6 +826,10 @@ brick.CustomManyToManyPreload(<middle model struct>, <main container>, <main rel
 
 different association query is join query
 
+##### Example
+
+[here](examples/join_example)
+
 ##### Model Define
 
 use join tag to association related field/ join tag value must same as container field name
@@ -839,6 +857,12 @@ type Color struct {
 	Code int32
 }
 
+type Comment struct {
+	toyorm.ModelDefault
+	ProductDetailProductID uint32 `toyorm:"index"`
+	Data                   string `toyorm:"type:VARCHAR(1024)"`
+}
+
 type ProductDetail struct {
 	ProductID  uint32 `toyorm:"primary key;join:Detail"`
 	Title      string
@@ -846,7 +870,7 @@ type ProductDetail struct {
 	Extra      Extra  `toyorm:"type:VARCHAR(2048)"`
 	Color      string `toyorm:"join:ColorDetail"`
 	ColorJoin  Color  `toyorm:"alias:ColorDetail"`
-	//TODO add preload
+	Comment    []Comment
 }
 
 type Product struct {
@@ -894,17 +918,32 @@ brick := toy.Model(&tab).Debug().
     Join(Offsetof(tab.Detail)).
     Join(Offsetof(detailTab.ColorJoin)).OrderBy(Offsetof(colorTab.Name)).
     Swap().Swap()
+var scanData []Product
+result, err = brick.Find(&scanData)
 // SELECT m.id,m.created_at,m.deleted_at,m.name,m.count,m.price,m_0.product_id,m_0.title,m_0.custom_page,m_0.extra,m_0.color,m_0_0.name,m_0_0.code FROM `product` as `m` JOIN `product_detail` AS `m_0` ON m.id = m_0.product_id JOIN `color` AS `m_0_0` ON m_0.color = m_0_0.name   WHERE m.deleted_at IS NULL ORDER BY m_0_0.name
 ```
 
 also can set GroupBy but here not example
+
+##### Preload On Join
+
+Preload method also work on Join mode
+
+```golang
+brick := toy.Model(&tab).Debug().
+    Join(Offsetof(tab.Detail)).Preload(Offsetof(detailTab.Comment)).Enter().
+    Join(Offsetof(detailTab.ColorJoin)).Swap().Swap()
+var scanData []Product
+result, err = brick.Find(&scanData)
+// SELECT m.id,m.created_at,m.deleted_at,m.name,m.count,m.price,m_0.product_id,m_0.title,m_0.custom_page,m_0.extra,m_0.color,m_0_0.name,m_0_0.code FROM `product` as `m` JOIN `product_detail` AS `m_0` ON m.id = m_0.product_id JOIN `color` AS `m_0_0` ON m_0.color = m_0_0.name   WHERE m.deleted_at IS NULL
+// SELECT id,created_at,updated_at,deleted_at,product_detail_product_id,data FROM `comment`   WHERE deleted_at IS NULL AND product_detail_product_id IN (?,?,?)  args:[1,2,3]
+```
 
 ### Result
 
 **use Report to view sql action**
 
 report format
-
 
 insert
 
@@ -1037,10 +1076,6 @@ Find                | no       | no          | no                             | 
 
 
 
-
-### preload example
-
-[here](examples/preload_example)
 
 ## Collection
 
