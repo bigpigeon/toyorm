@@ -196,10 +196,10 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		field := model.AllFields[i]
 
 		model.OffsetFields[field.offset] = field
-		if _, ok := model.NameFields[field.field.Name]; ok {
+		if _, ok := model.NameFields[field.Name()]; ok {
 			panic(ErrRepeatField{model.Name, field.field.Name})
 		}
-		model.NameFields[field.field.Name] = field
+		model.NameFields[field.Name()] = field
 
 		if field.isPrimary {
 			model.PrimaryFields = append(model.PrimaryFields, field)

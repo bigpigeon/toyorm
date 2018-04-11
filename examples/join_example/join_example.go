@@ -42,7 +42,7 @@ func (e Extra) Value() (driver.Value, error) {
 }
 
 type Color struct {
-	Name string `toyorm:"primary key;join:Color"`
+	Name string `toyorm:"primary key;join:ColorDetail"`
 	Code int32
 }
 
@@ -51,8 +51,8 @@ type ProductDetail struct {
 	Title      string
 	CustomPage string `toyorm:"type:text"`
 	Extra      Extra  `toyorm:"type:VARCHAR(2048)"`
-	Color      string `toyorm:"join:Color"`
-	ColorJoin  Color  `toyorm:"container:Color"`
+	Color      string `toyorm:"join:ColorDetail"`
+	ColorJoin  Color  `toyorm:"container:ColorDetail"`
 	//TODO add preload
 }
 

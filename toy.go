@@ -155,7 +155,7 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 func (t *Toy) Join(model *Model, field Field) *Join {
 	_type := LoopTypeIndirect(field.StructField().Type)
 	subModel := t.GetModel(_type)
-	containerName := field.Container()
+	containerName := field.Name()
 	if model.JoinWithMap[containerName] != nil && subModel.JoinWithMap[containerName] != nil {
 		return &Join{
 			model,

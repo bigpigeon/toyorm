@@ -194,7 +194,7 @@ func GetRelationFieldName(subModel *Model) string {
 }
 
 func GetBelongsIDFieldName(subModel *Model, containerField Field) string {
-	return containerField.Container() + subModel.GetOnePrimary().Name()
+	return containerField.Name() + subModel.GetOnePrimary().Name()
 }
 
 func GetMiddleField(model, middleModel *Model, leftOrRight bool) Field {

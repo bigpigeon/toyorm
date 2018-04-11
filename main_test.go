@@ -629,7 +629,7 @@ type TestJoinPriceSubStarTable struct {
 
 type TestJoinPriceTable struct {
 	ID       uint32 `toyorm:"primary key;auto_increment"`
-	Price    int    `toyorm:"index;join:Price"`
+	Price    int    `toyorm:"index;join:PriceDetail"`
 	Star     int    `toyorm:"index;join:StarJoin"`
 	StarJoin TestJoinPriceSubStarTable
 	SubData  string
@@ -638,10 +638,10 @@ type TestJoinPriceTable struct {
 type TestJoinTable struct {
 	ModelDefault
 	Name      string `toyorm:"index;join:NameJoin"`
-	Price     int    `toyorm:"index;join:Price"`
+	Price     int    `toyorm:"index;join:PriceDetail"`
 	Data      string
 	NameJoin  *TestJoinNameTable
-	PriceJoin TestJoinPriceTable `toyorm:"container:Price"`
+	PriceJoin TestJoinPriceTable `toyorm:"alias:PriceDetail"`
 }
 
 // use to create many to many preload which have foreign key
