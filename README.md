@@ -52,7 +52,7 @@ this is powerful sql orm library for Golang, have some funny features
       - [Many to many](#many-to-many)
       - [Load preload](#load-preload)
     - [Join](#join)
-      - [Example](#example)
+      - [Join Example](#join-example)
       - [Model Define](#model-define)
       - [Join in Find](#join-in-find)
       - [Preload On Join](#preload-on-join)
@@ -515,6 +515,8 @@ brick = brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name)))
 
 #### Transaction
 
+---
+
 start a transaction
 
 ```golang
@@ -693,6 +695,8 @@ Thread safe if you comply with the following agreement
 
 #### Preload
 
+---
+
 preload need have relation field and container field
 
 
@@ -824,9 +828,11 @@ brick.CustomManyToManyPreload(<middle model struct>, <main container>, <main rel
 
 #### Join
 
+---
+
 different association query is join query
 
-##### Example
+##### Join Example
 
 [here](examples/join_example)
 
