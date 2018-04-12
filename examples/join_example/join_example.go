@@ -166,9 +166,9 @@ func dataInit(toy *toyorm.Toy) {
 	var tab Product
 	var detailTab ProductDetail
 	var colorTab Color
-	brick := toy.Model(&tab).Debug()
-	detailBrick := toy.Model(&detailTab).Debug().Preload(Offsetof(detailTab.Comment)).Enter()
-	colorBrick := toy.Model(&colorTab).Debug()
+	brick := toy.Model(&tab)
+	detailBrick := toy.Model(&detailTab).Preload(Offsetof(detailTab.Comment)).Enter()
+	colorBrick := toy.Model(&colorTab)
 
 	// create table
 	for _, b := range []*toyorm.ToyBrick{brick, detailBrick, colorBrick} {
