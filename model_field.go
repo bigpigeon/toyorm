@@ -177,7 +177,7 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 		case "join":
 			field.joinWith = tagKeyVal.Val
 		default:
-			field.attrs[tagKeyVal.Val] = tagKeyVal.Val
+			field.attrs[tagKeyVal.Key] = tagKeyVal.Val
 		}
 	}
 	if field.column == "" || field.sqlType == "" {
