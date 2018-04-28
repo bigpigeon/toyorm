@@ -99,6 +99,40 @@ func (m *modelField) JoinWith() string {
 	return m.joinWith
 }
 
+type tagKeyValue struct {
+	Key string
+	Val string
+}
+
+func newTagKeyVal(s string) *tagKeyValue {
+	sList := strings.Split(s, ":")
+	keyVal := new(tagKeyValue)
+	switch len(sList) {
+	case 0:
+		return nil
+	case 1:
+		keyVal.Key = strings.TrimSpace(sList[0])
+	case 2:
+		keyVal.Key, keyVal.Val = strings.TrimSpace(sList[0]), strings.TrimSpace(sList[1])
+	default:
+		panic(ErrInvalidTag)
+	}
+	keyVal.Key = strings.ToLower(keyVal.Key)
+	return keyVal
+}
+
+func GetTagKeyVal(tag string) []*tagKeyValue {
+	var keyValList []*tagKeyValue
+	// set attribute by tag
+	tags := strings.Split(tag, ";")
+	for _, t := range tags {
+		if tagKeyVal := newTagKeyVal(t); tagKeyVal != nil {
+			keyValList = append(keyValList, tagKeyVal)
+		}
+	}
+	return keyValList
+}
+
 func NewField(f *reflect.StructField, table_name string) *modelField {
 	field := &modelField{
 		field:   *f,
@@ -109,53 +143,41 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 	}
 
 	// set attribute by tag
-	tags := strings.Split(f.Tag.Get("toyorm"), ";")
-	for _, t := range tags {
-		keyval := strings.Split(t, ":")
-		var key, val string
-		switch len(keyval) {
-		case 0:
-			continue
-		case 1:
-			key = keyval[0]
-		case 2:
-			key, val = keyval[0], keyval[1]
-		default:
-			panic(ErrInvalidTag)
-		}
-		switch strings.ToLower(key) {
+	for _, tagKeyVal := range GetTagKeyVal(f.Tag.Get("toyorm")) {
+
+		switch tagKeyVal.Key {
 		case "auto_increment", "autoincrement":
 			field.autoIncrement = true
 		case "primary key":
 			field.isPrimary = true
 		case "type":
-			field.sqlType = val
+			field.sqlType = tagKeyVal.Val
 		case "index":
-			if val == "" {
+			if tagKeyVal.Val == "" {
 				field.index = fmt.Sprintf("idx_%s_%s", table_name, field.column)
 			} else {
-				field.index = val
+				field.index = tagKeyVal.Val
 			}
 		case "unique index":
-			if val == "" {
+			if tagKeyVal.Val == "" {
 				field.uniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, field.column)
 			} else {
-				field.uniqueIndex = val
+				field.uniqueIndex = tagKeyVal.Val
 			}
 		case "foreign key":
 			field.isForeign = true
 		case "column":
-			field.column = val
+			field.column = tagKeyVal.Val
 		case "-":
 			field.ignore = true
 		case "alias":
-			field.alias = val
+			field.alias = tagKeyVal.Val
 			// container field must be ignore in sql
 			field.ignore = true
 		case "join":
-			field.joinWith = val
+			field.joinWith = tagKeyVal.Val
 		default:
-			field.attrs[key] = val
+			field.attrs[tagKeyVal.Val] = tagKeyVal.Val
 		}
 	}
 	if field.column == "" || field.sqlType == "" {
