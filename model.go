@@ -39,7 +39,7 @@ type Model struct {
 	IndexFields       map[string][]*modelField
 	UniqueIndexFields map[string][]*modelField
 	StructFieldFields map[reflect.Type][]*modelField
-	JoinWithMap       map[string]*modelField
+	Association       [AssociationTypeEnd]map[string]*modelField
 }
 
 func (m *Model) GetPosFields(pos []int) []Field {
@@ -175,9 +175,11 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		IndexFields:       map[string][]*modelField{},
 		UniqueIndexFields: map[string][]*modelField{},
 		StructFieldFields: map[reflect.Type][]*modelField{},
-		JoinWithMap:       map[string]*modelField{},
+		Association:       [AssociationTypeEnd]map[string]*modelField{},
 	}
-
+	for i := range model.Association {
+		model.Association[i] = make(map[string]*modelField)
+	}
 	for i := 0; i < _type.NumField(); i++ {
 		field := _type.Field(i)
 		if field.Anonymous && field.Type.Kind() == reflect.Struct {
@@ -210,8 +212,11 @@ func newModel(_type reflect.Type, modelName string) *Model {
 		if field.uniqueIndex != "" {
 			model.UniqueIndexFields[field.uniqueIndex] = append(model.UniqueIndexFields[field.uniqueIndex], field)
 		}
-		if field.joinWith != "" {
-			model.JoinWithMap[field.joinWith] = field
+		for association, val := range field.Association {
+			if _, ok := model.Association[association][val]; ok {
+				panic(ErrModelDuplicateAssociation{model.Name, association, field.field.Name})
+			}
+			model.Association[association][val] = field
 		}
 		if field.ignore == false {
 			if oldField, ok := model.SqlFieldMap[field.column]; ok {

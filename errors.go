@@ -151,3 +151,13 @@ type ErrCannotSet struct {
 func (e ErrCannotSet) Error() string {
 	return fmt.Sprintf("%s can't be set", e.Operation)
 }
+
+type ErrModelDuplicateAssociation struct {
+	Model string
+	Type  AssociationType
+	Name  string
+}
+
+func (e ErrModelDuplicateAssociation) Error() string {
+	return fmt.Sprintf("model %s have duplicate %s in field %s tag", e.Model, e.Type, e.Name)
+}

@@ -101,6 +101,9 @@ func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
 		return nil
 	}
 	if subModel := t.CacheModels[_type]; subModel != nil {
+		if relationField, ok := model.Association[BelongToWith][field.Name()]; ok {
+			return t.BelongToBind(model, subModel, field, relationField)
+		}
 		if relationField := model.GetFieldWithName(GetBelongsIDFieldName(subModel, field)); relationField != nil {
 			return t.BelongToBind(model, subModel, field, relationField)
 		}
@@ -116,6 +119,9 @@ func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 		return nil
 	}
 	if subModel := t.CacheModels[_type]; subModel != nil {
+		if relationField, ok := subModel.Association[OneToOneWith][field.Name()]; ok {
+			return t.OneToOneBind(model, subModel, field, relationField)
+		}
 		if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
 			return t.OneToOneBind(model, subModel, field, relationField)
 		}
@@ -128,6 +134,9 @@ func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
 		if subModel, ok := t.CacheModels[elemType]; ok {
+			if relationField, ok := subModel.Association[OneToManyWith][field.Name()]; ok {
+				return t.OneToManyBind(model, subModel, field, relationField)
+			}
 			if relationField := subModel.GetFieldWithName(GetRelationFieldName(model)); relationField != nil {
 				return t.OneToManyBind(model, subModel, field, relationField)
 			}
@@ -145,11 +154,13 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 	_type := LoopTypeIndirect(field.StructField().Type)
 	if _type.Kind() == reflect.Slice {
 		elemType := LoopTypeIndirect(_type.Elem())
+
 		if subModel, ok := t.CacheModels[elemType]; ok {
 			middleModel := newMiddleModel(model, subModel, tag)
 			relationField := GetMiddleField(model, middleModel, isRight)
 			subRelationField := GetMiddleField(subModel, middleModel, !isRight)
 			return t.ManyToManyPreloadBind(model, subModel, middleModel, field, relationField, subRelationField)
+
 		}
 	}
 	return nil
@@ -159,13 +170,13 @@ func (t *Toy) Join(model *Model, field Field) *Join {
 	_type := LoopTypeIndirect(field.StructField().Type)
 	subModel := t.GetModel(_type)
 	containerName := field.Name()
-	if model.JoinWithMap[containerName] != nil && subModel.JoinWithMap[containerName] != nil {
+	if model.Association[JoinWith][containerName] != nil && subModel.Association[JoinWith][containerName] != nil {
 		return &Join{
 			model,
 			subModel,
 			field,
-			model.JoinWithMap[containerName],
-			subModel.JoinWithMap[containerName],
+			model.Association[JoinWith][containerName],
+			subModel.Association[JoinWith][containerName],
 		}
 	}
 	return nil

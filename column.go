@@ -12,7 +12,7 @@ import (
 )
 
 type Column interface {
-	Column() string
+	Column() string // sql column declaration
 }
 
 type BrickColumn struct {

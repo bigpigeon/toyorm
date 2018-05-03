@@ -2507,3 +2507,41 @@ func TestJoinAlias(t *testing.T) {
 		}
 	}
 }
+
+func TestAliasRelatedPreloadName(t *testing.T) {
+	type BelongToSub struct {
+		ID   uint32 `toyorm:"primary key;auto_increment"`
+		Name string
+	}
+	type OneToOneSub struct {
+		ID     uint32 `toyorm:"primary key;auto_increment"`
+		MainID uint32 `toyorm:"one to one:OneToOneData"`
+		Name   string
+	}
+	type OneToManySub struct {
+		ID     uint32 `toyorm:"primary key;auto_increment"`
+		MainID uint32 `toyorm:"one to many:OneToManyData"`
+		Name   string
+	}
+	type MainTable struct {
+		ModelDefault
+		Name            string
+		AliasBelongToID uint32 `toyorm:"belong to:BelongToData"`
+		BelongToData    BelongToSub
+		OneToOneData    OneToOneSub
+		OneToManyData   []OneToManySub
+	}
+
+	brick := TestDB.Model(MainTable{}).
+		Preload(Offsetof(MainTable{}.BelongToData)).Enter().
+		Preload(Offsetof(MainTable{}.OneToOneData)).Enter().
+		Preload(Offsetof(MainTable{}.OneToManyData)).Enter()
+
+	belongToPreload := brick.BelongToPreload["BelongToData"]
+	assert.Equal(t, belongToPreload.RelationField.Name(), "AliasBelongToID")
+	oneToOnePreload := brick.OneToOnePreload["OneToOneData"]
+	assert.Equal(t, oneToOnePreload.RelationField.Name(), "MainID")
+	oneToManyPreload := brick.OneToManyPreload["OneToManyData"]
+	assert.Equal(t, oneToManyPreload.RelationField.Name(), "MainID")
+
+}

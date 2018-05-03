@@ -116,6 +116,26 @@ func TestPanicConditionKey(t *testing.T) {
 	TestDB.Model(&TestSearchTable{}).WhereGroup(ExprAnd, Offsetof(TestSearchTable{}.A))
 }
 
-func TestPanicFieldCompare(t *testing.T) {
-
+func TestPanicDuplicateNameWithBelongToAssociationField(t *testing.T) {
+	type BelongToSub struct {
+		ID   uint32 `toyorm:"primary key;auto_increment"`
+		Name string
+	}
+	type MainTable struct {
+		ModelDefault
+		Name                     string
+		AliasBelongToID          uint32 `toyorm:"belong to:BelongToData"`
+		AliasDuplicateBelongToID uint32 `toyorm:"belong to:BelongToData"`
+		BelongToData             BelongToSub
+	}
+	defer func() {
+		err := recover()
+		t.Log(err)
+		if _, ok := err.(ErrModelDuplicateAssociation); ok == false {
+			t.Log("non panic when preload is error")
+			t.Fail()
+		}
+	}()
+	// error example
+	TestDB.Model(&MainTable{}).Preload(Offsetof(MainTable{}.BelongToData))
 }

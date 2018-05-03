@@ -12,20 +12,33 @@ import (
 	"strings"
 )
 
+type AssociationType int
+
+const (
+	JoinWith AssociationType = iota
+	BelongToWith
+	OneToOneWith
+	OneToManyWith
+	AssociationTypeEnd
+)
+
 type Field interface {
-	Column
-	Name() string
-	Offset() uintptr
-	IsPrimary() bool
-	AutoIncrement() bool
-	Index() string
-	UniqueIndex() string
-	IsForeign() bool
-	Attr(string) string
-	Attrs() map[string]string
-	SqlType() string
-	StructField() reflect.StructField
-	JoinWith() string
+	Column                            // sql column declaration
+	Name() string                     // get field name
+	Offset() uintptr                  // relation position by model struct
+	IsPrimary() bool                  // primary key declaration
+	AutoIncrement() bool              // auto increment declaration
+	Index() string                    // sql index declaration
+	UniqueIndex() string              // sql unique index declaration
+	IsForeign() bool                  // sql foreign declaration
+	Attr(string) string               // extension attribute declaration
+	Attrs() map[string]string         // get all extension attribute
+	SqlType() string                  // sql type declaration
+	StructField() reflect.StructField // model struct attribute
+	JoinWith() string                 // join with specified container field declaration,when call ToyBrick.Preload(<container field>) will automatic association this field
+	BelongToWith() string             // BelongTo with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
+	OneToOneWith() string             // OneToOne with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
+	OneToManyWith() string            // OneToMany with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
 }
 
 type modelField struct {
@@ -41,7 +54,7 @@ type modelField struct {
 	isForeign     bool
 	field         reflect.StructField
 	alias         string
-	joinWith      string
+	Association   map[AssociationType]string
 }
 
 func (m *modelField) Column() string {
@@ -96,16 +109,29 @@ func (m *modelField) SqlType() string {
 }
 
 func (m *modelField) JoinWith() string {
-	return m.joinWith
+	return m.Association[JoinWith]
+}
+
+func (m *modelField) BelongToWith() string {
+	return m.Association[BelongToWith]
+}
+
+func (m *modelField) OneToOneWith() string {
+	return m.Association[OneToOneWith]
+}
+
+func (m *modelField) OneToManyWith() string {
+	return m.Association[OneToManyWith]
 }
 
 func NewField(f *reflect.StructField, table_name string) *modelField {
 	field := &modelField{
-		field:   *f,
-		attrs:   map[string]string{},
-		column:  SqlNameConvert(f.Name),
-		offset:  f.Offset,
-		sqlType: ToSqlType(f.Type),
+		field:       *f,
+		attrs:       map[string]string{},
+		column:      SqlNameConvert(f.Name),
+		offset:      f.Offset,
+		sqlType:     ToSqlType(f.Type),
+		Association: map[AssociationType]string{},
 	}
 
 	// set attribute by tag
@@ -150,10 +176,22 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 			field.ignore = true
 		case "alias":
 			field.alias = val
-			// container field must be ignore in sql
 			field.ignore = true
 		case "join":
-			field.joinWith = val
+			field.Association[JoinWith] = val
+		case "belong to":
+			field.Association[BelongToWith] = val
+		case "one to one":
+			field.Association[OneToOneWith] = val
+		case "one to many":
+			field.Association[OneToManyWith] = val
+		//case "middle model with":
+		//	field.Association[MiddleModelWith] = val
+		//case "left model with":
+		//	field.Association[LeftModelWith] = val
+		//case "right model with":
+		//	field.Association[RightModelWith] = val
+
 		default:
 			field.attrs[key] = val
 		}
