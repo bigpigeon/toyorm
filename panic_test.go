@@ -103,7 +103,7 @@ func TestPanicPreloadField(t *testing.T) {
 
 func TestPanicConditionKey(t *testing.T) {
 	// that's right
-	TestDB.Model(&TestSearchTable{}).Where(ExprAnd, TestSearchTable{A: "a", B: "b"})
+	TestDB.Model(&TestSearchTable{}).WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"})
 	defer func() {
 		err := recover()
 		t.Log(err)
@@ -113,7 +113,7 @@ func TestPanicConditionKey(t *testing.T) {
 		}
 	}()
 	// error example
-	TestDB.Model(&TestSearchTable{}).Where(ExprAnd, Offsetof(TestSearchTable{}.A))
+	TestDB.Model(&TestSearchTable{}).WhereGroup(ExprAnd, Offsetof(TestSearchTable{}.A))
 }
 
 func TestPanicFieldCompare(t *testing.T) {

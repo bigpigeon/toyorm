@@ -397,6 +397,10 @@ where will clean old conditions and make new one
 
     brick.Where(<expr>, <Key>, [value])
 
+whereGroup add multiple condition with same expr
+
+    brick.WhereGroup(<expr>, <group>)
+
 conditions will copy conditions and clean old conditions
 
     brick.Conditions(<toyorm.Search>)
@@ -404,6 +408,7 @@ conditions will copy conditions and clean old conditions
 or & and condition will use or/and to link new condition when current condition is not nil
 
     brick.Or().Condition(<expr>, <Key>, [value])
+    brick.Or().ConditionGroup(<expr>, <group>)
     brick.And().Condition(<expr>, <Key>, [value])
 
 or & and conditions will use or/and to link new conditions
@@ -415,8 +420,8 @@ or & and conditions will use or/and to link new conditions
 
 SearchExpr        |  to sql      | example
 ------------------|--------------|:----------------
-ExprAnd           | AND          | brick.Where(ExprAnd, Product{Name:"food one", Count: 4}) // WHERE name = "food one" AND Count = 4
-ExprOr            | OR           | brick.Where(ExprOr, Product{Name:"food one", Count: 4}) // WHERE name = "food one" OR Count = "4"
+ExprAnd           | AND          | brick.WhereGroup(ExprAnd, Product{Name:"food one", Count: 4}) // WHERE name = "food one" AND Count = 4
+ExprOr            | OR           | brick.WhereGroup(ExprOr, Product{Name:"food one", Count: 4}) // WHERE name = "food one" OR Count = "4"
 ExprEqual         | =            | brick.Where(ExprEqual, OffsetOf(Product{}.Name), "food one") // WHERE name = "find one"
 ExprNotEqual      | <>           | brick.Where(ExprNotEqual, OffsetOf(Product{}.Name), "food one") // WHERE name <> "find one"
 ExprGreater       | >            | brick.Where(ExprGreater, OffsetOf(Product{}.Count), 3) // WHERE count > 3
@@ -564,7 +569,7 @@ Operation | Mode       | affect
 ----------|------------|--------
 Insert    | IgnoreNo   | brick.Insert(<struct>)
 Replace   | IgnoreNo   | brick.Replace(<struct>)
-Condition | IgnoreZero | brick.Where(ExprAnd/ExprOr, <struct>)
+Condition | IgnoreZero | brick.WhereGroup(ExprAnd/ExprOr, <struct>)
 Update    | IgnoreZero | brick.Update(<struct>)
 
 **All of IgnoreMode**
@@ -1069,15 +1074,16 @@ SELECT id,age FROM user WHERE deleted_at IS NULL  args:null errors(
 toyorm support following selector
 
 operation  \\  selector | OffsetOf | Name string | map\[OffsetOf\]interface{} | map\[string\]interface{} | struct |
---------------------|----------|-------------|--------------------------------|--------------------------|--------|
-Update              | no       | no          | yes                            | yes                      | yes
-Insert              | no       | no          | yes                            | yes                      | yes
-Save                | no       | no          | yes                            | yes                      | yes
-Where & Conditions  | yes      | yes         | yes                            | yes                      | yes
-BindFields          | yes      | yes         | no                             | no                       | no
-Preload & Custom Preload | yes | yes         | no                             | no                       | no
-OrderBy             | yes      | yes         | no                             | no                       | no
-Find                | no       | no          | no                             | no                       | yes
+--------------------|----------|-----------------|--------------------------------|--------------------------|--------|
+Update              | no       | no              | yes                            | yes                      | yes
+Insert              | no       | no              | yes                            | yes                      | yes
+Save                | no       | no              | yes                            | yes                      | yes
+Where & Conditions  | yes      | yes             | no                             | no                       | no
+WhereGroup & ConditionGroup | no |  no           | yes                            | yes                      | yes
+BindFields          | yes      | yes             | no                             | no                       | no
+Preload & Custom Preload | yes | yes             | no                             | no                       | no
+OrderBy             | yes      | yes             | no                             | no                       | no
+Find                | no       | no              | no                             | no                       | yes
 
 
 

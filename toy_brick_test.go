@@ -424,7 +424,7 @@ func TestConditionFind(t *testing.T) {
 	{
 		var tabs []TestSearchTable
 		result, err := TestDB.Model(&TestSearchTable{}).
-			Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
+			WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -440,7 +440,7 @@ func TestConditionFind(t *testing.T) {
 	{
 		var tabs []TestSearchTable
 		result, err := TestDB.Model(&TestSearchTable{}).
-			Where(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
+			WhereGroup(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -516,7 +516,7 @@ func TestCombinationConditionFind(t *testing.T) {
 	brick := TestDB.Model(&TestSearchTable{}).Debug()
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
+		result, err := brick.WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -530,7 +530,7 @@ func TestCombinationConditionFind(t *testing.T) {
 	}
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
+		result, err := brick.WhereGroup(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -544,7 +544,7 @@ func TestCombinationConditionFind(t *testing.T) {
 	}
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprAnd, map[uintptr]interface{}{
+		result, err := brick.WhereGroup(ExprAnd, map[uintptr]interface{}{
 			Offsetof(TestSearchTable{}.A): "a",
 			Offsetof(TestSearchTable{}.B): "b",
 		}).Find(&tabs)
@@ -562,7 +562,7 @@ func TestCombinationConditionFind(t *testing.T) {
 
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
+		result, err := brick.WhereGroup(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
 			Condition(ExprEqual, "C", "c").Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {

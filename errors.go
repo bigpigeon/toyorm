@@ -143,3 +143,11 @@ type ErrTemplateExecInvalidWord struct {
 func (e ErrTemplateExecInvalidWord) Error() string {
 	return fmt.Sprintf("template exec have invalid word %s", e.Word)
 }
+
+type ErrCannotSet struct {
+	Operation string
+}
+
+func (e ErrCannotSet) Error() string {
+	return fmt.Sprintf("%s can't be set", e.Operation)
+}

@@ -228,7 +228,9 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	return model
 }
 
-func (m *Model) fieldSelect(v interface{}) Field {
+type FieldSelection interface{}
+
+func (m *Model) fieldSelect(v FieldSelection) Field {
 	switch v := v.(type) {
 	case int:
 		return m.SqlFields[v]

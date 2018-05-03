@@ -8,7 +8,6 @@ package toyorm
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -120,7 +119,7 @@ func (t *ToyBrick) Enter() *ToyBrick {
 // }
 // now the main model middle field name is L_UserID, sub model middle field name is R_UserID
 // if you want to get preload with main model middle field name == R_UserID use RightValuePreload
-func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
+func (t *ToyBrick) RightValuePreload(fv FieldSelection) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		field := t.Model.fieldSelect(fv)
 
@@ -142,7 +141,7 @@ func (t *ToyBrick) RightValuePreload(fv interface{}) *ToyBrick {
 }
 
 // return
-func (t *ToyBrick) Preload(fv interface{}) *ToyBrick {
+func (t *ToyBrick) Preload(fv FieldSelection) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		field := t.Model.fieldSelect(fv)
 		//if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
@@ -194,7 +193,7 @@ func (t *ToyBrick) CopyJoin() map[string]*Join {
 }
 
 // use join to association query
-func (t *ToyBrick) Join(fv interface{}) *ToyBrick {
+func (t *ToyBrick) Join(fv FieldSelection) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		if t.alias == "" {
 			t = t.Alias("m")
@@ -401,7 +400,7 @@ func (t *ToyBrick) BindFields(mode Mode, args ...interface{}) *ToyBrick {
 		return &newt
 	})
 }
-func (t *ToyBrick) BindDefaultFields(args ...interface{}) *ToyBrick {
+func (t *ToyBrick) BindDefaultFields(args ...FieldSelection) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		var fields []Field
 		for _, v := range args {
@@ -428,12 +427,28 @@ func (t *ToyBrick) bindFields(mode Mode, fields ...Field) *ToyBrick {
 	})
 }
 
-func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface{}) SearchList {
-	search := SearchList{}
+func (t *ToyBrick) condition(expr SearchExpr, key FieldSelection, args ...interface{}) SearchList {
+	var value reflect.Value
+	if len(args) == 1 {
+		value = reflect.ValueOf(args[0])
+	} else {
+		value = reflect.ValueOf(args)
+	}
+	mField := t.Model.fieldSelect(key)
 
+	search := SearchList{}.Condition(&BrickColumnValue{
+		BrickColumn{t.alias, mField.Column()},
+		value,
+	}, expr, ExprAnd)
+
+	return search
+}
+
+func (t *ToyBrick) conditionGroup(expr SearchExpr, group interface{}) SearchList {
 	switch expr {
 	case ExprAnd, ExprOr:
-		keyValue := LoopIndirect(reflect.ValueOf(key))
+		var search SearchList
+		keyValue := LoopIndirect(reflect.ValueOf(group))
 		record := NewRecord(t.Model, keyValue)
 		pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
 		for _, pair := range pairs {
@@ -443,26 +458,20 @@ func (t *ToyBrick) condition(expr SearchExpr, key interface{}, args ...interface
 		if expr == ExprOr {
 			search = append(search, NewSearchBranch(ExprIgnore))
 		}
-	default:
-		var value reflect.Value
-		if len(args) == 1 {
-			value = reflect.ValueOf(args[0])
-		} else {
-			value = reflect.ValueOf(args)
-		}
-		mField := t.Model.fieldSelect(key)
 
-		search = search.Condition(&BrickColumnValue{
-			BrickColumn{t.alias, mField.Column()},
-			value,
-		}, expr, ExprAnd)
+		return search
 	}
-	return search
+	panic("invalid expr")
 }
 
 // where will clean old condition
-func (t *ToyBrick) Where(expr SearchExpr, key interface{}, v ...interface{}) *ToyBrick {
+func (t *ToyBrick) Where(expr SearchExpr, key FieldSelection, v ...interface{}) *ToyBrick {
 	return t.Conditions(t.condition(expr, key, v...))
+}
+
+// expr only support And/Or , group must be struct data or map[string]interface{}/map[uintptr]interface{}
+func (t *ToyBrick) WhereGroup(expr SearchExpr, group interface{}) *ToyBrick {
+	return t.Conditions(t.conditionGroup(expr, group))
 }
 
 func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
@@ -502,7 +511,7 @@ func (t *ToyBrick) Offset(i int) *ToyBrick {
 	})
 }
 
-func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
+func (t *ToyBrick) OrderBy(vList ...FieldSelection) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t.CleanOwnOrderBy()
 		newt.orderBy = nil
@@ -518,8 +527,9 @@ func (t *ToyBrick) OrderBy(vList ...interface{}) *ToyBrick {
 	})
 }
 
-func (t *ToyBrick) GroupBy(vList ...interface{}) *ToyBrick {
+func (t *ToyBrick) GroupBy(vList ...FieldSelection) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		// remove old model group by data
 		newt := *t.CleanOwnGroupBy()
 		newt.groupBy = nil
 		for i, v := range vList {
@@ -718,7 +728,7 @@ func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
 func (t *ToyBrick) Find(v interface{}) (*Result, error) {
 	vValue := LoopIndirectAndNew(reflect.ValueOf(v))
 	if vValue.CanSet() == false {
-		return nil, errors.New("find value cannot be set")
+		return nil, ErrCannotSet{"v"}
 	}
 	ctx, err := t.find(vValue)
 	return ctx.Result, err
