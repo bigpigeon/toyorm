@@ -288,7 +288,31 @@ func (t *ToyBrick) CopyMapPreloadBrick() map[string]*ToyBrick {
 	return preloadBrick
 }
 
-func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
+func (t *ToyBrick) CustomBelongToPreload(container, relationship FieldSelection, args ...interface{}) *ToyBrick {
+	containerField, relationshipField := t.Model.fieldSelect(container), t.Model.fieldSelect(relationship)
+	var subModel *Model
+	if len(args) > 0 {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+	} else {
+		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
+	}
+	preload := t.Toy.BelongToBind(t.Model, subModel, containerField, relationshipField)
+	if preload == nil {
+		panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), containerField.Name()})
+	}
+
+	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
+	newt := *t
+	newt.MapPreloadBrick = t.CopyMapPreloadBrick()
+	newt.MapPreloadBrick[containerField.Name()] = newSubt
+	newSubt.preBrick = PreToyBrick{&newt, containerField}
+
+	newt.BelongToPreload = t.CopyBelongToPreload()
+	newt.BelongToPreload[containerField.Name()] = preload
+	return newSubt
+}
+
+func (t *ToyBrick) CustomOneToOnePreload(container FieldSelection, relationship interface{}, args ...interface{}) *ToyBrick {
 	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
@@ -313,31 +337,7 @@ func (t *ToyBrick) CustomOneToOnePreload(container, relationship interface{}, ar
 	return newSubt
 }
 
-func (t *ToyBrick) CustomBelongToPreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
-	containerField, relationshipField := t.Model.fieldSelect(container), t.Model.fieldSelect(relationship)
-	var subModel *Model
-	if len(args) > 0 {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
-	} else {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
-	}
-	preload := t.Toy.BelongToBind(t.Model, subModel, containerField, relationshipField)
-	if preload == nil {
-		panic(ErrInvalidPreloadField{t.Model.ReflectType.Name(), containerField.Name()})
-	}
-
-	newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
-	newt := *t
-	newt.MapPreloadBrick = t.CopyMapPreloadBrick()
-	newt.MapPreloadBrick[containerField.Name()] = newSubt
-	newSubt.preBrick = PreToyBrick{&newt, containerField}
-
-	newt.BelongToPreload = t.CopyBelongToPreload()
-	newt.BelongToPreload[containerField.Name()] = preload
-	return newSubt
-}
-
-func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, args ...interface{}) *ToyBrick {
+func (t *ToyBrick) CustomOneToManyPreload(container FieldSelection, relationship interface{}, args ...interface{}) *ToyBrick {
 	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
@@ -362,7 +362,7 @@ func (t *ToyBrick) CustomOneToManyPreload(container, relationship interface{}, a
 	return newSubt
 }
 
-func (t *ToyBrick) CustomManyToManyPreload(middleStruct, container, relation, subRelation interface{}, args ...interface{}) *ToyBrick {
+func (t *ToyBrick) CustomManyToManyPreload(middleStruct interface{}, container FieldSelection, relation, subRelation interface{}, args ...interface{}) *ToyBrick {
 	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
