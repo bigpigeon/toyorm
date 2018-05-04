@@ -28,7 +28,7 @@ func TestCreateTable(t *testing.T) {
 		SqlTypeTable{},
 	} {
 		// start a session
-		brick := TestDB.Model(tab).Begin().Debug()
+		brick := TestDB.Model(tab).Begin()
 		hastable, err = brick.HasTable()
 		assert.Nil(t, err)
 		t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
@@ -51,7 +51,7 @@ func TestCreateTable(t *testing.T) {
 }
 
 func TestInsertData(t *testing.T) {
-	brick := TestDB.Model(&TestInsertTable{}).Debug()
+	brick := TestDB.Model(&TestInsertTable{})
 	//create table
 	{
 		result, err := brick.DropTableIfExist()
@@ -254,7 +254,7 @@ func TestInsertData(t *testing.T) {
 }
 
 func TestInsertPointData(t *testing.T) {
-	brick := TestDB.Model(&TestInsertTable{}).Debug()
+	brick := TestDB.Model(&TestInsertTable{})
 	// insert with struct
 	{
 		dstr := "some str data"
@@ -341,7 +341,7 @@ func TestInsertPointData(t *testing.T) {
 
 func TestFind(t *testing.T) {
 	{
-		brick := TestDB.Model(&TestSearchTable{}).Debug()
+		brick := TestDB.Model(&TestSearchTable{})
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -491,7 +491,7 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND ((a = ? OR b = ?) OR c = ?), args:[]interface {}{"aa", "a", "b", "c"}
 	{
 		var tabs []TestSearchTable
-		brick := TestDB.Model(&TestSearchTable{}).Debug()
+		brick := TestDB.Model(&TestSearchTable{})
 
 		result, err := brick.Where(ExprEqual, Offsetof(base.A), "aa").And().
 			Conditions(
@@ -513,7 +513,7 @@ func TestConditionFind(t *testing.T) {
 }
 
 func TestCombinationConditionFind(t *testing.T) {
-	brick := TestDB.Model(&TestSearchTable{}).Debug()
+	brick := TestDB.Model(&TestSearchTable{})
 	{
 		var tabs []TestSearchTable
 		result, err := brick.WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
@@ -577,7 +577,7 @@ func TestCombinationConditionFind(t *testing.T) {
 }
 
 func TestOrderByFind(t *testing.T) {
-	brick := TestDB.Model(&TestSearchTable{}).Debug()
+	brick := TestDB.Model(&TestSearchTable{})
 	{
 		brick := brick.OrderBy(Offsetof(TestSearchTable{}.C))
 		var data []TestSearchTable
@@ -616,7 +616,7 @@ func TestOrderByFind(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	table := TestSearchTable{A: "aaaaa", B: "bbbbb"}
-	brick := TestDB.Model(&TestSearchTable{}).Debug()
+	brick := TestDB.Model(&TestSearchTable{})
 	result, err := brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "a").Update(&table)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -806,7 +806,7 @@ func TestPreloadInsertData(t *testing.T) {
 }
 
 func TestPreloadSave(t *testing.T) {
-	brick := TestDB.Model(&TestPreloadTable{}).Debug()
+	brick := TestDB.Model(&TestPreloadTable{})
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter()
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter()
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter()
@@ -958,28 +958,28 @@ func TestPreloadDelete(t *testing.T) {
 
 	// delete middle first
 	{
-		hardHardMiddleBrick := TestDB.MiddleModel(&hardTab, &TestHardDeleteManyToMany{}).Debug()
+		hardHardMiddleBrick := TestDB.MiddleModel(&hardTab, &TestHardDeleteManyToMany{})
 		result, err = hardHardMiddleBrick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		hardSoftMiddleBrick := TestDB.MiddleModel(&hardTab, &TestSoftDeleteManyToMany{}).Debug()
+		hardSoftMiddleBrick := TestDB.MiddleModel(&hardTab, &TestSoftDeleteManyToMany{})
 		result, err = hardSoftMiddleBrick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		softHardMiddleBrick := TestDB.MiddleModel(&softTab, &TestHardDeleteManyToMany{}).Debug()
+		softHardMiddleBrick := TestDB.MiddleModel(&softTab, &TestHardDeleteManyToMany{})
 		result, err = softHardMiddleBrick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		softSoftMiddleBrick := TestDB.MiddleModel(&softTab, &TestSoftDeleteManyToMany{}).Debug()
+		softSoftMiddleBrick := TestDB.MiddleModel(&softTab, &TestSoftDeleteManyToMany{})
 		result, err = softSoftMiddleBrick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -1385,7 +1385,7 @@ func TestFlow(t *testing.T) {
 	}
 
 	// add a new tag
-	tagBrick := TestDB.Model(&Tag{}).Debug()
+	tagBrick := TestDB.Model(&Tag{})
 	result, err = tagBrick.Insert(&Tag{Code: "nice"})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -1393,7 +1393,7 @@ func TestFlow(t *testing.T) {
 	}
 
 	//bind new tag to the one's product
-	middleBrick := TestDB.MiddleModel(&Product{}, &Tag{}).Debug()
+	middleBrick := TestDB.MiddleModel(&Product{}, &Tag{})
 	result, err = middleBrick.Save(&struct {
 		ProductID uint32
 		TagCode   string
@@ -1439,7 +1439,7 @@ func TestFlow(t *testing.T) {
 func TestGroupBy(t *testing.T) {
 	//create table and insert data
 	{
-		brick := TestDB.Model(&TestGroupByTable{}).Debug()
+		brick := TestDB.Model(&TestGroupByTable{})
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -1471,7 +1471,7 @@ func TestGroupBy(t *testing.T) {
 	}
 	{
 		var tab TestGroupByTableGroup
-		brick := TestDB.Model(&tab).Debug()
+		brick := TestDB.Model(&tab)
 
 		brick = brick.GroupBy(Offsetof(tab.Name), Offsetof(tab.Address))
 		var data []TestGroupByTableGroup
@@ -1898,7 +1898,7 @@ func TestReport(t *testing.T) {
 
 func TestRightValuePreload(t *testing.T) {
 	var tab TestRightValuePreloadTable
-	baseBrick := TestDB.Model(&tab).Debug()
+	baseBrick := TestDB.Model(&tab)
 	brick := baseBrick.Preload(Offsetof(tab.ManyToMany)).Enter()
 
 	result, err := brick.DropTableIfExist()
@@ -2168,7 +2168,7 @@ func TestInsertFailure(t *testing.T) {
 		ModelDefault
 		Data string
 	}
-	brick := TestDB.Model(&NotExistTable{}).Debug()
+	brick := TestDB.Model(&NotExistTable{})
 	data := NotExistTable{
 		Data: "not exist table 1",
 	}
@@ -2243,11 +2243,6 @@ func TestToyBrickCopyOnWrite(t *testing.T) {
 	var tab TestPreloadTable
 	brick := TestDB.Model(&tab)
 
-	if TestDB.debug == false {
-		debugBrick := brick.Debug()
-		assert.True(t, debugBrick.debug)
-		assert.False(t, brick.debug)
-	}
 	{
 		searchBrick := brick.Where(ExprEqual, Offsetof(tab.Name), "22").Offset(2).Limit(3)
 
