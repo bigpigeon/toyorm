@@ -7,6 +7,7 @@
 
 - [NEW] support Join operation
 - [NEW] ModelField tag:alias
+- [NEW] ModelField tag:join
 
 ### Toyorm v0.2-alpha (Apr 01, 2018)
 

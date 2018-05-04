@@ -124,6 +124,40 @@ func (m *modelField) OneToManyWith() string {
 	return m.Association[OneToManyWith]
 }
 
+type tagKeyValue struct {
+	Key string
+	Val string
+}
+
+func newTagKeyVal(s string) *tagKeyValue {
+	sList := strings.Split(s, ":")
+	keyVal := new(tagKeyValue)
+	switch len(sList) {
+	case 0:
+		return nil
+	case 1:
+		keyVal.Key = strings.TrimSpace(sList[0])
+	case 2:
+		keyVal.Key, keyVal.Val = strings.TrimSpace(sList[0]), strings.TrimSpace(sList[1])
+	default:
+		panic(ErrInvalidTag)
+	}
+	keyVal.Key = strings.ToLower(keyVal.Key)
+	return keyVal
+}
+
+func GetTagKeyVal(tag string) []*tagKeyValue {
+	var keyValList []*tagKeyValue
+	// set attribute by tag
+	tags := strings.Split(tag, ";")
+	for _, t := range tags {
+		if tagKeyVal := newTagKeyVal(t); tagKeyVal != nil {
+			keyValList = append(keyValList, tagKeyVal)
+		}
+	}
+	return keyValList
+}
+
 func NewField(f *reflect.StructField, table_name string) *modelField {
 	field := &modelField{
 		field:       *f,
@@ -135,56 +169,43 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 	}
 
 	// set attribute by tag
-	tags := strings.Split(f.Tag.Get("toyorm"), ";")
-	for _, t := range tags {
-		keyval := strings.Split(t, ":")
-		var key, val string
-		switch len(keyval) {
-		case 0:
-			continue
-		case 1:
-			key = keyval[0]
-		case 2:
-			key, val = keyval[0], keyval[1]
-		default:
-			panic(ErrInvalidTag)
-		}
-		switch strings.ToLower(key) {
+	for _, tagKeyVal := range GetTagKeyVal(f.Tag.Get("toyorm")) {
+
+		switch tagKeyVal.Key {
 		case "auto_increment", "autoincrement":
 			field.autoIncrement = true
 		case "primary key":
 			field.isPrimary = true
 		case "type":
-			field.sqlType = val
+			field.sqlType = tagKeyVal.Val
 		case "index":
-			if val == "" {
+			if tagKeyVal.Val == "" {
 				field.index = fmt.Sprintf("idx_%s_%s", table_name, field.column)
 			} else {
-				field.index = val
+				field.index = tagKeyVal.Val
 			}
 		case "unique index":
-			if val == "" {
+			if tagKeyVal.Val == "" {
 				field.uniqueIndex = fmt.Sprintf("udx_%s_%s", table_name, field.column)
 			} else {
-				field.uniqueIndex = val
+				field.uniqueIndex = tagKeyVal.Val
 			}
 		case "foreign key":
 			field.isForeign = true
 		case "column":
-			field.column = val
+			field.column = tagKeyVal.Val
 		case "-":
 			field.ignore = true
 		case "alias":
-			field.alias = val
-			field.ignore = true
+			field.alias = tagKeyVal.Val
 		case "join":
-			field.Association[JoinWith] = val
+			field.Association[JoinWith] = tagKeyVal.Val
 		case "belong to":
-			field.Association[BelongToWith] = val
+			field.Association[BelongToWith] = tagKeyVal.Val
 		case "one to one":
-			field.Association[OneToOneWith] = val
+			field.Association[OneToOneWith] = tagKeyVal.Val
 		case "one to many":
-			field.Association[OneToManyWith] = val
+			field.Association[OneToManyWith] = tagKeyVal.Val
 		//case "middle model with":
 		//	field.Association[MiddleModelWith] = val
 		//case "left model with":
@@ -193,7 +214,7 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 		//	field.Association[RightModelWith] = val
 
 		default:
-			field.attrs[key] = val
+			field.attrs[tagKeyVal.Key] = tagKeyVal.Val
 		}
 	}
 	if field.column == "" || field.sqlType == "" {

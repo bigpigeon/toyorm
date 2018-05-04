@@ -16,14 +16,6 @@ import (
 	"database/sql/driver"
 )
 
-func JsonEncode(v interface{}) string {
-	jsonData, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	return string(jsonData)
-}
-
 type Extra map[string]interface{}
 
 func (e *Extra) Scan(value interface{}) error {
@@ -58,11 +50,13 @@ type ProductDetail struct {
 	CustomPage string `toyorm:"type:text"`
 	Extra      Extra  `toyorm:"type:VARCHAR(2048)"`
 	Color      string `toyorm:"join:ColorDetail"`
-	ColorJoin  Color  `toyorm:"alias:ColorDetail"`
-	Comment    []Comment
+	// use alias to rename field
+	ColorJoin Color `toyorm:"alias:ColorDetail"`
+	Comment   []Comment
 }
 
 type Product struct {
+	// join tag value must same as container field name
 	ID        uint32     `toyorm:"primary key;auto_increment;join:Detail"`
 	CreatedAt time.Time  `toyorm:"NULL"`
 	DeletedAt *time.Time `toyorm:"NULL"`
@@ -81,12 +75,101 @@ func main() {
 	//toy,err = toyorm.Open("sqlite3", "toyorm_test.db")
 	// when database is postgres
 	//toy, err = toyorm.Open("postgres", "user=postgres dbname=toyorm sslmode=disable")
+	if err != nil {
+		panic(err)
+	}
+
 	var tab Product
 	var detailTab ProductDetail
 	var colorTab Color
-	brick := toy.Model(&tab).Debug()
-	detailBrick := toy.Model(&detailTab).Debug().Preload(Offsetof(detailTab.Comment)).Enter()
-	colorBrick := toy.Model(&colorTab).Debug()
+
+	// create table & import data
+	dataInit(toy)
+
+	// now use join to query data
+	{
+		brick := toy.Model(&tab).Debug().
+			Join(Offsetof(tab.Detail)).
+			Join(Offsetof(detailTab.ColorJoin)).Swap().Swap()
+		var scanData []Product
+		result, err := brick.Find(&scanData)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		for _, product := range scanData {
+			fmt.Printf("product %s\n", JsonEncode(product))
+		}
+	}
+	// add condition
+	{
+		// where Product.Name = "clean stick" or Color.Name = "black"
+		brick := toy.Model(&tab).Debug().Where("=", Offsetof(tab.Name), "clean stick").
+			Join(Offsetof(tab.Detail)).
+			Join(Offsetof(detailTab.ColorJoin)).Or().Condition("=", Offsetof(colorTab.Name), "black").
+			Swap().Swap()
+		var scanData []Product
+		result, err := brick.Find(&scanData)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		for _, product := range scanData {
+			fmt.Printf("product %s\n", JsonEncode(product))
+		}
+	}
+	// order by
+	{
+		// where Product.Name = "clean stick" or Color.Name = "black"
+		brick := toy.Model(&tab).Debug().
+			Join(Offsetof(tab.Detail)).
+			Join(Offsetof(detailTab.ColorJoin)).OrderBy(Offsetof(colorTab.Name)).
+			Swap().Swap()
+		var scanData []Product
+		result, err := brick.Find(&scanData)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		for _, product := range scanData {
+			fmt.Printf("product %s\n", JsonEncode(product))
+		}
+	}
+	// group by also work in join here not example
+
+	// preload on join
+	{
+		brick := toy.Model(&tab).Debug().
+			Join(Offsetof(tab.Detail)).Preload(Offsetof(detailTab.Comment)).Enter().
+			Join(Offsetof(detailTab.ColorJoin)).Swap().Swap()
+		var scanData []Product
+		result, err := brick.Find(&scanData)
+		if err != nil {
+			panic(err)
+		}
+		if err := result.Err(); err != nil {
+			fmt.Printf("%s\n", err)
+		}
+		for _, product := range scanData {
+			fmt.Printf("product %s\n", JsonEncode(product))
+		}
+	}
+}
+
+func dataInit(toy *toyorm.Toy) {
+	var tab Product
+	var detailTab ProductDetail
+	var colorTab Color
+	brick := toy.Model(&tab)
+	detailBrick := toy.Model(&detailTab).Preload(Offsetof(detailTab.Comment)).Enter()
+	colorBrick := toy.Model(&colorTab)
+
 	// create table
 	for _, b := range []*toyorm.ToyBrick{brick, detailBrick, colorBrick} {
 		result, err := b.DropTableIfExist()
@@ -104,7 +187,7 @@ func main() {
 			fmt.Printf("%s\n", err)
 		}
 	}
-	// import data
+
 	products := []Product{
 		{Name: "clean stick", Price: 2, Count: 1000},
 		{Name: "water pipe", Price: 3, Count: 1000},
@@ -118,18 +201,17 @@ func main() {
 	if err := result.Err(); err != nil {
 		fmt.Printf("%s\n", err)
 	}
-
 	details := []ProductDetail{
 		{ProductID: products[0].ID, Color: "white", Title: "cheap and quality clean stick",
-			CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"},
+			CustomPage: "<p>pre {{ .Unit }}/{{ .Price }}</p>", Extra: Extra{"Unit": "meter"},
 			Comment: []Comment{{Data: "good quality but I like black color more"}, {Data: "why only has white color"}},
 		},
 		{ProductID: products[1].ID, Color: "orange", Title: "pipe with non-toxic material",
-			CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"},
+			CustomPage: "<p>pre {{ .Unit }}/{{ .Price }}</p>", Extra: Extra{"Unit": "meter"},
 			Comment: []Comment{{Data: "very good"}, {Data: "I think iron material is better"}},
 		},
 		{ProductID: products[2].ID, Color: "black", Title: "black cable",
-			CustomPage: "<p>pre {{ .Unit }}/{{ .Price}}</p>", Extra: Extra{"Unit": "meter"},
+			CustomPage: "<p>pre {{ .Unit }}/{{ .Price }}</p>", Extra: Extra{"Unit": "meter"},
 			Comment: []Comment{{Data: "good signal"}, {Data: "emmmm my cat like bite it"}},
 		},
 	}
@@ -154,78 +236,12 @@ func main() {
 		fmt.Printf("%s\n", err)
 	}
 
-	// now use join to query data
-	{
-		brick := toy.Model(&tab).Debug().
-			Join(Offsetof(tab.Detail)).
-			Join(Offsetof(detailTab.ColorJoin)).Swap().Swap()
-		var scanData []Product
-		result, err = brick.Find(&scanData)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		for _, product := range scanData {
-			fmt.Printf("product %s\n", JsonEncode(product))
-		}
-	}
-	// add condition
-	{
-		// where Product.Name = "clean stick" or Color.Name = "black"
-		brick := toy.Model(&tab).Debug().Where("=", Offsetof(tab.Name), "clean stick").
-			Join(Offsetof(tab.Detail)).
-			Join(Offsetof(detailTab.ColorJoin)).Or().Condition("=", Offsetof(colorTab.Name), "black").
-			Swap().Swap()
-		var scanData []Product
-		result, err = brick.Find(&scanData)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		for _, product := range scanData {
-			fmt.Printf("product %s\n", JsonEncode(product))
-		}
-	}
-	// order by
-	{
-		// where Product.Name = "clean stick" or Color.Name = "black"
-		brick := toy.Model(&tab).Debug().
-			Join(Offsetof(tab.Detail)).
-			Join(Offsetof(detailTab.ColorJoin)).OrderBy(Offsetof(colorTab.Name)).
-			Swap().Swap()
-		var scanData []Product
-		result, err = brick.Find(&scanData)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		for _, product := range scanData {
-			fmt.Printf("product %s\n", JsonEncode(product))
-		}
-	}
-	// group by also work in join here not example
+}
 
-	// preload on join
-	{
-		brick := toy.Model(&tab).Debug().
-			Join(Offsetof(tab.Detail)).Preload(Offsetof(detailTab.Comment)).Enter().
-			Join(Offsetof(detailTab.ColorJoin)).Swap().Swap()
-		var scanData []Product
-		result, err = brick.Find(&scanData)
-		if err != nil {
-			panic(err)
-		}
-		if err := result.Err(); err != nil {
-			fmt.Printf("%s\n", err)
-		}
-		for _, product := range scanData {
-			fmt.Printf("product %s\n", JsonEncode(product))
-		}
+func JsonEncode(v interface{}) string {
+	jsonData, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		panic(err)
 	}
+	return string(jsonData)
 }
