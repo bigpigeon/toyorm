@@ -65,6 +65,7 @@ this is powerful sql orm library for Golang, have some funny features
     - [id generator](#id-generator)
     - [sql action](#sql-action)
   - [collection example](#collection-example)
+- [toy-doctor](#toy-doctor)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -75,6 +76,7 @@ this is powerful sql orm library for Golang, have some funny features
 ### Support database
 
 [sqlite3](https://www.sqlite.org/)  [mysql](https://www.mysql.com/) [postgresql](https://www.postgresql.org/)
+
 
 ### Go version
 
@@ -1239,3 +1241,9 @@ fmt.Printf("delete report:\n%s\n", result.Report())
 ### collection example
 
 [here](examples/collection_example)
+
+## toy-doctor
+
+parameter check within ToyBrick method call
+
+[toy-doctor](https://github.com/bigpigeon/toy-doctor)

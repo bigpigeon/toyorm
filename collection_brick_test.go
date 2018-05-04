@@ -29,7 +29,7 @@ func TestCollectionCreateTable(t *testing.T) {
 	} {
 		// start a session
 
-		brick := TestCollectionDB.Model(tab).Debug()
+		brick := TestCollectionDB.Model(tab)
 		hastable, err = brick.HasTable()
 		assert.Nil(t, err)
 		t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
@@ -50,7 +50,7 @@ func TestCollectionCreateTable(t *testing.T) {
 }
 
 func TestCollectionInsertData(t *testing.T) {
-	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
+	brick := TestCollectionDB.Model(&TestInsertTable{})
 	// add id generator
 	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 	//create table
@@ -278,7 +278,7 @@ func TestCollectionInsertData(t *testing.T) {
 	}
 	// have selector data
 	{
-		brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
+		brick := TestCollectionDB.Model(&TestInsertTable{})
 		dstr := "some str data"
 		dint := 100
 		dfloat := 100.0
@@ -336,7 +336,7 @@ func TestCollectionInsertData(t *testing.T) {
 }
 
 func TestCollectionInsertPointData(t *testing.T) {
-	brick := TestCollectionDB.Model(&TestInsertTable{}).Debug()
+	brick := TestCollectionDB.Model(&TestInsertTable{})
 	// add id generator
 	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 
@@ -426,7 +426,7 @@ func TestCollectionInsertPointData(t *testing.T) {
 
 func TestCollectionFind(t *testing.T) {
 	{
-		brick := TestCollectionDB.Model(&TestSearchTable{}).Debug()
+		brick := TestCollectionDB.Model(&TestSearchTable{})
 		// add id generator
 		TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
 
@@ -579,7 +579,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND ((a = ? OR b = ?) OR c = ?), args:[]interface {}{"aa", "a", "b", "c"}
 	{
 		var tabs []TestSearchTable
-		brick := TestCollectionDB.Model(&TestSearchTable{}).Debug()
+		brick := TestCollectionDB.Model(&TestSearchTable{})
 
 		result, err := brick.Where(ExprEqual, Offsetof(base.A), "aa").And().
 			Conditions(
@@ -601,7 +601,7 @@ func TestCollectionConditionFind(t *testing.T) {
 }
 
 func TestCollectionCombinationConditionFind(t *testing.T) {
-	brick := TestCollectionDB.Model(&TestSearchTable{}).Debug()
+	brick := TestCollectionDB.Model(&TestSearchTable{})
 	{
 		var tabs []TestSearchTable
 		result, err := brick.Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
@@ -666,7 +666,7 @@ func TestCollectionCombinationConditionFind(t *testing.T) {
 
 func TestCollectionUpdate(t *testing.T) {
 	table := TestSearchTable{A: "aaaaa", B: "bbbbb"}
-	brick := TestCollectionDB.Model(&TestSearchTable{}).Debug()
+	brick := TestCollectionDB.Model(&TestSearchTable{})
 	result, err := brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "a").Update(&table)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -862,7 +862,7 @@ func TestCollectionPreloadInsertData(t *testing.T) {
 }
 
 func TestCollectionPreloadSave(t *testing.T) {
-	brick := TestCollectionDB.Model(&TestPreloadTable{}).Debug()
+	brick := TestCollectionDB.Model(&TestPreloadTable{})
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.BelongTo)).Enter()
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToOne)).Enter()
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter()
@@ -1391,7 +1391,7 @@ func TestCollectionFlow(t *testing.T) {
 	}
 
 	// add a new tag
-	tagBrick := TestCollectionDB.Model(&Tag{}).Debug()
+	tagBrick := TestCollectionDB.Model(&Tag{})
 	result, err = tagBrick.Insert(&Tag{Code: "nice"})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
@@ -1399,7 +1399,7 @@ func TestCollectionFlow(t *testing.T) {
 	}
 
 	//bind new tag to the one's product
-	middleBrick := TestCollectionDB.MiddleModel(&Product{}, &Tag{}).Debug()
+	middleBrick := TestCollectionDB.MiddleModel(&Product{}, &Tag{})
 	result, err = middleBrick.Save(&struct {
 		ProductID uint32
 		TagCode   string
@@ -1838,7 +1838,7 @@ func TestCollectionReport(t *testing.T) {
 
 func TestCollectionRightValuePreload(t *testing.T) {
 	var tab TestRightValuePreloadTable
-	baseBrick := TestCollectionDB.Model(&tab).Debug()
+	baseBrick := TestCollectionDB.Model(&tab)
 	brick := baseBrick.Preload(Offsetof(tab.ManyToMany)).Enter()
 
 	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
