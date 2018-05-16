@@ -1,3 +1,8 @@
+### Toyorm v0.3.2-alpha (May 16 2018)
+
+- [New] toy-doctor https://github.com/bigpigeon/toy-doctor
+- [New] website https://bigpigeon.org/toyorm
+
 ### Toyorm v0.3.1-alpha (Apr 01, 2018)
 
 - [NEW] support Preload On Join
