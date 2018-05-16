@@ -565,8 +565,10 @@ use IgnoreMode to differentiate what zero value should update
 ```golang
 brick = brick.IgnoreMode(toyorm.Mode("Update"), toyorm.IgnoreZero ^ toyorm.IgnoreZeroLen)
 // ignore all zeor value but excloud zero len slice
-// now value = []int(nil) will ignore when update
-// but value = []int{} will update when update
+// now field = []int(nil) will ignore when update
+// but field = []int{} will update when update
+// now field = map[int]int(nil) will ignore when update
+// but field = map[int]int{} will update when update
 ```
 
 In default
@@ -836,6 +838,37 @@ brick.CustomOneToManyPreload(<main container>, <sub relation>, [sub model struct
 brick.CustomManyToManyPreload(<middle model struct>, <main container>, <main relation>, <sub relation>, [sub model struct])
 ```
 
+or use tag declaration
+
+```golang
+type UserDetail struct {
+    ID       int    `toyorm:"primary key;auto_increment"`
+    MainID   uint32 `toyorm:"index;one to one:Detail"` // declaration the container field
+    MainPage string `toyorm:"type:Text"`
+    Extra    Extra  `toyorm:"type:VARCHAR(1024)"`
+}
+
+type Blog struct {
+    toyorm.ModelDefault
+    MainID  uint32 `toyorm:"index;one to many:Blog"` // declaration the container field
+    Title   string `toyorm:"index"`
+    Content string
+}
+
+type User struct {
+    toyorm.ModelDefault
+    Name    string `toyorm:"unique index"`
+    Age     int
+    Sex     string
+    Detail  *UserDetail
+    Friends []*User
+    Blog    []Blog
+}
+
+// now custom relation field is MainID
+brick = brick.Preload(Offsetof(User{}.Blog)).Enter()
+brick = brick.Preload(Offsetof(User{}.Detail)).Enter()
+```
 
 #### Join
 

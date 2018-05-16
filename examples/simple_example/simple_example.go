@@ -15,6 +15,9 @@ import (
 	//_ "github.com/lib/pq"
 )
 
+/* ----------------------
+		data definition
+ ------------------------- */
 func JsonEncode(v interface{}) string {
 	jsonData, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -31,11 +34,13 @@ type Product struct {
 	Tag   string `toyorm:"index"`
 }
 
+// use by group by
 type ProductGroup struct {
 	Tag       string
 	KindCount int `toyorm:"column:COUNT(*)"`
 }
 
+// map to sql table name
 func (p ProductGroup) TableName() string {
 	return toyorm.ModelName(reflect.TypeOf(Product{}))
 }
@@ -51,18 +56,23 @@ func main() {
 	// when database is postgres
 	//toy, err = toyorm.Open("postgres", "user=postgres dbname=toyorm sslmode=disable")
 
+	// brick is basic "sql builder"
 	brick := toy.Model(&Product{}).Debug()
+	// use drop table operation to clear old data
 	result, err = brick.DropTableIfExist()
 	if err != nil {
 		panic(err)
 	}
+	// print sql error if exist
 	if resultErr := result.Err(); resultErr != nil {
 		fmt.Print(resultErr)
 	}
+	// create table
 	result, err = brick.CreateTableIfNotExist()
 	if err != nil {
 		panic(err)
 	}
+	// print sql error if exist
 	if resultErr := result.Err(); resultErr != nil {
 		fmt.Print(resultErr)
 	}
@@ -83,7 +93,7 @@ func main() {
 	if resultErr := result.Err(); resultErr != nil {
 		fmt.Print(resultErr)
 	}
-	// find the first food
+	// find one with the tag=food condition
 	{
 		var product Product
 		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&product)
@@ -96,7 +106,7 @@ func main() {
 		fmt.Printf("food %s\n", JsonEncode(product))
 	}
 
-	// find all food
+	// find all tag=food
 	{
 		var products []Product
 		result, err := brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Tag), "food").Find(&products)
