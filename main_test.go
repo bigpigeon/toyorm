@@ -651,6 +651,12 @@ type TestJoinTable struct {
 	PriceJoin TestJoinPriceTable `toyorm:"alias:PriceDetail"`
 }
 
+type TestBenchmarkTable struct {
+	ModelDefault
+	Key   string
+	Value string
+}
+
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {
@@ -675,8 +681,8 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	}
 }
 
-func createTableUnit(brick *ToyBrick) func(t *testing.T) {
-	return func(t *testing.T) {
+func createTableUnit(brick *ToyBrick) func(t testing.TB) {
+	return func(t testing.TB) {
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -691,8 +697,8 @@ func createTableUnit(brick *ToyBrick) func(t *testing.T) {
 	}
 }
 
-func createCollectionTableUnit(brick *CollectionBrick) func(t *testing.T) {
-	return func(t *testing.T) {
+func createCollectionTableUnit(brick *CollectionBrick) func(t testing.TB) {
+	return func(t testing.TB) {
 		result, err := brick.DropTableIfExist()
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {

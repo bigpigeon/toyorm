@@ -33,7 +33,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 	case "postgres":
 		dialect = PostgreSqlDialect{}
 	default:
-		panic(ErrNotMatchDialect)
+		dialect = DefaultDialect{}
 	}
 	return &Toy{
 		db: db,
