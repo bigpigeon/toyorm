@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var (
@@ -652,9 +653,28 @@ type TestJoinTable struct {
 }
 
 type TestBenchmarkTable struct {
-	ModelDefault
+	ID    uint32 `toyorm:"primary key;auto_increment"`
 	Key   string
 	Value string
+	// make more field to find performance bottlenecks
+	StrVal1 string
+	StrVal2 string
+	StrVal3 string
+	StrVal4 string
+	StrVal5 string
+	IntVal1 int
+	IntVal2 int
+	IntVal3 int
+	IntVal4 int
+	IntVal5 int
+	FloVal1 float64
+	FloVal2 float64
+	FloVal3 float64
+	FloVal4 float64
+	FloVal5 float64
+	TimVal1 time.Time
+	TimVal2 time.Time
+	TimVal3 time.Time
 }
 
 // use to create many to many preload which have foreign key

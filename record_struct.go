@@ -134,7 +134,7 @@ func (m *ModelStructRecords) reallocate() {
 	m.FieldValuesList = nil
 	for i := 0; i < m.source.Len(); i++ {
 		// why need loop indirect? because data type can be []*ModelData{} or []**ModelData{}
-		c := map[string]reflect.Value{}
+		c := make(map[string]reflect.Value, len(m.RelationFieldPos))
 
 		fieldList := GetStructValueFields(LoopIndirectAndNew(m.source.Index(i)))
 		for name, si := range m.RelationFieldPos {
@@ -169,7 +169,7 @@ func (m *ModelStructRecords) Add(v reflect.Value) ModelRecord {
 
 func (m *ModelStructRecords) sync() {
 	for i := len(m.FieldValuesList); i < m.source.Len(); i++ {
-		c := map[string]reflect.Value{}
+		c := make(map[string]reflect.Value, len(m.RelationFieldPos))
 
 		fieldList := GetStructValueFields(LoopIndirectAndNew(m.source.Index(i)))
 		for name, si := range m.RelationFieldPos {
