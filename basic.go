@@ -59,20 +59,37 @@ func SqlNameConvert(name string) string {
 	return string(convert)
 }
 
-// get all Value with struct field and its embed struct field
-func GetStructValueFields(value reflect.Value) []reflect.Value {
+func getStructFieldLen(vType reflect.Type) int {
+	sum := vType.NumField()
+	for i := 0; i < vType.NumField(); i++ {
+		field := vType.Field(i)
+		if field.Anonymous {
+			sum += getStructFieldLen(LoopTypeIndirect(field.Type))
+		}
+	}
+	return sum
+}
+
+func getStructValueFields(value reflect.Value, fieldList *[]reflect.Value) {
 	vtype := value.Type()
-	fieldList := []reflect.Value{}
 	for i := 0; i < value.NumField(); i++ {
 		vfield := value.Field(i)
 		sfield := vtype.Field(i)
 		if sfield.Anonymous {
-			embedFieldList := GetStructValueFields(vfield)
-			fieldList = append(fieldList, embedFieldList...)
+			getStructValueFields(vfield, fieldList)
 		} else {
-			fieldList = append(fieldList, vfield)
+			*fieldList = append(*fieldList, vfield)
 		}
 	}
+}
+
+// get all Value with struct field and its embed struct field
+func GetStructValueFields(value reflect.Value) []reflect.Value {
+	vtype := value.Type()
+	// opt allocation
+
+	fieldList := make([]reflect.Value, 0, getStructFieldLen(vtype))
+	getStructValueFields(value, &fieldList)
 	return fieldList
 }
 
@@ -477,4 +494,24 @@ func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Col
 		return scanners
 	}
 	return columns, fn
+}
+
+func columnValuesFormat(columnValues []ColumnValue) (string, string, []interface{}) {
+	if len(columnValues) == 0 {
+		return "", "", nil
+	}
+	fieldBuff := bytes.Buffer{}
+	qBytes := make([]byte, len(columnValues)*2)
+	args := make([]interface{}, 0, len(columnValues))
+	for i, r := range columnValues {
+		fieldBuff.WriteString(r.Column())
+		fieldBuff.WriteByte(',')
+		qBytes[i*2], qBytes[i*2+1] = '?', ','
+		args = append(args, r.Value().Interface())
+	}
+	fieldBytes := fieldBuff.Bytes()
+	// last buff must be ,
+	fieldBytes = fieldBytes[:len(fieldBytes)-1]
+	qBytes = qBytes[:len(qBytes)-1]
+	return string(fieldBytes), string(qBytes), args
 }

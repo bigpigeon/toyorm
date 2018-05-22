@@ -13,8 +13,8 @@ import (
 )
 
 type ExecValue interface {
-	Source() string
-	Query() string
+	Source() string // exec source code
+	Query() string  // exec encode code
 	Args() []interface{}
 	Append(query string, args ...interface{}) ExecValue
 	JsonArgs() string

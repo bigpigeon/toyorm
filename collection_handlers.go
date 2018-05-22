@@ -261,8 +261,8 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 		action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 			ctx.Brick.Toy.dbs[action.dbIndex],
 			action.Exec,
-			func(query string, args string, err error) {
-				ctx.Brick.debugPrint(action.dbIndex, query, args, err)
+			func(exec ExecValue, err error) {
+				ctx.Brick.debugPrint(action.dbIndex, exec, err)
 			},
 		)
 
@@ -680,8 +680,8 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 				ctx.Brick.Toy.dbs[action.dbIndex],
 				action.Exec,
-				func(query string, args string, err error) {
-					ctx.Brick.debugPrint(action.dbIndex, query, args, err)
+				func(exec ExecValue, err error) {
+					ctx.Brick.debugPrint(action.dbIndex, exec, err)
 				},
 			)
 			if action.Error == nil {

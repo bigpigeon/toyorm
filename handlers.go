@@ -204,9 +204,7 @@ func HandlerInsert(ctx *Context) error {
 		action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 			executor,
 			action.Exec,
-			func(query string, args string, err error) {
-				ctx.Brick.debugPrint(query, args, err)
-			},
+			ctx.Brick.debugPrint,
 		)
 		if action.Error == nil {
 			// set primary field value if model is autoincrement
@@ -583,9 +581,7 @@ func HandlerSave(ctx *Context) error {
 			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 				executor,
 				action.Exec,
-				func(query string, args string, err error) {
-					ctx.Brick.debugPrint(query, args, err)
-				},
+				ctx.Brick.debugPrint,
 			)
 			if action.Error == nil {
 				// set primary field value if model is autoincrement

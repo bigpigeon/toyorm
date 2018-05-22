@@ -775,12 +775,12 @@ func (t *ToyBrick) DeleteWithConditions() (*Result, error) {
 	return t.delete(nil)
 }
 
-func (t *ToyBrick) debugPrint(query string, args string, err error) {
+func (t *ToyBrick) debugPrint(exec ExecValue, err error) {
 	if t.debug {
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s faiure reason %s\n", t.tx, query, args, err)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s faiure reason %s\n", t.tx, exec.Query(), exec.JsonArgs(), err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s\n", t.tx, query, args)
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s\n", t.tx, exec.Query(), exec.Args())
 		}
 	}
 }
@@ -793,7 +793,7 @@ func (t *ToyBrick) Exec(exec ExecValue) (result sql.Result, err error) {
 		result, err = t.tx.Exec(query, exec.Args()...)
 	}
 
-	t.debugPrint(query, exec.JsonArgs(), err)
+	t.debugPrint(exec, err)
 	return
 }
 
@@ -804,7 +804,7 @@ func (t *ToyBrick) Query(exec ExecValue) (rows *sql.Rows, err error) {
 	} else {
 		rows, err = t.tx.Query(query, exec.Args()...)
 	}
-	t.debugPrint(query, exec.JsonArgs(), err)
+	t.debugPrint(exec, err)
 	return
 }
 
@@ -815,7 +815,7 @@ func (t *ToyBrick) QueryRow(exec ExecValue) (row *sql.Row) {
 	} else {
 		row = t.tx.QueryRow(query, exec.Args()...)
 	}
-	t.debugPrint(query, exec.JsonArgs(), nil)
+	t.debugPrint(exec, nil)
 	return
 }
 
@@ -827,7 +827,7 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 	} else {
 		stmt, err = t.tx.Prepare(query)
 	}
-	t.debugPrint(query, "", err)
+	t.debugPrint(&DefaultExec{query: query}, err)
 	return stmt, err
 }
 

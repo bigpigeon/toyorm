@@ -36,7 +36,7 @@ func (t RawResult) RowsAffected() (int64, error) {
 	return 0, ErrNotSupportRowsAffected{}
 }
 
-func (dia PostgreSqlDialect) InsertExecutor(db Executor, exec ExecValue, debugPrinter func(string, string, error)) (sql.Result, error) {
+func (dia PostgreSqlDialect) InsertExecutor(db Executor, exec ExecValue, debugPrinter func(ExecValue, error)) (sql.Result, error) {
 	var result RawResult
 	query := exec.Query()
 	var err error
@@ -46,7 +46,7 @@ func (dia PostgreSqlDialect) InsertExecutor(db Executor, exec ExecValue, debugPr
 		err = scanErr
 	}
 
-	debugPrinter(query, exec.JsonArgs(), err)
+	debugPrinter(exec, err)
 	return result, err
 }
 
@@ -323,18 +323,8 @@ func (dia PostgreSqlDialect) DeleteExec(model *Model) (exec ExecValue) {
 }
 
 func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnValue) ExecValue {
-	fieldStr := ""
-	qStr := ""
-	columnList := []string{}
-	qList := []string{}
-	var args []interface{}
-	for _, r := range columnValues {
-		columnList = append(columnList, r.Column())
-		qList = append(qList, "?")
-		args = append(args, r.Value().Interface())
-	}
-	fieldStr += strings.Join(columnList, ",")
-	qStr += strings.Join(qList, ",")
+	// optimization column format
+	fieldStr, qStr, args := columnValuesFormat(columnValues)
 
 	var exec ExecValue = QToSExec{}
 	exec = exec.Append(

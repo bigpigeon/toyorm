@@ -26,7 +26,7 @@ type Executor interface {
 
 type Dialect interface {
 	// some database like postgres not support LastInsertId, need QueryRow to get the return id
-	InsertExecutor(Executor, ExecValue, func(string, string, error)) (sql.Result, error)
+	InsertExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
 	HasTable(*Model) ExecValue
 	CreateTable(*Model, map[string]ForeignKey) []ExecValue
 	DropTable(*Model) ExecValue
@@ -46,10 +46,10 @@ type Dialect interface {
 
 type DefaultDialect struct{}
 
-func (dia DefaultDialect) InsertExecutor(db Executor, exec ExecValue, debugPrinter func(string, string, error)) (sql.Result, error) {
+func (dia DefaultDialect) InsertExecutor(db Executor, exec ExecValue, debugPrinter func(ExecValue, error)) (sql.Result, error) {
 	query := exec.Query()
 	result, err := db.Exec(query, exec.Args()...)
-	debugPrinter(query, exec.JsonArgs(), err)
+	debugPrinter(exec, err)
 	return result, err
 }
 
@@ -338,18 +338,8 @@ func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
 }
 
 func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) ExecValue {
-	fieldStr := ""
-	qStr := ""
-	var columnList []string
-	var qList []string
-	var args []interface{}
-	for _, r := range columnValues {
-		columnList = append(columnList, r.Column())
-		qList = append(qList, "?")
-		args = append(args, r.Value().Interface())
-	}
-	fieldStr += strings.Join(columnList, ",")
-	qStr += strings.Join(qList, ",")
+	// optimization column format
+	fieldStr, qStr, args := columnValuesFormat(columnValues)
 
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
@@ -360,19 +350,8 @@ func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) E
 }
 
 func (dia DefaultDialect) ReplaceExec(model *Model, columnValues []ColumnValue) ExecValue {
-	fieldStr := ""
-	qStr := ""
-	columnList := []string{}
-	qList := []string{}
-	var args []interface{}
-	for _, r := range columnValues {
-		columnList = append(columnList, r.Column())
-		qList = append(qList, "?")
-		args = append(args, r.Value().Interface())
-	}
-	fieldStr += strings.Join(columnList, ",")
-	qStr += strings.Join(qList, ",")
-
+	// optimization column format
+	fieldStr, qStr, args := columnValuesFormat(columnValues)
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
 		fmt.Sprintf("REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),

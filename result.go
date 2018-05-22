@@ -164,16 +164,8 @@ func (r *Result) Report() string {
 	return buf.String()
 }
 
-type SqlActionType int
-
-const (
-	ResultActionExec = SqlActionType(iota)
-	ResultActionQuery
-)
-
 type SqlAction interface {
 	String() string
-	Type() SqlActionType
 	AffectData() []int
 	SetAffectData([]int)
 	Err() error
@@ -189,10 +181,6 @@ type ExecAction struct {
 
 func (r ExecAction) String() string {
 	return fmt.Sprintf("%s args:%s", r.Exec.Query(), r.Exec.JsonArgs())
-}
-
-func (r ExecAction) Type() SqlActionType {
-	return ResultActionExec
 }
 
 func (r ExecAction) AffectData() []int {
@@ -224,10 +212,6 @@ func (r QueryAction) String() string {
 		return fmt.Sprintf("%s args:%s error(%v)", r.Exec.Query(), r.Exec.JsonArgs(), errors)
 	}
 	return fmt.Sprintf("%s args:%s", r.Exec.Query(), r.Exec.JsonArgs())
-}
-
-func (r QueryAction) Type() SqlActionType {
-	return ResultActionQuery
 }
 
 func (r QueryAction) AffectData() []int {
@@ -267,10 +251,6 @@ func (r CollectionExecAction) String() string {
 	return fmt.Sprintf("db[%d] %s args:%s", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs())
 }
 
-func (r CollectionExecAction) Type() SqlActionType {
-	return ResultActionExec
-}
-
 func (r CollectionExecAction) AffectData() []int {
 	return r.affectData
 }
@@ -301,10 +281,6 @@ func (r CollectionQueryAction) String() string {
 		return fmt.Sprintf("db[%d] %s args:%s error(%v)", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs(), errors)
 	}
 	return fmt.Sprintf("db[%d] %s args:%s", r.dbIndex, r.Exec.Query(), r.Exec.JsonArgs())
-}
-
-func (r CollectionQueryAction) Type() SqlActionType {
-	return ResultActionQuery
 }
 
 func (r CollectionQueryAction) AffectData() []int {

@@ -572,12 +572,13 @@ func (t *CollectionBrick) DeleteWithConditions() (*Result, error) {
 	return t.delete(nil)
 }
 
-func (t *CollectionBrick) debugPrint(i int, query string, args string, err error) {
+func (t *CollectionBrick) debugPrint(i int, exec ExecValue, err error) {
 	if t.debug {
+
 		if err != nil {
-			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s faiure reason %s\n", i, query, args, err)
+			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s faiure reason %s\n", i, exec.Query(), exec.JsonArgs(), err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, query, args)
+			fmt.Fprintf(t.Toy.Logger, "db[%d] query:%s, args:%s\n", i, exec.Query(), exec.JsonArgs())
 		}
 	}
 }
@@ -585,7 +586,7 @@ func (t *CollectionBrick) debugPrint(i int, query string, args string, err error
 func (t *CollectionBrick) Exec(exec ExecValue, i int) (sql.Result, error) {
 	query := exec.Query()
 	result, err := t.Toy.dbs[i].Exec(query, exec.Args()...)
-	t.debugPrint(i, query, exec.JsonArgs(), err)
+	t.debugPrint(i, exec, err)
 
 	return result, err
 }
@@ -593,7 +594,7 @@ func (t *CollectionBrick) Exec(exec ExecValue, i int) (sql.Result, error) {
 func (t *CollectionBrick) Query(exec ExecValue, i int) (*sql.Rows, error) {
 	query := exec.Query()
 	rows, err := t.Toy.dbs[i].Query(query, exec.Args()...)
-	t.debugPrint(i, query, exec.JsonArgs(), err)
+	t.debugPrint(i, exec, err)
 
 	return rows, err
 }
@@ -601,7 +602,7 @@ func (t *CollectionBrick) Query(exec ExecValue, i int) (*sql.Rows, error) {
 func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
 	query := exec.Query()
 	row := t.Toy.dbs[i].QueryRow(query, exec.Args()...)
-	t.debugPrint(i, query, exec.JsonArgs(), nil)
+	t.debugPrint(i, exec, nil)
 	return row
 }
 
