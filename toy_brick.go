@@ -780,7 +780,7 @@ func (t *ToyBrick) debugPrint(exec ExecValue, err error) {
 		if err != nil {
 			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s faiure reason %s\n", t.tx, exec.Query(), exec.JsonArgs(), err)
 		} else {
-			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s\n", t.tx, exec.Query(), exec.Args())
+			fmt.Fprintf(t.Toy.Logger, "use tx: %p, query:%s  args:%s\n", t.tx, exec.Query(), exec.JsonArgs())
 		}
 	}
 }
