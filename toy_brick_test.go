@@ -2457,48 +2457,48 @@ func TestJoinAlias(t *testing.T) {
 		Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
 
 	for _, i := range brick.OwnOrderBy {
-		assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+		assert.Equal(t, brick.orderBy[i].Column(), brick.alias+"."+brick.orderBy[i].Source().Column())
 	}
 	for _, i := range brick.OwnGroupBy {
-		assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+		assert.Equal(t, brick.groupBy[i].Column(), brick.alias+"."+brick.groupBy[i].Source().Column())
 	}
 	for _, i := range brick.OwnSearch {
-		assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+		assert.Equal(t, brick.Search[i].Val.Column(), brick.alias+"."+brick.Search[i].Val.Source().Column())
 	}
 	for name := range brick.JoinMap {
 		brick := brick.Join(name)
 		for _, i := range brick.OwnOrderBy {
-			assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+			assert.Equal(t, brick.orderBy[i].Column(), brick.alias+"."+brick.orderBy[i].Source().Column())
 		}
 		for _, i := range brick.OwnGroupBy {
-			assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+			assert.Equal(t, brick.groupBy[i].Column(), brick.alias+"."+brick.groupBy[i].Source().Column())
 		}
 		for _, i := range brick.OwnSearch {
-			assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+			assert.Equal(t, brick.Search[i].Val.Column(), brick.alias+"."+brick.Search[i].Val.Source().Column())
 		}
 	}
 
 	brick = brick.Alias("m1")
 	brick = brick.Join(Offsetof(tab.NameJoin)).Alias("n1").Swap()
 	for _, i := range brick.OwnOrderBy {
-		assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+		assert.Equal(t, brick.orderBy[i].Column(), brick.alias+"."+brick.orderBy[i].Source().Column())
 	}
 	for _, i := range brick.OwnGroupBy {
-		assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+		assert.Equal(t, brick.groupBy[i].Column(), brick.alias+"."+brick.groupBy[i].Source().Column())
 	}
 	for _, i := range brick.OwnSearch {
-		assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+		assert.Equal(t, brick.Search[i].Val.Column(), brick.alias+"."+brick.Search[i].Val.Source().Column())
 	}
 	for name := range brick.JoinMap {
 		brick := brick.Join(name)
 		for _, i := range brick.OwnOrderBy {
-			assert.Equal(t, brick.orderBy[i].alias, brick.alias)
+			assert.Equal(t, brick.orderBy[i].Column(), brick.alias+"."+brick.orderBy[i].Source().Column())
 		}
 		for _, i := range brick.OwnGroupBy {
-			assert.Equal(t, brick.groupBy[i].alias, brick.alias)
+			assert.Equal(t, brick.groupBy[i].Column(), brick.alias+"."+brick.groupBy[i].Source().Column())
 		}
 		for _, i := range brick.OwnSearch {
-			assert.Equal(t, brick.Search[i].Val.alias, brick.alias)
+			assert.Equal(t, brick.Search[i].Val.Column(), brick.alias+"."+brick.Search[i].Val.Source().Column())
 		}
 	}
 }
@@ -2539,4 +2539,20 @@ func TestAliasRelatedPreloadName(t *testing.T) {
 	oneToManyPreload := brick.OneToManyPreload["OneToManyData"]
 	assert.Equal(t, oneToManyPreload.RelationField.Name(), "MainID")
 
+}
+
+func TestSaveCas(t *testing.T) {
+	brick := TestDB.Model(&TestCasTable{}).Debug()
+	createTableUnit(brick)(t)
+	data := TestCasTable{
+		Name: "test cas data",
+	}
+	result, err := brick.Insert(&data)
+	resultProcessor(result, err)(t)
+
+	data.Name += " 2"
+	result, err = brick.Save(&data)
+	resultProcessor(result, err)(t)
+
+	t.Log("report:\n", result.Report())
 }

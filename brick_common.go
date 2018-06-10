@@ -66,9 +66,8 @@ func (t *BrickCommon) getScanFields(records ModelRecordFieldTypes) []Field {
 }
 
 // use for order by
-func (t *BrickCommon) ToDesc(v interface{}) *BrickColumn {
+func (t *BrickCommon) ToDesc(v interface{}) Field {
 	field := t.Model.fieldSelect(v)
 
-	column := BrickColumn{"", field.Column() + " DESC"}
-	return &column
+	return &aliasField{field, field.Column() + " DESC"}
 }

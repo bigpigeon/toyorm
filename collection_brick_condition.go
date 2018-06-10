@@ -96,7 +96,7 @@ func (t *CollectionBrick) condition(expr SearchExpr, key interface{}, args ...in
 		}
 		mField := t.Model.fieldSelect(key)
 
-		search = search.Condition(&BrickColumnValue{BrickColumn{"", mField.Column()}, value}, expr, ExprAnd)
+		search = search.Condition(mField.ToFieldValue(value), expr, ExprAnd)
 	}
 	return search
 }

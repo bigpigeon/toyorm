@@ -87,36 +87,22 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 }
 
 // replace will failure when have foreign key
-func (dia MySqlDialect) ReplaceExec(model *Model, columnValues []ColumnValue) ExecValue {
-	fieldStr := ""
-	qStr := ""
-	columnList := []string{}
-	qList := []string{}
-	var args []interface{}
-	for _, r := range columnValues {
-		columnList = append(columnList, r.Column())
-		qList = append(qList, "?")
-		args = append(args, r.Value().Interface())
-	}
-	fieldStr += strings.Join(columnList, ",")
-	qStr += strings.Join(qList, ",")
-
+func (dia MySqlDialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	var exec ExecValue = DefaultExec{}
+	fieldStr, qStr, args := columnNameValuesFormat(columnValues)
 	exec = exec.Append(
 		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
 		args...,
 	)
 
 	var recordList []string
-	var recordArgs []interface{}
 
 	for _, r := range columnValues {
-		recordList = append(recordList, r.Column()+" = ?")
-		recordArgs = append(recordArgs, r.Value().Interface())
+		recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
 	}
 	exec = exec.Append(fmt.Sprintf(" ON DUPLICATE KEY UPDATE %s",
 		strings.Join(recordList, ","),
-	), recordArgs...)
+	))
 
 	return exec
 }

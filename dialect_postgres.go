@@ -343,15 +343,21 @@ func (dia PostgreSqlDialect) InsertExec(model *Model, columnValues []ColumnValue
 }
 
 // postgres have not replace use ON CONFLICT(%s) replace
-func (dia PostgreSqlDialect) ReplaceExec(model *Model, columnValues []ColumnValue) ExecValue {
-	exec := dia.insertExec(model, columnValues)
+func (dia PostgreSqlDialect) SaveExec(model *Model, columnNameValues []ColumnNameValue) ExecValue {
+	fieldStr, qStr, args := columnNameValuesFormat(columnNameValues)
+
+	var exec ExecValue = QToSExec{}
+	exec = exec.Append(
+		fmt.Sprintf(`INSERT INTO "%s"(%s) VALUES(%s)`, model.Name, fieldStr, qStr),
+		args...,
+	)
 	primaryKeys := model.GetPrimary()
 	var primaryKeyNames []string
 	for _, key := range primaryKeys {
 		primaryKeyNames = append(primaryKeyNames, key.Column())
 	}
 	var recordList []string
-	for _, r := range columnValues {
+	for _, r := range columnNameValues {
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
 	}
 	exec = exec.Append(fmt.Sprintf(" ON CONFLICT(%s) DO UPDATE SET %s",

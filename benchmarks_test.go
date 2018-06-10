@@ -101,7 +101,7 @@ func BenchmarkStandardFind(b *testing.B) {
 			b.FailNow()
 		}
 	}
-	b.StartTimer()
+	//b.StartTimer()
 	// get find query
 	result, err := brick.Find(&TestBenchmarkTable{})
 	if err != nil {
@@ -116,6 +116,7 @@ func BenchmarkStandardFind(b *testing.B) {
 	query := result.ActionFlow[0].(QueryAction)
 	for n := 0; n < b.N; n++ {
 		var data []TestBenchmarkTable
+
 		rows, err := TestDB.db.Query(query.Exec.Query(), query.Exec.Args()...)
 		if err != nil {
 			b.Error(err)
@@ -136,6 +137,7 @@ func BenchmarkStandardFind(b *testing.B) {
 			}
 			data = append(data, elem)
 		}
+		rows.Close()
 	}
 }
 
@@ -155,7 +157,7 @@ func BenchmarkFind(b *testing.B) {
 			b.FailNow()
 		}
 	}
-	b.StartTimer()
+	//b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		var data []TestBenchmarkTable
 		result, err := brick.Find(&data)

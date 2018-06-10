@@ -600,7 +600,7 @@ func HandlerSave(ctx *Context) error {
 		} else {
 			action = ExecAction{affectData: []int{i}}
 			if ctx.Brick.template == nil {
-				action.Exec = ctx.Brick.ReplaceExec(record)
+				action.Exec = ctx.Brick.SaveExec(record)
 			} else {
 				tempMap := DefaultTemplateExec(ctx)
 				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record).ToValueList()

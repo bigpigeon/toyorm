@@ -35,7 +35,7 @@ func (op SearchExpr) IsBranch() bool {
 
 type SearchCell struct {
 	Type SearchExpr
-	Val  *BrickColumnValue
+	Val  FieldValue
 }
 
 func NewSearchBranch(op SearchExpr) SearchCell {
@@ -44,14 +44,14 @@ func NewSearchBranch(op SearchExpr) SearchCell {
 	}
 }
 
-func NewSearchLeaf(op SearchExpr, columnValue *BrickColumnValue) SearchCell {
+func NewSearchLeaf(op SearchExpr, columnValue FieldValue) SearchCell {
 	return SearchCell{
 		op,
 		columnValue,
 	}
 }
 
-func (s SearchList) Condition(columnValue *BrickColumnValue, expr, linkExpr SearchExpr) SearchList {
+func (s SearchList) Condition(columnValue FieldValue, expr, linkExpr SearchExpr) SearchList {
 	if len(s) == 0 {
 		return SearchList{NewSearchLeaf(expr, columnValue)}
 	}

@@ -496,7 +496,28 @@ func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Col
 	return columns, fn
 }
 
+// same with columnNameValuesFormat
 func columnValuesFormat(columnValues []ColumnValue) (string, string, []interface{}) {
+	if len(columnValues) == 0 {
+		return "", "", nil
+	}
+	fieldBuff := bytes.Buffer{}
+	qBytes := make([]byte, len(columnValues)*2)
+	args := make([]interface{}, 0, len(columnValues))
+	for i, r := range columnValues {
+		fieldBuff.WriteString(r.Column())
+		fieldBuff.WriteByte(',')
+		qBytes[i*2], qBytes[i*2+1] = '?', ','
+		args = append(args, r.Value().Interface())
+	}
+	fieldBytes := fieldBuff.Bytes()
+	// last buff must be ,
+	fieldBytes = fieldBytes[:len(fieldBytes)-1]
+	qBytes = qBytes[:len(qBytes)-1]
+	return string(fieldBytes), string(qBytes), args
+}
+
+func columnNameValuesFormat(columnValues []ColumnNameValue) (string, string, []interface{}) {
 	if len(columnValues) == 0 {
 		return "", "", nil
 	}

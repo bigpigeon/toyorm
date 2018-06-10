@@ -701,7 +701,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 		} else {
 			action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 			if ctx.Brick.template == nil {
-				action.Exec = ctx.Brick.ReplaceExec(record)
+				action.Exec = ctx.Brick.SaveExec(record)
 			} else {
 				tempMap := DefaultCollectionTemplateExec(ctx)
 				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record).ToValueList()

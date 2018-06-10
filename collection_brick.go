@@ -647,16 +647,16 @@ func (t *CollectionBrick) InsertExec(record ModelRecord) ExecValue {
 	return exec
 }
 
-func (t *CollectionBrick) ReplaceExec(record ModelRecord) ExecValue {
+func (t *CollectionBrick) SaveExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
-	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders.ToValueList())
+	exec := t.Toy.Dialect.SaveExec(t.Model, recorders.ToNameValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
 // collection not support table alias
-func (t *CollectionBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) BrickColumnValueList {
+func (t *CollectionBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) FieldValueList {
 	var fields []Field
 	if len(t.FieldsSelector[mode]) > 0 {
 		fields = t.FieldsSelector[mode]
@@ -669,7 +669,7 @@ func (t *CollectionBrick) getFieldValuePairWithRecord(mode Mode, record ModelRec
 		fields = t.Model.GetSqlFields()
 		useIgnoreMode = record.IsVariableContainer() == false
 	}
-	var columnValues BrickColumnValueList
+	var columnValues FieldValueList
 	if useIgnoreMode {
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
@@ -677,10 +677,7 @@ func (t *CollectionBrick) getFieldValuePairWithRecord(mode Mode, record ModelRec
 					if mField.IsPrimary() && IsZero(fieldValue) {
 
 					} else {
-						columnValues = append(columnValues, &BrickColumnValue{
-							BrickColumn{"", mField.Column()},
-							fieldValue,
-						})
+						columnValues = append(columnValues, mField.ToFieldValue(fieldValue))
 					}
 				}
 			}
@@ -688,17 +685,14 @@ func (t *CollectionBrick) getFieldValuePairWithRecord(mode Mode, record ModelRec
 	} else {
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
-				columnValues = append(columnValues, &BrickColumnValue{
-					BrickColumn{"", mField.Column()},
-					fieldValue,
-				})
+				columnValues = append(columnValues, mField.ToFieldValue(fieldValue))
 			}
 		}
 	}
 	return columnValues
 }
 
-func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) BrickColumnList {
+func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) FieldList {
 	var fields []Field
 	if len(t.FieldsSelector[ModeSelect]) > 0 {
 		fields = t.FieldsSelector[ModeSelect]
@@ -707,10 +701,5 @@ func (t *BrickCommon) getSelectFields(records ModelRecordFieldTypes) BrickColumn
 	} else {
 		fields = t.Model.GetSqlFields()
 	}
-	fields = getFieldsWithRecords(fields, records)
-	var columns BrickColumnList
-	for _, field := range fields {
-		columns = append(columns, &BrickColumn{"", field.Column()})
-	}
-	return columns
+	return getFieldsWithRecords(fields, records)
 }

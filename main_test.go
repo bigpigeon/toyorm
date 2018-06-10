@@ -652,6 +652,12 @@ type TestJoinTable struct {
 	PriceJoin TestJoinPriceTable `toyorm:"alias:PriceDetail"`
 }
 
+type TestCasTable struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Name string
+	Cas  int `toyorm:"NOT NULL"`
+}
+
 type TestBenchmarkTable struct {
 	ID    uint32 `toyorm:"primary key;auto_increment"`
 	Key   string
@@ -729,6 +735,16 @@ func createCollectionTableUnit(brick *CollectionBrick) func(t testing.TB) {
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
+		}
+	}
+}
+
+func resultProcessor(result *Result, err error) func(t testing.TB) {
+	return func(t testing.TB) {
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+			t.Fail()
 		}
 	}
 }

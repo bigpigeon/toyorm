@@ -39,6 +39,39 @@ type Field interface {
 	BelongToWith() string             // BelongTo with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
 	OneToOneWith() string             // OneToOne with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
 	OneToManyWith() string            // OneToMany with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
+
+	Source() Field
+	ToColumnAlias(alias string) Field
+	ToFieldValue(value reflect.Value) FieldValue
+}
+
+type FieldValue interface {
+	Field
+	Value() reflect.Value
+}
+
+type aliasField struct {
+	Field
+	columnAlias string
+}
+
+func (a *aliasField) Source() Field { return a.Field }
+
+func (a *aliasField) Column() string {
+	return a.columnAlias
+}
+
+func (a *aliasField) ToFieldValue(value reflect.Value) FieldValue {
+	return &fieldValue{a, value}
+}
+
+type fieldValue struct {
+	Field
+	value reflect.Value
+}
+
+func (m *fieldValue) Value() reflect.Value {
+	return m.value
 }
 
 type modelField struct {
@@ -122,6 +155,22 @@ func (m *modelField) OneToOneWith() string {
 
 func (m *modelField) OneToManyWith() string {
 	return m.Association[OneToManyWith]
+}
+
+func (m *modelField) Source() Field { return m }
+
+func (m *modelField) ToColumnAlias(alias string) Field {
+	if alias == "" {
+		return m
+	}
+	return &aliasField{
+		Field:       m,
+		columnAlias: fmt.Sprintf("%s.%s", alias, m.column),
+	}
+}
+
+func (m *modelField) ToFieldValue(value reflect.Value) FieldValue {
+	return &fieldValue{m, value}
 }
 
 type tagKeyValue struct {
@@ -221,4 +270,32 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 		field.ignore = true
 	}
 	return field
+}
+
+type FieldList []Field
+
+func (l FieldList) ToColumnList() []Column {
+	columns := make([]Column, len(l))
+	for i := range l {
+		columns[i] = l[i]
+	}
+	return columns
+}
+
+type FieldValueList []FieldValue
+
+func (l FieldValueList) ToValueList() []ColumnValue {
+	values := make([]ColumnValue, len(l))
+	for i := range l {
+		values[i] = l[i]
+	}
+	return values
+}
+
+func (l FieldValueList) ToNameValueList() []ColumnNameValue {
+	values := make([]ColumnNameValue, len(l))
+	for i := range l {
+		values[i] = l[i]
+	}
+	return values
 }

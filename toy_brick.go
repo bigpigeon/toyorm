@@ -32,11 +32,11 @@ type ToyBrick struct {
 	debug bool
 	tx    *sql.Tx
 
-	orderBy  BrickColumnList
+	orderBy  FieldList
 	Search   SearchList
 	offset   int
 	limit    int
-	groupBy  BrickColumnList
+	groupBy  FieldList
 	template *BasicExec
 	// use join to association query in one command
 	preSwap    *PreJoinSwap
@@ -248,19 +248,19 @@ func (t *ToyBrick) Alias(alias string) *ToyBrick {
 		newt.alias = alias
 		// reassignment all order by
 		if len(t.OwnOrderBy) != 0 {
-			newt.orderBy = make(BrickColumnList, len(t.orderBy))
+			newt.orderBy = make(FieldList, len(t.orderBy))
 			copy(newt.orderBy, t.orderBy)
 			for _, i := range t.OwnOrderBy {
-				newt.orderBy[i] = &BrickColumn{alias, newt.orderBy[i].Column()}
+				newt.orderBy[i] = newt.orderBy[i].Source().ToColumnAlias(alias)
 			}
 		}
 
 		// reassignment all group by
 		if len(t.OwnGroupBy) != 0 {
-			newt.groupBy = make(BrickColumnList, len(t.groupBy))
+			newt.groupBy = make(FieldList, len(t.groupBy))
 			copy(newt.groupBy, t.groupBy)
 			for _, i := range t.OwnGroupBy {
-				newt.groupBy[i] = &BrickColumn{alias, newt.groupBy[i].Column()}
+				newt.groupBy[i] = newt.groupBy[i].Source().ToColumnAlias(alias)
 			}
 		}
 
@@ -269,10 +269,9 @@ func (t *ToyBrick) Alias(alias string) *ToyBrick {
 			newt.Search = make(SearchList, len(t.Search))
 			copy(newt.Search, t.Search)
 			for _, i := range t.OwnSearch {
-				newt.Search[i].Val = &BrickColumnValue{
-					BrickColumn{alias, newt.Search[i].Val.column},
-					newt.Search[i].Val.Value(),
-				}
+				newt.Search[i].Val = newt.Search[i].Val.Source().
+					ToColumnAlias(alias).ToFieldValue(newt.Search[i].Val.Value())
+
 			}
 		}
 
@@ -436,10 +435,7 @@ func (t *ToyBrick) condition(expr SearchExpr, key FieldSelection, args ...interf
 	}
 	mField := t.Model.fieldSelect(key)
 
-	search := SearchList{}.Condition(&BrickColumnValue{
-		BrickColumn{t.alias, mField.Column()},
-		value,
-	}, expr, ExprAnd)
+	search := SearchList{}.Condition(mField.ToColumnAlias(t.alias).ToFieldValue(value), expr, ExprAnd)
 
 	return search
 }
@@ -516,10 +512,10 @@ func (t *ToyBrick) OrderBy(vList ...FieldSelection) *ToyBrick {
 		newt := *t.CleanOwnOrderBy()
 		newt.orderBy = nil
 		for i, v := range vList {
-			if column, ok := v.(*BrickColumn); ok {
+			if column, ok := v.(Field); ok {
 				newt.orderBy = append(newt.orderBy, column)
 			} else {
-				newt.orderBy = append(newt.orderBy, &BrickColumn{t.alias, t.Model.fieldSelect(v).Column()})
+				newt.orderBy = append(newt.orderBy, t.Model.fieldSelect(v).ToColumnAlias(t.alias))
 			}
 			newt.OwnOrderBy = append(newt.OwnOrderBy, i)
 		}
@@ -533,8 +529,11 @@ func (t *ToyBrick) GroupBy(vList ...FieldSelection) *ToyBrick {
 		newt := *t.CleanOwnGroupBy()
 		newt.groupBy = nil
 		for i, v := range vList {
-			field := newt.Model.fieldSelect(v)
-			newt.groupBy = append(newt.groupBy, &BrickColumn{t.alias, field.Column()})
+			if column, ok := v.(Field); ok {
+				newt.groupBy = append(newt.groupBy, column)
+			} else {
+				newt.groupBy = append(newt.groupBy, t.Model.fieldSelect(v).ToColumnAlias(t.alias))
+			}
 			newt.OwnGroupBy = append(newt.OwnGroupBy, i)
 		}
 		return &newt
@@ -875,15 +874,15 @@ func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 	return exec
 }
 
-func (t *ToyBrick) ReplaceExec(record ModelRecord) ExecValue {
+func (t *ToyBrick) SaveExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
-	exec := t.Toy.Dialect.ReplaceExec(t.Model, recorders.ToValueList())
+	exec := t.Toy.Dialect.SaveExec(t.Model, recorders.ToNameValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec
 }
 
-func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) BrickColumnValueList {
+func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) FieldValueList {
 	var fields []Field
 	if len(t.FieldsSelector[mode]) > 0 {
 		fields = t.FieldsSelector[mode]
@@ -896,7 +895,7 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) Br
 		fields = t.Model.GetSqlFields()
 		useIgnoreMode = record.IsVariableContainer() == false
 	}
-	var columnValues BrickColumnValueList
+	var columnValues FieldValueList
 	if useIgnoreMode {
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
@@ -904,10 +903,7 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) Br
 					if mField.IsPrimary() && IsZero(fieldValue) {
 
 					} else {
-						columnValues = append(columnValues, &BrickColumnValue{
-							BrickColumn{t.alias, mField.Column()},
-							fieldValue,
-						})
+						columnValues = append(columnValues, mField.ToColumnAlias(t.alias).ToFieldValue(fieldValue))
 					}
 				}
 			}
@@ -915,17 +911,14 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) Br
 	} else {
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
-				columnValues = append(columnValues, &BrickColumnValue{
-					BrickColumn{t.alias, mField.Column()},
-					fieldValue,
-				})
+				columnValues = append(columnValues, mField.ToColumnAlias(t.alias).ToFieldValue(fieldValue))
 			}
 		}
 	}
 	return columnValues
 }
 
-func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) BrickColumnList {
+func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) FieldList {
 	var fields []Field
 	if len(t.FieldsSelector[ModeSelect]) > 0 {
 		fields = t.FieldsSelector[ModeSelect]
@@ -934,12 +927,14 @@ func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) BrickColumnLis
 	} else {
 		fields = t.Model.GetSqlFields()
 	}
-	fields = getFieldsWithRecords(fields, records)
-	var columns BrickColumnList
-	for _, field := range fields {
-		columns = append(columns, &BrickColumn{t.alias, field.Column()})
+	if t.alias != "" {
+		aliasFields := make([]Field, len(fields))
+		for i := range fields {
+			aliasFields[i] = fields[i].ToColumnAlias(t.alias)
+		}
+		fields = aliasFields
 	}
-	return columns
+	return getFieldsWithRecords(fields, records)
 }
 
 func (t *ToyBrick) CleanOwnOrderBy() *ToyBrick {

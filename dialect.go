@@ -35,7 +35,7 @@ type Dialect interface {
 	UpdateExec(*Model, []ColumnValue) ExecValue
 	DeleteExec(*Model) ExecValue
 	InsertExec(*Model, []ColumnValue) ExecValue
-	ReplaceExec(*Model, []ColumnValue) ExecValue
+	SaveExec(*Model, []ColumnNameValue) ExecValue
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 	CountExec(*Model) ExecValue
@@ -349,9 +349,9 @@ func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) E
 	return exec
 }
 
-func (dia DefaultDialect) ReplaceExec(model *Model, columnValues []ColumnValue) ExecValue {
+func (dia DefaultDialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	// optimization column format
-	fieldStr, qStr, args := columnValuesFormat(columnValues)
+	fieldStr, qStr, args := columnNameValuesFormat(columnValues)
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
 		fmt.Sprintf("REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
