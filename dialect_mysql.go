@@ -7,12 +7,20 @@
 package toyorm
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 )
 
 type MySqlDialect struct {
 	DefaultDialect
+}
+
+func (dia MySqlDialect) SaveExecutor(db Executor, exec ExecValue, debugPrinter func(ExecValue, error)) (sql.Result, error) {
+	query := exec.Query()
+	result, err := db.Exec(query, exec.Args()...)
+	debugPrinter(exec, err)
+	return result, err
 }
 
 func (dia MySqlDialect) HasTable(model *Model) ExecValue {
@@ -96,9 +104,13 @@ func (dia MySqlDialect) SaveExec(model *Model, columnValues []ColumnNameValue) E
 	)
 
 	var recordList []string
-
 	for _, r := range columnValues {
-		recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
+
+		if r.Name() == "Cas" {
+			recordList = append(recordList, fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\")", r.Column()))
+		} else {
+			recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
+		}
 	}
 	exec = exec.Append(fmt.Sprintf(" ON DUPLICATE KEY UPDATE %s",
 		strings.Join(recordList, ","),

@@ -161,3 +161,9 @@ type ErrModelDuplicateAssociation struct {
 func (e ErrModelDuplicateAssociation) Error() string {
 	return fmt.Sprintf("model %s have duplicate %s in field %s tag", e.Model, e.Type, e.Name)
 }
+
+type ErrSaveFailure struct{}
+
+func (e ErrSaveFailure) Error() string {
+	return fmt.Sprintf("save failure")
+}

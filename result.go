@@ -37,7 +37,7 @@ func (r *Result) Err() error {
 
 	for _, action := range r.ActionFlow {
 		if err := action.Err(); err != nil {
-			errStr += fmt.Sprintf("%s errors(\n%s\n)\n", action.String(), err)
+			errStr += fmt.Sprintf("%s errors(\n\t%s\n)\n", action.String(), err)
 		}
 	}
 	for name, preload := range r.Preload {

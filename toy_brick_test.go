@@ -2542,17 +2542,27 @@ func TestAliasRelatedPreloadName(t *testing.T) {
 }
 
 func TestSaveCas(t *testing.T) {
+	skillTestDB(t, "sqlite3")
 	brick := TestDB.Model(&TestCasTable{}).Debug()
 	createTableUnit(brick)(t)
 	data := TestCasTable{
-		Name: "test cas data",
+		Name:       "test cas data",
+		UniqueData: "unique data",
 	}
-	result, err := brick.Insert(&data)
+	result, err := brick.Save(&data)
 	resultProcessor(result, err)(t)
 
 	data.Name += " 2"
 	result, err = brick.Save(&data)
 	resultProcessor(result, err)(t)
+
+	data.Name += " 2"
+	data.Cas--
+	result, err = brick.Save(&data)
+	assert.Nil(t, err)
+	resultErr := result.Err()
+	assert.NotNil(t, resultErr)
+	t.Log("error:\n", resultErr)
 
 	t.Log("report:\n", result.Report())
 }

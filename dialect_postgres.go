@@ -13,7 +13,9 @@ import (
 	"strings"
 )
 
-type PostgreSqlDialect struct{}
+type PostgreSqlDialect struct {
+	DefaultDialect
+}
 
 func (dia PostgreSqlDialect) HasTable(model *Model) ExecValue {
 	return QToSExec{DefaultExec{
@@ -357,13 +359,25 @@ func (dia PostgreSqlDialect) SaveExec(model *Model, columnNameValues []ColumnNam
 		primaryKeyNames = append(primaryKeyNames, key.Column())
 	}
 	var recordList []string
+	var casField ColumnNameValue
 	for _, r := range columnNameValues {
+		if r.Name() == "Cas" {
+			casField = r
+		}
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
 	}
 	exec = exec.Append(fmt.Sprintf(" ON CONFLICT(%s) DO UPDATE SET %s",
 		strings.Join(primaryKeyNames, ","),
 		strings.Join(recordList, ","),
 	))
+
+	if casField != nil {
+		exec = exec.Append(fmt.Sprintf(" WHERE %s.%s = ?", model.Name, casField.Column()), casField.Value().Int()-1)
+	}
+	// save only process has id data
+	//if len(model.GetPrimary()) == 1 && model.GetOnePrimary().AutoIncrement() {
+	//	exec = exec.Append(" RETURNING " + model.GetOnePrimary().Column())
+	//}
 	return exec
 }
 

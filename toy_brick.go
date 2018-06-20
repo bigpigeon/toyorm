@@ -64,7 +64,7 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 			ManyToManyPreload: map[string]*ManyToManyPreload{},
 			ignoreModeSelector: [ModeEnd]IgnoreMode{
 				ModeInsert:    IgnoreNo,
-				ModeReplace:   IgnoreNo,
+				ModeSave:      IgnoreNo,
 				ModeUpdate:    IgnoreZero,
 				ModeCondition: IgnoreZero,
 				ModePreload:   IgnoreZero,
@@ -875,7 +875,7 @@ func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 }
 
 func (t *ToyBrick) SaveExec(record ModelRecord) ExecValue {
-	recorders := t.getFieldValuePairWithRecord(ModeReplace, record)
+	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
 	exec := t.Toy.Dialect.SaveExec(t.Model, recorders.ToNameValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)

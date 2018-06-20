@@ -653,9 +653,10 @@ type TestJoinTable struct {
 }
 
 type TestCasTable struct {
-	ID   uint32 `toyorm:"primary key;auto_increment"`
-	Name string
-	Cas  int `toyorm:"NOT NULL"`
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Name       string
+	UniqueData string `toyorm:"unique index"`
+	Cas        int    `toyorm:"NOT NULL"`
 }
 
 type TestBenchmarkTable struct {
@@ -750,6 +751,15 @@ func resultProcessor(result *Result, err error) func(t testing.TB) {
 }
 
 var idGenerator = map[reflect.Type]chan int{}
+
+func skillTestDB(t testing.TB, dbs ...string) {
+	for _, db := range dbs {
+		if db == TestDriver {
+			t.Skipf("%s not need test this", db)
+		}
+		break
+	}
+}
 
 func CollectionIDGenerate(ctx *CollectionContext) error {
 	if idGenerator[ctx.Brick.Model.ReflectType] == nil {

@@ -704,7 +704,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 				action.Exec = ctx.Brick.SaveExec(record)
 			} else {
 				tempMap := DefaultCollectionTemplateExec(ctx)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeReplace, record).ToValueList()
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
 				tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 				tempMap["Values"] = getValuesExec(values)
 				tempMap["UpdateValues"] = getUpdateValuesExec(values)

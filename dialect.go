@@ -27,6 +27,9 @@ type Executor interface {
 type Dialect interface {
 	// some database like postgres not support LastInsertId, need QueryRow to get the return id
 	InsertExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
+	// sqlite3/postgresql use RowsAffected to check success or failure, but mysql can't,
+	// because it's RowsAffected is zero when update value not change
+	SaveExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
 	HasTable(*Model) ExecValue
 	CreateTable(*Model, map[string]ForeignKey) []ExecValue
 	DropTable(*Model) ExecValue
@@ -45,6 +48,24 @@ type Dialect interface {
 }
 
 type DefaultDialect struct{}
+
+func (dia DefaultDialect) SaveExecutor(db Executor, exec ExecValue, debugPrinter func(ExecValue, error)) (sql.Result, error) {
+	query := exec.Query()
+	result, err := db.Exec(query, exec.Args()...)
+	// use RowsAffected to check save success or failure
+	if err == nil {
+		affected, e := result.RowsAffected()
+		// e must be nil
+		if e != nil {
+			panic(e)
+		}
+		if affected == 0 {
+			err = ErrSaveFailure{}
+		}
+	}
+	debugPrinter(exec, err)
+	return result, err
+}
 
 func (dia DefaultDialect) InsertExecutor(db Executor, exec ExecValue, debugPrinter func(ExecValue, error)) (sql.Result, error) {
 	query := exec.Query()
@@ -354,7 +375,7 @@ func (dia DefaultDialect) SaveExec(model *Model, columnValues []ColumnNameValue)
 	fieldStr, qStr, args := columnNameValuesFormat(columnValues)
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
-		fmt.Sprintf("REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
+		fmt.Sprintf("INSERT OR REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
 		args...,
 	)
 	return exec

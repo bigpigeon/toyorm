@@ -11,7 +11,7 @@ type Mode int8
 const (
 	ModeDefault Mode = iota
 	ModeInsert
-	ModeReplace
+	ModeSave
 	ModeUpdate
 	ModeScan
 	ModeSelect
