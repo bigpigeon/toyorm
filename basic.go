@@ -288,13 +288,13 @@ func ModelName(_type reflect.Type) string {
 	return modelName
 }
 
-func DefaultTemplateExec(ctx *Context) map[string]BasicExec {
-	cExec := ctx.Brick.ConditionExec()
+func DefaultTemplateExec(brick *ToyBrick) map[string]BasicExec {
+	cExec := brick.ConditionExec()
 	result := map[string]BasicExec{
-		"ModelName":  {ctx.Brick.Model.Name, nil},
+		"ModelName":  {brick.Model.Name, nil},
 		"Conditions": {cExec.Query(), cExec.Args()},
 	}
-	for _, field := range ctx.Brick.Model.GetSqlFields() {
+	for _, field := range brick.Model.GetSqlFields() {
 		// add field name placeholder exec
 		result["FN-"+field.Name()] = BasicExec{field.Column(), nil}
 		// add field offset placeholder exec
@@ -303,14 +303,14 @@ func DefaultTemplateExec(ctx *Context) map[string]BasicExec {
 	return result
 }
 
-func DefaultCollectionTemplateExec(ctx *CollectionContext) map[string]BasicExec {
-	cExec := ctx.Brick.ConditionExec()
+func DefaultCollectionTemplateExec(brick *CollectionBrick) map[string]BasicExec {
+	cExec := brick.ConditionExec()
 	result := map[string]BasicExec{
-		"ModelName":  {ctx.Brick.Model.Name, nil},
+		"ModelName":  {brick.Model.Name, nil},
 		"Conditions": {cExec.Query(), cExec.Args()},
-		"DBIndex":    {fmt.Sprintf("%d", ctx.Brick.dbIndex), nil},
+		"DBIndex":    {fmt.Sprintf("%d", brick.dbIndex), nil},
 	}
-	for _, field := range ctx.Brick.Model.GetSqlFields() {
+	for _, field := range brick.Model.GetSqlFields() {
 		// add field name placeholder exec
 		result["FN-"+field.Name()] = BasicExec{field.Column(), nil}
 		// add field offset placeholder exec

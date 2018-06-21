@@ -659,6 +659,12 @@ type TestCasTable struct {
 	Cas        int    `toyorm:"NOT NULL"`
 }
 
+type TestUniqueIndexSaveTable struct {
+	ID   uint32 `toyorm:"primary key;"`
+	Name string `toyorm:"unique index"`
+	Data string
+}
+
 type TestBenchmarkTable struct {
 	ID    uint32 `toyorm:"primary key;auto_increment"`
 	Key   string

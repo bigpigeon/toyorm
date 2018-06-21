@@ -186,7 +186,7 @@ func HandlerInsert(ctx *Context) error {
 		if ctx.Brick.template == nil {
 			action.Exec = ctx.Brick.InsertExec(record)
 		} else {
-			tempMap := DefaultTemplateExec(ctx)
+			tempMap := DefaultTemplateExec(ctx.Brick)
 			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getValuesExec(values)
@@ -245,7 +245,7 @@ func HandlerFind(ctx *Context) error {
 	if ctx.Brick.template == nil {
 		action.Exec = ctx.Brick.FindExec(columns)
 	} else {
-		tempMap := DefaultTemplateExec(ctx)
+		tempMap := DefaultTemplateExec(ctx.Brick)
 		tempMap["Columns"] = getColumnExec(columns)
 		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 		if err != nil {
@@ -536,7 +536,7 @@ func HandlerUpdate(ctx *Context) error {
 		if ctx.Brick.template == nil {
 			action.Exec = ctx.Brick.UpdateExec(record)
 		} else {
-			tempMap := DefaultTemplateExec(ctx)
+			tempMap := DefaultTemplateExec(ctx.Brick)
 			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getUpdateValuesExec(values)
@@ -556,24 +556,22 @@ func HandlerUpdate(ctx *Context) error {
 // else try to replace
 func HandlerSave(ctx *Context) error {
 	setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
-	saveBrick := ctx.Brick.IgnoreMode(ModeDefault, IgnoreNo)
+	var executor Executor
+	if ctx.Brick.tx != nil {
+		executor = ctx.Brick.tx
+	} else {
+		executor = ctx.Brick.Toy.db
+	}
 	for i, record := range ctx.Result.Records.GetRecords() {
-
 		var action ExecAction
 		var err error
 		action = ExecAction{affectData: []int{i}}
 		var useInsert bool
-		// if have any primary key, use insert ,other use update
+		// if have any zero primary key, use insert ,otherwise use save
 		for _, key := range ctx.Brick.Model.PrimaryFields {
 			if field := record.Field(key.Name()); field.IsValid() == false || IsZero(field) {
 				useInsert = true
 			}
-		}
-		var executor Executor
-		if ctx.Brick.tx != nil {
-			executor = ctx.Brick.tx
-		} else {
-			executor = ctx.Brick.Toy.db
 		}
 		if ctx.Brick.template == nil {
 			if useInsert {
@@ -599,7 +597,7 @@ func HandlerSave(ctx *Context) error {
 					}
 				}
 			} else {
-				action.Exec = saveBrick.SaveExec(record)
+				action.Exec = ctx.Brick.SaveExec(record)
 				action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
 					executor,
 					action.Exec,
@@ -607,7 +605,7 @@ func HandlerSave(ctx *Context) error {
 				)
 			}
 		} else {
-			tempMap := DefaultTemplateExec(ctx)
+			tempMap := DefaultTemplateExec(ctx.Brick)
 			values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getValuesExec(values)
@@ -615,6 +613,50 @@ func HandlerSave(ctx *Context) error {
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 			if err != nil {
 				return err
+			}
+		}
+
+		ctx.Result.AddRecord(action)
+	}
+	return nil
+}
+
+func HandlerUSave(ctx *Context) error {
+	notIgnoreBrick := ctx.Brick.IgnoreMode(ModeDefault, IgnoreNo)
+	for i, record := range ctx.Result.Records.GetRecords() {
+		var action ExecAction
+		var err error
+		action = ExecAction{affectData: []int{i}}
+		var useInsert bool
+		ConditionKeyVal := map[string]interface{}{}
+		// if have any zero primary key,, return error ,otherwise use update
+		for _, field := range ctx.Brick.Model.PrimaryFields {
+			if fieldVal := record.Field(field.Name()); fieldVal.IsValid() == false || IsZero(fieldVal) {
+				useInsert = true
+			} else {
+				ConditionKeyVal[field.Name()] = fieldVal.Interface()
+			}
+		}
+		if useInsert {
+			action.Exec = DefaultExec{"nil sql", nil}
+			action.Error = ErrNilPrimaryKey{}
+		} else {
+			// cas process
+			if casField := ctx.Brick.Model.GetFieldWithName("Cas"); casField != nil {
+				ConditionKeyVal[casField.Name()] = record.Field(casField.Name()).Int() - 1
+			}
+			brick := notIgnoreBrick.WhereGroup(ExprAnd, ConditionKeyVal)
+			if ctx.Brick.template == nil {
+				action.Exec = brick.UpdateExec(record)
+				action.Result, action.Error = ctx.Brick.Exec(action.Exec)
+			} else {
+				tempMap := DefaultTemplateExec(brick)
+				values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
+				tempMap["UpdateValues"] = getUpdateValuesExec(values)
+				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

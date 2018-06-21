@@ -472,10 +472,10 @@ func (t *ToyBrick) WhereGroup(expr SearchExpr, group interface{}) *ToyBrick {
 
 func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
-		newt := *t.CleanOwnSearch()
+		newt := t.CleanOwnSearch()
 		if len(search) == 0 {
 			newt.Search = nil
-			return &newt
+			return newt
 		}
 		newSearch := make(SearchList, len(search), len(search)+1)
 		copy(newSearch, search)
@@ -487,7 +487,7 @@ func (t *ToyBrick) Conditions(search SearchList) *ToyBrick {
 				newt.OwnSearch = append(newt.OwnSearch, i)
 			}
 		}
-		return &newt
+		return newt
 	})
 }
 
@@ -601,6 +601,12 @@ func (t *ToyBrick) insert(records ModelRecords) (*Result, error) {
 
 func (t *ToyBrick) save(records ModelRecords) (*Result, error) {
 	handlers := t.Toy.ModelHandlers("Save", t.Model)
+	ctx := NewContext(handlers, t, records)
+	return ctx.Result, ctx.Next()
+}
+
+func (t *ToyBrick) usave(records ModelRecords) (*Result, error) {
+	handlers := t.Toy.ModelHandlers("USave", t.Model)
 	ctx := NewContext(handlers, t, records)
 	return ctx.Result, ctx.Next()
 }
@@ -753,6 +759,21 @@ func (t *ToyBrick) Save(v interface{}) (*Result, error) {
 		records := MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 		records.Add(vValue.Addr())
 		return t.save(records)
+	}
+}
+
+// save with exist data
+func (t *ToyBrick) USave(v interface{}) (*Result, error) {
+	vValue := LoopIndirect(reflect.ValueOf(v))
+
+	switch vValue.Kind() {
+	case reflect.Slice:
+		records := NewRecords(t.Model, vValue)
+		return t.usave(records)
+	default:
+		records := MakeRecordsWithElem(t.Model, vValue.Addr().Type())
+		records.Add(vValue.Addr())
+		return t.usave(records)
 	}
 }
 

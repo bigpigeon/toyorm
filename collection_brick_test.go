@@ -512,7 +512,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	{
 		var tabs []TestSearchTable
 		result, err := TestCollectionDB.Model(&TestSearchTable{}).
-			Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
+			WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -528,7 +528,7 @@ func TestCollectionConditionFind(t *testing.T) {
 	{
 		var tabs []TestSearchTable
 		result, err := TestCollectionDB.Model(&TestSearchTable{}).
-			Where(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
+			WhereGroup(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -604,7 +604,7 @@ func TestCollectionCombinationConditionFind(t *testing.T) {
 	brick := TestCollectionDB.Model(&TestSearchTable{})
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
+		result, err := brick.WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -618,7 +618,7 @@ func TestCollectionCombinationConditionFind(t *testing.T) {
 	}
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
+		result, err := brick.WhereGroup(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -632,7 +632,7 @@ func TestCollectionCombinationConditionFind(t *testing.T) {
 	}
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprAnd, map[uintptr]interface{}{
+		result, err := brick.WhereGroup(ExprAnd, map[uintptr]interface{}{
 			Offsetof(TestSearchTable{}.A): "a",
 			Offsetof(TestSearchTable{}.B): "b",
 		}).Find(&tabs)
@@ -650,7 +650,7 @@ func TestCollectionCombinationConditionFind(t *testing.T) {
 
 	{
 		var tabs []TestSearchTable
-		result, err := brick.Where(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
+		result, err := brick.WhereGroup(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
 			Condition(ExprEqual, "C", "c").Find(&tabs)
 		assert.Nil(t, err)
 		if err := result.Err(); err != nil {
@@ -2198,4 +2198,78 @@ func TestCollectionCustomExec(t *testing.T) {
 		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = ?,sync = ? WHERE id = ?")
 	}
 
+}
+
+func TestCollectionSaveCas(t *testing.T) {
+	skillTestDB(t, "sqlite3")
+	brick := TestCollectionDB.Model(&TestCasTable{})
+	createCollectionTableUnit(brick)(t)
+
+	TestCollectionDB.SetModelHandlers("Insert", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+	TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+
+	for _, pBrick := range brick.MapPreloadBrick {
+		TestCollectionDB.SetModelHandlers("Insert", pBrick.Model, CollectionHandlersChain{CollectionIDGenerate})
+		TestCollectionDB.SetModelHandlers("Save", brick.Model, CollectionHandlersChain{CollectionIDGenerate})
+
+	}
+
+	data := TestCasTable{
+		Name:       "test cas data",
+		UniqueData: "unique data",
+	}
+	result, err := brick.Insert(&data)
+	resultProcessor(result, err)(t)
+	assert.Equal(t, data.Cas, 1)
+
+	data.Name += " 2"
+	result, err = brick.Save(&data)
+	resultProcessor(result, err)(t)
+	assert.Equal(t, data.Cas, 2)
+
+	data.Name += " 2"
+	data.Cas--
+	result, err = brick.Save(&data)
+	assert.Nil(t, err)
+	resultErr := result.Err()
+	assert.NotNil(t, resultErr)
+	t.Log("error:\n", resultErr)
+
+	t.Log("report:\n", result.Report())
+}
+
+func TestCollectionSaveWithUniqueIndex(t *testing.T) {
+	brick := TestCollectionDB.Model(&TestUniqueIndexSaveTable{})
+	createCollectionTableUnit(brick)(t)
+	oldData := TestUniqueIndexSaveTable{
+		ID:   1,
+		Name: "unique",
+		Data: "some data",
+	}
+	result, err := brick.Insert(&oldData)
+	resultProcessor(result, err)(t)
+	newData := TestUniqueIndexSaveTable{
+		ID:   2,
+		Name: "unique",
+		Data: "some data 2",
+	}
+	// if here use save, will replace first record data in sqlite3
+	//result, err = brick.Save(&newData)
+	//resultProcessor(result, err)(t)
+
+	// change name and insert
+	newData.Name = "unique other"
+	result, err = brick.Insert(&newData)
+	resultProcessor(result, err)(t)
+
+	// use USave(Save with Update) will get error
+	newData.Name = "unique"
+	result, err = brick.USave(&newData)
+	if err != nil {
+		t.Error(err)
+	}
+	resultErr := result.Err()
+	// TODO unique index invalid on multiple database
+	//assert.NotNil(t, resultErr)
+	t.Log("error:\n", resultErr)
 }

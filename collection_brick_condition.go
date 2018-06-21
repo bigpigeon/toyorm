@@ -14,8 +14,13 @@ type CollectionBrickAnd struct {
 	Brick *CollectionBrick
 }
 
-func (t CollectionBrickAnd) Condition(expr SearchExpr, key interface{}, v ...interface{}) *CollectionBrick {
+func (t CollectionBrickAnd) Condition(expr SearchExpr, key FieldSelection, v ...interface{}) *CollectionBrick {
 	search := t.Brick.condition(expr, key, v...)
+	return t.Conditions(search)
+}
+
+func (t CollectionBrickAnd) ConditionGroup(expr SearchExpr, group interface{}) *CollectionBrick {
+	search := t.Brick.conditionGroup(expr, group)
 	return t.Conditions(search)
 }
 
@@ -50,8 +55,13 @@ type CollectionBrickOr struct {
 	Brick *CollectionBrick
 }
 
-func (t CollectionBrickOr) Condition(expr SearchExpr, key interface{}, v ...interface{}) *CollectionBrick {
+func (t CollectionBrickOr) Condition(expr SearchExpr, key FieldSelection, v ...interface{}) *CollectionBrick {
 	search := t.Brick.condition(expr, key, v...)
+	return t.Conditions(search)
+}
+
+func (t CollectionBrickOr) ConditionGroup(expr SearchExpr, group interface{}) *CollectionBrick {
+	search := t.Brick.conditionGroup(expr, group)
 	return t.Conditions(search)
 }
 
@@ -74,40 +84,48 @@ func (t CollectionBrickOr) Conditions(search SearchList) *CollectionBrick {
 	})
 }
 
-func (t *CollectionBrick) condition(expr SearchExpr, key interface{}, args ...interface{}) SearchList {
-	search := SearchList{}
+func (t *CollectionBrick) condition(expr SearchExpr, key FieldSelection, args ...interface{}) SearchList {
+	var value reflect.Value
+	if len(args) == 1 {
+		value = reflect.ValueOf(args[0])
+	} else {
+		value = reflect.ValueOf(args)
+	}
+	mField := t.Model.fieldSelect(key)
+
+	search := SearchList{}.Condition(mField.ToFieldValue(value), expr, ExprAnd)
+
+	return search
+}
+
+func (t *CollectionBrick) conditionGroup(expr SearchExpr, group interface{}) SearchList {
 	switch expr {
 	case ExprAnd, ExprOr:
-		keyValue := LoopIndirect(reflect.ValueOf(key))
+		var search SearchList
+		keyValue := LoopIndirect(reflect.ValueOf(group))
 		record := NewRecord(t.Model, keyValue)
 		pairs := t.getFieldValuePairWithRecord(ModeCondition, record)
 		for _, pair := range pairs {
 			search = search.Condition(pair, ExprEqual, expr)
 		}
+		// avoid "or" condition effected by priority
 		if expr == ExprOr {
 			search = append(search, NewSearchBranch(ExprIgnore))
 		}
-	default:
-		var value reflect.Value
-		if len(args) == 1 {
-			value = reflect.ValueOf(args[0])
-		} else {
-			value = reflect.ValueOf(args)
-		}
-		mField := t.Model.fieldSelect(key)
 
-		search = search.Condition(mField.ToFieldValue(value), expr, ExprAnd)
+		return search
 	}
-	return search
+	panic("invalid expr")
 }
 
 // where will clean old condition
-func (t *CollectionBrick) Where(expr SearchExpr, key interface{}, v ...interface{}) *CollectionBrick {
-	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
-		newt := *t
-		newt.Search = t.condition(expr, key, v...)
-		return &newt
-	})
+func (t *CollectionBrick) Where(expr SearchExpr, key FieldSelection, v ...interface{}) *CollectionBrick {
+	return t.Conditions(t.condition(expr, key, v...))
+}
+
+// expr only support And/Or , group must be struct data or map[string]interface{}/map[uintptr]interface{}
+func (t *CollectionBrick) WhereGroup(expr SearchExpr, group interface{}) *CollectionBrick {
+	return t.Conditions(t.conditionGroup(expr, group))
 }
 
 func (t *CollectionBrick) Conditions(search SearchList) *CollectionBrick {

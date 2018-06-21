@@ -167,3 +167,9 @@ type ErrSaveFailure struct{}
 func (e ErrSaveFailure) Error() string {
 	return fmt.Sprintf("save failure")
 }
+
+type ErrNilPrimaryKey struct{}
+
+func (e ErrNilPrimaryKey) Error() string {
+	return fmt.Sprintf("this record has zero primary key")
+}

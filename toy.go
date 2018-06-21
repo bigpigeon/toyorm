@@ -46,6 +46,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"Find":                     {HandlerPreloadContainerCheck, HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadOnJoinFind, HandlerPreloadFind},
 			"Update":                   {HandlerSoftDeleteCheck, HandlerUpdateTimeGenerate, HandlerUpdate},
 			"Save":                     {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("Save"), HandlerCasVersionPushOne, HandlerSaveTimeGenerate, HandlerSave},
+			"USave":                    {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("USave"), HandlerCasVersionPushOne, HandlerSaveTimeGenerate, HandlerUSave},
 			"HardDelete":               {HandlerPreloadDelete, HandlerHardDelete},
 			"SoftDelete":               {HandlerPreloadDelete, HandlerSoftDelete},
 			"HardDeleteWithPrimaryKey": {HandlerPreloadDelete, HandlerSearchWithPrimaryKey, HandlerHardDelete},

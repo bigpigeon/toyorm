@@ -2543,18 +2543,20 @@ func TestAliasRelatedPreloadName(t *testing.T) {
 
 func TestSaveCas(t *testing.T) {
 	skillTestDB(t, "sqlite3")
-	brick := TestDB.Model(&TestCasTable{}).Debug()
+	brick := TestDB.Model(&TestCasTable{})
 	createTableUnit(brick)(t)
 	data := TestCasTable{
 		Name:       "test cas data",
 		UniqueData: "unique data",
 	}
-	result, err := brick.Save(&data)
+	result, err := brick.Insert(&data)
 	resultProcessor(result, err)(t)
+	assert.Equal(t, data.Cas, 1)
 
 	data.Name += " 2"
 	result, err = brick.Save(&data)
 	resultProcessor(result, err)(t)
+	assert.Equal(t, data.Cas, 2)
 
 	data.Name += " 2"
 	data.Cas--
@@ -2565,4 +2567,39 @@ func TestSaveCas(t *testing.T) {
 	t.Log("error:\n", resultErr)
 
 	t.Log("report:\n", result.Report())
+}
+
+func TestSaveWithUniqueIndex(t *testing.T) {
+	brick := TestDB.Model(&TestUniqueIndexSaveTable{})
+	createTableUnit(brick)(t)
+	oldData := TestUniqueIndexSaveTable{
+		ID:   1,
+		Name: "unique",
+		Data: "some data",
+	}
+	result, err := brick.Insert(&oldData)
+	resultProcessor(result, err)(t)
+	newData := TestUniqueIndexSaveTable{
+		ID:   2,
+		Name: "unique",
+		Data: "some data 2",
+	}
+	// if here use save, will replace first record data in sqlite3
+	//result, err = brick.Save(&newData)
+	//resultProcessor(result, err)(t)
+
+	// change name and insert
+	newData.Name = "unique other"
+	result, err = brick.Insert(&newData)
+	resultProcessor(result, err)(t)
+
+	// use USave(Save with Update) will get error
+	newData.Name = "unique"
+	result, err = brick.USave(&newData)
+	if err != nil {
+		t.Error(err)
+	}
+	resultErr := result.Err()
+	assert.NotNil(t, resultErr)
+	t.Log("error:\n", resultErr)
 }
