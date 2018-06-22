@@ -167,6 +167,13 @@ func (m *ModelOffsetMapRecord) SetField(name string, value reflect.Value) {
 	}
 }
 
+func (m *ModelOffsetMapRecord) DeleteField(name string) {
+	if name == "" {
+		return
+	}
+	delete(m.FieldValues, name)
+}
+
 func (m *ModelOffsetMapRecord) Field(name string) reflect.Value {
 	return m.FieldValues[name]
 }

@@ -184,6 +184,13 @@ func (m *ModelNameMapRecord) SetField(name string, value reflect.Value) {
 	}
 }
 
+func (m *ModelNameMapRecord) DeleteField(name string) {
+	if name == "" {
+		return
+	}
+	delete(m.FieldValues, name)
+}
+
 func (m *ModelNameMapRecord) Field(name string) reflect.Value {
 	return m.FieldValues[name]
 }

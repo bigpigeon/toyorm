@@ -652,6 +652,11 @@ type TestJoinTable struct {
 	PriceJoin TestJoinPriceTable `toyorm:"alias:PriceDetail"`
 }
 
+type TestSaveTable struct {
+	ModelDefault
+	Data string `toyorm:"index"`
+}
+
 type TestCasTable struct {
 	ID         uint32 `toyorm:"primary key;auto_increment"`
 	Name       string

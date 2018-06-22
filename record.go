@@ -17,6 +17,7 @@ type ModelRecordFieldTypes interface {
 type ModelRecord interface {
 	AllField() map[string]reflect.Value
 	SetField(field string, v reflect.Value)
+	DeleteField(string)
 	Field(field string) reflect.Value
 	FieldAddress(field string) reflect.Value
 	IsVariableContainer() bool

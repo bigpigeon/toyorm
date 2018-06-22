@@ -222,6 +222,14 @@ func (m *ModelStructRecord) SetField(name string, value reflect.Value) {
 	safeSet(fieldValue, value)
 }
 
+func (m *ModelStructRecord) DeleteField(name string) {
+	if name == "" {
+		return
+	}
+	delete(m.VirtualFieldValues, name)
+	delete(m.FieldValues, name)
+}
+
 func (m *ModelStructRecord) Field(name string) reflect.Value {
 	if v := m.FieldValues[name]; v.IsValid() {
 		return v

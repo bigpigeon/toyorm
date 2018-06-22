@@ -105,12 +105,13 @@ func (dia MySqlDialect) SaveExec(model *Model, columnValues []ColumnNameValue) E
 
 	var recordList []string
 	for _, r := range columnValues {
-
-		if r.Name() == "Cas" {
+		switch r.Name() {
+		case "Cas":
 			recordList = append(recordList, fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\")", r.Column()))
-		} else {
+		default:
 			recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
 		}
+
 	}
 	exec = exec.Append(fmt.Sprintf(" ON DUPLICATE KEY UPDATE %s",
 		strings.Join(recordList, ","),

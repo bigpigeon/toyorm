@@ -1403,25 +1403,6 @@ func TestFlow(t *testing.T) {
 		t.Error(err)
 	}
 
-	// I try use transaction but sqlite will lock database when have second query
-	//if _, err = brick.Insert(&product); err != nil {
-	//	t.Logf("error %s", err)
-	//	err = brick.Rollback()
-	//	assert.Nil(t, err)
-	//	t.Log("try to save")
-	//	brick = brick.Begin()
-	//	if err = brick.Save(&product); err != nil {
-	//		t.Logf("error %s", err)
-	//		err = brick.Rollback()
-	//		assert.Nil(t, err)
-	//	} else {
-	//		err = brick.Commit()
-	//		assert.Nil(t, err)
-	//	}
-	//} else {
-	//	err = brick.Commit()
-	//	assert.Nil(t, err)
-	//}
 	// try to find
 	var newProducts []Product
 	result, err = brick.Find(&newProducts)
@@ -2539,6 +2520,28 @@ func TestAliasRelatedPreloadName(t *testing.T) {
 	oneToManyPreload := brick.OneToManyPreload["OneToManyData"]
 	assert.Equal(t, oneToManyPreload.RelationField.Name(), "MainID")
 
+}
+
+func TestSave(t *testing.T) {
+	brick := TestDB.Model(&TestSaveTable{}).Debug()
+	createTableUnit(brick)(t)
+
+	data := TestSaveTable{
+		Data: "test save",
+	}
+
+	result, err := brick.Save(&data)
+	resultProcessor(result, err)(t)
+	assert.NotZero(t, data.CreatedAt)
+	assert.NotZero(t, data.UpdatedAt)
+
+	oldCreatedAt := data.CreatedAt
+	oldUpdateAt := data.UpdatedAt
+
+	result, err = brick.Save(&data)
+	resultProcessor(result, err)(t)
+	assert.Equal(t, oldCreatedAt, data.CreatedAt)
+	assert.True(t, data.UpdatedAt.After(oldUpdateAt))
 }
 
 func TestSaveCas(t *testing.T) {

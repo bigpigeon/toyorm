@@ -666,99 +666,11 @@ func HandlerUSave(ctx *Context) error {
 }
 
 func HandlerSaveTimeGenerate(ctx *Context) error {
-	createdAtField := ctx.Brick.Model.GetFieldWithName("CreatedAt")
-	deletedAtField := ctx.Brick.Model.GetFieldWithName("DeletedAt")
 	now := reflect.ValueOf(time.Now())
-
-	var timeFields []Field
-	var defaultFieldValue []reflect.Value
-	if createdAtField != nil {
-		timeFields = append(timeFields, createdAtField)
-		defaultFieldValue = append(defaultFieldValue, now)
-	}
-	if deletedAtField != nil {
-		timeFields = append(timeFields, deletedAtField)
-		defaultFieldValue = append(defaultFieldValue, reflect.Zero(deletedAtField.StructField().Type))
-	}
-
-	if ctx.Result.Records.Len() > 0 && len(timeFields) > 0 {
-		primaryField := ctx.Brick.Model.GetOnePrimary()
-		brick := ctx.Brick.bindFields(ModeDefault, append([]Field{primaryField}, timeFields...)...)
-		primaryKeys := reflect.MakeSlice(reflect.SliceOf(primaryField.StructField().Type), 0, ctx.Result.Records.Len())
-		action := QueryAction{}
-
-		for i, record := range ctx.Result.Records.GetRecords() {
-			pri := record.Field(primaryField.Name())
-			if pri.IsValid() && IsZero(pri) == false {
-				primaryKeys = reflect.Append(primaryKeys, pri)
-				action.affectData = append(action.affectData, i)
-			}
-		}
-
-		if primaryKeys.Len() > 0 {
-			columns := brick.getSelectFields(ctx.Result.Records)
-			action.Exec = brick.Where(ExprIn, primaryField, primaryKeys.Interface()).FindExec(columns.ToColumnList())
-
-			rows, err := brick.Query(action.Exec)
-			if err != nil {
-				action.Error = append(action.Error, err)
-
-				ctx.Result.AddRecord(action)
-				return nil
-			}
-			defer rows.Close()
-			var mapElemTypeFields []reflect.StructField
-			{
-				for _, f := range timeFields {
-					mapElemTypeFields = append(mapElemTypeFields, f.StructField())
-				}
-			}
-			mapElemType := reflect.StructOf(mapElemTypeFields)
-			primaryKeysMap := reflect.MakeMap(reflect.MapOf(primaryField.StructField().Type, mapElemType))
-
-			// find all createtime
-			for rows.Next() {
-				id := reflect.New(primaryField.StructField().Type)
-				timeFieldValues := reflect.New(mapElemType).Elem()
-				scaners := []interface{}{id.Interface()}
-				for i := 0; i < timeFieldValues.NumField(); i++ {
-					scaners = append(scaners, timeFieldValues.Field(i).Addr().Interface())
-				}
-				err := rows.Scan(scaners...)
-				if err != nil {
-					action.Error = append(action.Error, err)
-				}
-				primaryKeysMap.SetMapIndex(id.Elem(), timeFieldValues)
-			}
-
-			ctx.Result.AddRecord(action)
-			for _, record := range ctx.Result.Records.GetRecords() {
-				pri := record.Field(primaryField.Name())
-				fields := primaryKeysMap.MapIndex(pri)
-				if fields.IsValid() {
-					for i := 0; i < fields.NumField(); i++ {
-						field := fields.Field(i)
-						if field.IsValid() && IsZero(field) == false {
-							record.SetField(timeFields[i].Name(), field)
-						} else if IsZero(record.Field(timeFields[i].Name())) {
-							record.SetField(timeFields[i].Name(), defaultFieldValue[i])
-						}
-					}
-				} else {
-					for i := 0; i < len(timeFields); i++ {
-						if IsZero(record.Field(timeFields[i].Name())) {
-							record.SetField(timeFields[i].Name(), defaultFieldValue[i])
-						}
-					}
-				}
-			}
-		} else {
-			for _, record := range ctx.Result.Records.GetRecords() {
-				for i := 0; i < len(timeFields); i++ {
-					if IsZero(record.Field(timeFields[i].Name())) {
-						record.SetField(timeFields[i].Name(), defaultFieldValue[i])
-					}
-				}
+	if createAtField := ctx.Brick.Model.GetFieldWithName("CreatedAt"); createAtField != nil {
+		for _, record := range ctx.Result.Records.GetRecords() {
+			if fieldValue := record.Field(createAtField.Name()); fieldValue.IsValid() == false || IsZero(fieldValue) {
+				record.SetField(createAtField.Name(), now)
 			}
 		}
 	}
