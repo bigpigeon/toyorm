@@ -238,3 +238,7 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 		SubRelationField: subRelationField,
 	}
 }
+
+func (t *Toy) DB() *sql.DB {
+	return t.db
+}

@@ -269,6 +269,9 @@ func HandlerFind(ctx *Context) error {
 		err := rows.Scan(scanners...)
 		action.Error = append(action.Error, err)
 	}
+	if err := rows.Err(); err != nil {
+		action.Error = append(action.Error, err)
+	}
 	max := ctx.Result.Records.Len()
 	action.affectData = makeRange(min, max)
 	ctx.Result.AddRecord(action)

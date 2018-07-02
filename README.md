@@ -204,7 +204,7 @@ Field Name| Type      | Description
 CreatedAt |time.Time  | generate when element be create
 UpdatedAt |time.Time  | generate when element be update/create
 DeletedAt |*time.Time | delete mode is soft
-Cas       |int        | (not support for sqlite3)in save operation to maintain it's value has not been changed e.g in postgres:cas=1 insert xxx conflict(id) update cas = 2 where cas = 1
+Cas       |int        | (not support for sqlite3)save operation will failure when it's value modified by third party e.g in postgres:cas=1 insert xxx conflict(id) update cas = 2 where cas = 1
 
 **field tags**
 
