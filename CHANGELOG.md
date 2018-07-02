@@ -1,3 +1,14 @@
+### Toyorm v0.4-alpha (Jul 2 2018)
+
+- [New] toy-factory ,use sql table to create Model's bind struct
+- [NEW] insert/update/find benchmark
+- [NEW] USave operation, use Update operation to save data
+- [NEW] Cas special Model Field(use in Save/USave)
+- [FIX] debugPrint args format
+- [REMOVE] BrickColumn and it's related interface
+- [REMOVE] CreatedAt search in Save handlers
+
+
 ### Toyorm v0.3.2-alpha (May 16 2018)
 
 - [New] toy-doctor https://github.com/bigpigeon/toy-doctor
