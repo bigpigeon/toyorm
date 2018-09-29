@@ -121,6 +121,33 @@ func (r *Result) report() (reportData []ReportData) {
 			}
 		}
 	}
+	if len(r.MiddleModelPreload) != 0 {
+		for name, preloadResults := range r.MiddleModelPreload {
+			reportData = append(reportData, ReportData{1, nil, "preload " + name + " middle log"})
+			for _, oldData := range preloadResults.report() {
+				var data ReportData
+				if oldData.AffectData == nil {
+					data = ReportData{oldData.Depth + 1, nil, oldData.Str}
+				} else {
+					data = ReportData{oldData.Depth + 1, make([]*AffectNode, len(oldData.AffectData)), oldData.Str}
+					if relation := r.SimpleRelation[name]; relation != nil {
+						for i, node := range oldData.AffectData {
+							a := NewAffectNode(relation[node.Val], IgnoreAffectNode(node.Next))
+							data.AffectData[i] = a
+						}
+					} else if relation := r.MultipleRelation[name]; relation != nil {
+						for i, node := range oldData.AffectData {
+							pair := relation[node.Val]
+							data.AffectData[i] = NewAffectNode(pair.Main, NewAffectNode(pair.Sub, node.Next))
+						}
+					} else {
+						panic("relation map not found")
+					}
+				}
+				reportData = append(reportData, data)
+			}
+		}
+	}
 	return reportData
 }
 
