@@ -12,16 +12,16 @@ import (
 	. "unsafe"
 )
 
-type BugMiddleReportLoseTable struct {
+type BugMiddleReportLossTable struct {
 	ID   int `toyorm:"primary key"`
 	Data string
 
-	Child []BugMiddleReportLoseTable
+	Child []BugMiddleReportLossTable
 }
 
-func TestBugCreateTableManyToManyReportLose(t *testing.T) {
-	brick := TestDB.Model(&BugMiddleReportLoseTable{}).
-		Preload(Offsetof(BugMiddleReportLoseTable{}.Child)).Enter()
+func TestBugCreateTableManyToManyReportLoss(t *testing.T) {
+	brick := TestDB.Model(&BugMiddleReportLossTable{}).
+		Preload(Offsetof(BugMiddleReportLossTable{}.Child)).Enter()
 	result, err := brick.DropTableIfExist()
 	assert.NoError(t, err)
 	assert.NoError(t, result.Err())
