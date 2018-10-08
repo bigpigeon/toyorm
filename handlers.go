@@ -372,14 +372,12 @@ func HandlerPreloadOnJoinFind(ctx *Context) error {
 	}
 	return nil
 }
-
 func HandlerPreloadFind(ctx *Context) error {
 	for fieldName, preload := range ctx.Brick.BelongToPreload {
 		mainField, subField := preload.RelationField, preload.SubModel.GetOnePrimary()
 		brick := ctx.Brick.MapPreloadBrick[fieldName]
 
 		mainGroup := ctx.Result.Records.GroupBy(mainField.Name())
-
 		delete(mainGroup, reflect.Zero(mainField.StructField().Type))
 		if keys := mainGroup.Keys(); len(keys) != 0 {
 			// the relation condition should have lowest priority
@@ -472,7 +470,6 @@ func HandlerPreloadFind(ctx *Context) error {
 	for fieldName, preload := range ctx.Brick.ManyToManyPreload {
 		mainPrimary, subPrimary := preload.Model.GetOnePrimary(), preload.SubModel.GetOnePrimary()
 		middleBrick := NewToyBrick(ctx.Brick.Toy, preload.MiddleModel).CopyStatus(ctx.Brick)
-
 		// primaryMap: map[model.id]->the model's ModelRecord
 		//primaryMap := map[interface{}]ModelRecord{}
 		mainGroup := ctx.Result.Records.GroupBy(mainPrimary.Name())
@@ -500,10 +497,30 @@ func HandlerPreloadFind(ctx *Context) error {
 				}
 
 				ctx.Result.MultipleRelation[fieldName] = map[int]Pair{}
+				subTypeConvert := func(val reflect.Value) reflect.Value {
+					return val
+				}
+				middleCompareType := LoopTypeIndirect(middleCtx.Result.Records.GetFieldType(preload.SubRelationField.Name()))
+				if LoopTypeIndirect(subCtx.Result.Records.GetFieldType(subPrimary.Name())) != middleCompareType {
+					subTypeConvert = func(val reflect.Value) reflect.Value {
+						return val.Convert(middleCompareType)
+					}
+				}
+				middleTypeConvert := func(val reflect.Value) reflect.Value {
+					return val
+				}
+				mainCompareType := LoopTypeIndirect(ctx.Result.Records.GetFieldType(mainPrimary.Name()))
+				if LoopTypeIndirect(middleCtx.Result.Records.GetFieldType(preload.RelationField.Name())) != mainCompareType {
+					middleTypeConvert = func(val reflect.Value) reflect.Value {
+						return val.Convert(mainCompareType)
+					}
+				}
+
 				for j, subRecord := range subCtx.Result.Records.GetRecords() {
-					if middleRecords := middleGroup[subRecord.Field(subPrimary.Name()).Interface()]; len(middleRecords) != 0 {
+
+					if middleRecords := middleGroup[subTypeConvert(subRecord.Field(subPrimary.Name())).Interface()]; len(middleRecords) != 0 {
 						for _, middleRecord := range middleRecords {
-							mainRecord := mainGroup[middleRecord.Field(preload.RelationField.Name()).Interface()][0]
+							mainRecord := mainGroup[middleTypeConvert(middleRecord.Field(preload.RelationField.Name())).Interface()][0]
 							name := preload.ContainerField.Name()
 							container := mainRecord.Field(name)
 							containerIndirect := LoopIndirectAndNew(container)

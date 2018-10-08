@@ -2606,3 +2606,143 @@ func TestSaveWithUniqueIndex(t *testing.T) {
 	assert.NotNil(t, resultErr)
 	t.Log("error:\n", resultErr)
 }
+
+func TestRelateFieldTypeConvert(t *testing.T) {
+	type TestBelongToSub struct {
+		ID   int32 `toyorm:"primary key;auto_increment"`
+		Data string
+	}
+	type TestOneToOneSub struct {
+		ID                      int32 `toyorm:"primary key;auto_increment"`
+		TestFieldConvertTableID int32
+		Data                    string
+	}
+	type TestOneToManySub struct {
+		ID                      int32 `toyorm:"primary key;auto_increment"`
+		TestFieldConvertTableID int32
+		Data                    string
+	}
+	type TestManyToManySub struct {
+		ID   int32 `toyorm:"primary key;auto_increment"`
+		Data string
+	}
+	type TestFieldConvertTable struct {
+		ID   int32 `toyorm:"primary key;auto_increment"`
+		Data string
+
+		BelongToID int32
+		BelongTo   *TestBelongToSub
+		OneToOne   *TestOneToOneSub
+		OneToMany  []TestOneToManySub
+		ManyToMany []TestManyToManySub
+	}
+
+	// Follow data use to Insert or find
+	type DtoID int32
+	type DtoBelongTo struct {
+		ID   DtoID
+		Data string
+	}
+	type DtoOneToOne struct {
+		ID                      DtoID
+		TestFieldConvertTableID DtoID
+		Data                    string
+	}
+	type DtoOneToMany struct {
+		ID                      DtoID
+		TestFieldConvertTableID DtoID
+		Data                    string
+	}
+	type DtoManyToMany struct {
+		ID   DtoID
+		Data string
+	}
+	type DtoTable struct {
+		ID   DtoID
+		Data string
+
+		BelongToID DtoID
+		BelongTo   *DtoBelongTo
+		OneToOne   *DtoOneToOne
+		OneToMany  []DtoOneToMany
+		ManyToMany []DtoManyToMany
+	}
+
+	var tab TestFieldConvertTable
+	brick := TestDB.Model(&tab).
+		Preload(Offsetof(tab.BelongTo)).Enter().
+		Preload(Offsetof(tab.OneToOne)).Enter().
+		Preload(Offsetof(tab.OneToMany)).Enter().
+		Preload(Offsetof(tab.ManyToMany)).Enter()
+	createTableUnit(brick)(t)
+	data := []DtoTable{
+		{Data: "main data 1", BelongTo: &DtoBelongTo{
+			Data: "belong to 1 sub ",
+		}, OneToOne: &DtoOneToOne{
+			Data: "one to one 1 sub ",
+		}, OneToMany: []DtoOneToMany{
+			{Data: "one to many 1 data 1"},
+			{Data: "one to many 1 data 2"},
+		}, ManyToMany: []DtoManyToMany{
+			{Data: "many to many 1 data 1"},
+			{Data: "many to many 1 data 2"},
+		}},
+		{Data: "main data 2", BelongTo: &DtoBelongTo{
+			Data: "belong to 2 sub ",
+		}, OneToOne: &DtoOneToOne{
+			Data: "one to one 2 sub ",
+		}, OneToMany: []DtoOneToMany{
+			{Data: "one to many 2 data 1"},
+			{Data: "one to many 2 data 2"},
+		}, ManyToMany: []DtoManyToMany{
+			{Data: "many to many 2 data 1"},
+			{Data: "many to many 2 data 2"},
+		}},
+	}
+	result, err := brick.Insert(&data)
+	assert.NoError(t, err)
+	assert.NoError(t, result.Err())
+
+	for _, d := range data {
+		assert.NotZero(t, d.ID)
+		assert.NotZero(t, d.BelongToID)
+		assert.NotZero(t, d.BelongTo)
+		assert.NotZero(t, d.BelongTo.ID)
+		assert.NotZero(t, d.OneToOne)
+		assert.NotZero(t, d.OneToOne.ID)
+		assert.Equal(t, len(d.OneToMany), 2)
+		for _, s := range d.OneToMany {
+			assert.NotZero(t, s.ID)
+			assert.NotZero(t, s.TestFieldConvertTableID)
+		}
+		assert.Equal(t, len(d.ManyToMany), 2)
+		for _, s := range d.ManyToMany {
+			assert.NotZero(t, s.ID)
+		}
+	}
+	t.Log(result.Report())
+	{
+		var data []DtoTable
+		result, err := brick.Find(&data)
+		assert.NoError(t, err)
+		assert.NoError(t, result.Err())
+		for _, d := range data {
+			assert.NotZero(t, d.ID)
+			assert.NotZero(t, d.BelongToID)
+			assert.NotZero(t, d.BelongTo)
+			assert.NotZero(t, d.BelongTo.ID)
+			assert.NotZero(t, d.OneToOne)
+			assert.NotZero(t, d.OneToOne.ID)
+			assert.Equal(t, len(d.OneToMany), 2)
+			for _, s := range d.OneToMany {
+				assert.NotZero(t, s.ID)
+				assert.NotZero(t, s.TestFieldConvertTableID)
+			}
+			assert.Equal(t, len(d.ManyToMany), 2)
+			for _, s := range d.ManyToMany {
+				assert.NotZero(t, s.ID)
+			}
+		}
+		t.Log(result.Report())
+	}
+}
