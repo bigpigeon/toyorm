@@ -1,3 +1,8 @@
+### Toyorm v0.4.1-alpha (Oct 11 2018)
+
+- [FIX] many to many preload loss middle model log
+- [FIX] many to many query loss related field data when primary key field type different from model primary key type
+
 ### Toyorm v0.4-alpha (Jul 2 2018)
 
 - [New] toy-factory ,use sql table to create Model's bind struct
