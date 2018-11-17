@@ -37,7 +37,7 @@ type Dialect interface {
 	FindExec(model *Model, columns []Column, alias string) ExecValue
 	UpdateExec(*Model, []ColumnValue) ExecValue
 	DeleteExec(*Model) ExecValue
-	InsertExec(*Model, []ColumnValue) ExecValue
+	InsertExec(*Model, []ColumnNameValue) ExecValue
 	SaveExec(*Model, []ColumnNameValue) ExecValue
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
@@ -358,9 +358,9 @@ func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
 	return DefaultExec{fmt.Sprintf("DELETE FROM `%s`", model.Name), nil}
 }
 
-func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) ExecValue {
+func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	// optimization column format
-	fieldStr, qStr, args := columnValuesFormat(columnValues)
+	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
 
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
@@ -372,10 +372,11 @@ func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnValue) E
 
 func (dia DefaultDialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	// optimization column format
-	fieldStr, qStr, args := columnNameValuesFormat(columnValues)
+	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
+
 	var exec ExecValue = DefaultExec{}
 	exec = exec.Append(
-		fmt.Sprintf("INSERT OR REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
+		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
 		args...,
 	)
 	return exec

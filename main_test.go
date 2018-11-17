@@ -695,6 +695,12 @@ type TestBenchmarkTable struct {
 	TimVal3 time.Time
 }
 
+type TestSaveWithOtherTable struct {
+	ID   uint32 `toyorm:"primary key;auto_increment"`
+	Name string
+	Age  int
+}
+
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {
@@ -753,10 +759,12 @@ func createCollectionTableUnit(brick *CollectionBrick) func(t testing.TB) {
 
 func resultProcessor(result *Result, err error) func(t testing.TB) {
 	return func(t testing.TB) {
-		assert.Nil(t, err)
+		if assert.NoError(t, err) == false {
+			t.FailNow()
+		}
 		if err := result.Err(); err != nil {
 			t.Error(err)
-			t.Fail()
+			t.FailNow()
 		}
 	}
 }

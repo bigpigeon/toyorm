@@ -22,6 +22,18 @@ func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
 	}
 }
 
+func (dia Sqlite3Dialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
+	// optimization column format
+	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
+	var exec ExecValue = DefaultExec{}
+	exec = exec.Append(
+		fmt.Sprintf("INSERT OR REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
+		args...,
+	)
+	fmt.Println("[WARNING]save with replace may overwrite existing data")
+	return exec
+}
+
 func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKey) (execlist []ExecValue) {
 	// lazy init model
 	strList := []string{}

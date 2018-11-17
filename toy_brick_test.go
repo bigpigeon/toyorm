@@ -2746,3 +2746,39 @@ func TestRelateFieldTypeConvert(t *testing.T) {
 		t.Log(result.Report())
 	}
 }
+
+func TestSaveWithOther(t *testing.T) {
+	skillTestDB(t, "sqlite3")
+	brick := TestDB.Model(&TestSaveWithOtherTable{})
+	createTableUnit(brick)(t)
+	data := TestSaveWithOtherTable{
+		Name: "pigeon",
+	}
+	result, err := brick.Save(&data)
+	resultProcessor(result, err)(t)
+	type OtherTable struct {
+		ID  uint32
+		Age int
+	}
+	otherData := OtherTable{ID: data.ID, Age: 22}
+	result, err = brick.Save(&otherData)
+	resultProcessor(result, err)(t)
+
+	var fData TestSaveWithOtherTable
+	result, err = brick.Find(&fData)
+	resultProcessor(result, err)(t)
+	assert.Equal(t, fData.Name, "pigeon")
+
+	// test insert only id
+	type OtherTable2 struct {
+		ID uint32
+	}
+	otherData2 := OtherTable2{}
+	result, err = brick.Save(&otherData2)
+	resultProcessor(result, err)(t)
+	var fData2 TestSaveWithOtherTable
+	result, err = brick.Where(ExprEqual, Offsetof(TestSaveWithOtherTable{}.ID), otherData2.ID).Find(&fData2)
+	resultProcessor(result, err)(t)
+	assert.Equal(t, fData2.Name, "")
+	assert.Equal(t, fData2.Age, 0)
+}

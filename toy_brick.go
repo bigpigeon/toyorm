@@ -889,7 +889,7 @@ func (t *ToyBrick) DeleteExec() ExecValue {
 
 func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToValueList())
+	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToNameValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec

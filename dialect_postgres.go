@@ -324,9 +324,9 @@ func (dia PostgreSqlDialect) DeleteExec(model *Model) (exec ExecValue) {
 	return QToSExec{DefaultExec{fmt.Sprintf(`DELETE FROM "%s"`, model.Name), nil}}
 }
 
-func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnValue) ExecValue {
+func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	// optimization column format
-	fieldStr, qStr, args := columnValuesFormat(columnValues)
+	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
 
 	var exec ExecValue = QToSExec{}
 	exec = exec.Append(
@@ -336,7 +336,7 @@ func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnValue
 	return exec
 }
 
-func (dia PostgreSqlDialect) InsertExec(model *Model, columnValues []ColumnValue) ExecValue {
+func (dia PostgreSqlDialect) InsertExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	exec := dia.insertExec(model, columnValues)
 	if len(model.GetPrimary()) == 1 && model.GetOnePrimary().AutoIncrement() {
 		exec = exec.Append(" RETURNING " + model.GetOnePrimary().Column())
@@ -346,7 +346,7 @@ func (dia PostgreSqlDialect) InsertExec(model *Model, columnValues []ColumnValue
 
 // postgres have not replace use ON CONFLICT(%s) replace
 func (dia PostgreSqlDialect) SaveExec(model *Model, columnNameValues []ColumnNameValue) ExecValue {
-	fieldStr, qStr, args := columnNameValuesFormat(columnNameValues)
+	fieldStr, qStr, args := insertValuesFormat(model, columnNameValues)
 
 	var exec ExecValue = QToSExec{}
 	exec = exec.Append(

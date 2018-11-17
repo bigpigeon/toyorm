@@ -663,7 +663,7 @@ func (t *CollectionBrick) DeleteExec() ExecValue {
 
 func (t *CollectionBrick) InsertExec(record ModelRecord) ExecValue {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToValueList())
+	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToNameValueList())
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return exec

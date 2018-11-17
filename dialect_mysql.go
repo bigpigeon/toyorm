@@ -97,7 +97,7 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 // replace will failure when have foreign key
 func (dia MySqlDialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	var exec ExecValue = DefaultExec{}
-	fieldStr, qStr, args := columnNameValuesFormat(columnValues)
+	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
 	exec = exec.Append(
 		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
 		args...,
