@@ -1,3 +1,7 @@
+### Toyorm v0.4.2-alpha (Dec 2 2018)
+- [NEW] go module support
+- [FIX] save/insert with other struct type will nil field value
+
 ### Toyorm v0.4.1-alpha (Oct 11 2018)
 
 - [FIX] many to many preload loss middle model log
