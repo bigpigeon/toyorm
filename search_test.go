@@ -14,7 +14,7 @@ import (
 func TestSearchToExecValue(t *testing.T) {
 	dialect := DefaultDialect{}
 	{
-		model := NewModel(reflect.TypeOf(TestSearchTable{}))
+		model := NewModel(reflect.ValueOf(TestSearchTable{}))
 		t1 := NewSearchTree(NewSearchBranch(ExprOr)).Fill(
 			NewSearchTree(NewSearchBranch(ExprAnd)).Fill(
 				NewSearchTree(NewSearchLeaf(ExprEqual, model.GetFieldWithName("A").ToFieldValue(reflect.ValueOf("22")))),
@@ -28,7 +28,7 @@ func TestSearchToExecValue(t *testing.T) {
 		t.Log(dialect.SearchExec(t1.ToStack()))
 	}
 	{
-		model := NewModel(reflect.TypeOf(TestSearchTable{}))
+		model := NewModel(reflect.ValueOf(TestSearchTable{}))
 		t2 := NewSearchTree(NewSearchBranch(ExprOr)).Fill(
 			NewSearchTree(NewSearchBranch(ExprNot)).Fill(
 				NewSearchTree(NewSearchLeaf(ExprEqual, model.GetFieldWithName("A").ToFieldValue(reflect.ValueOf("22")))),
@@ -46,7 +46,7 @@ func TestSearchToExecValue(t *testing.T) {
 	}
 
 	{
-		model := NewModel(reflect.TypeOf(TestSearchTable{}))
+		model := NewModel(reflect.ValueOf(TestSearchTable{}))
 		t1 := NewSearchTree(NewSearchBranch(ExprOr)).Fill(
 			NewSearchTree(NewSearchBranch(ExprAnd)).Fill(
 				NewSearchTree(NewSearchLeaf(ExprEqual, model.GetFieldWithName("A").ToColumnAlias("t1").ToFieldValue(reflect.ValueOf("22")))),

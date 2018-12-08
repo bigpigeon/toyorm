@@ -54,8 +54,8 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		},
 		DefaultModelHandlerChain: map[reflect.Type]map[string]HandlersChain{},
 		ToyKernel: ToyKernel{
-			CacheModels:       map[reflect.Type]*Model{},
-			CacheMiddleModels: map[reflect.Type]*Model{},
+			CacheModels:       map[reflect.Type]map[CacheMeta]*Model{},
+			CacheMiddleModels: map[reflect.Type]map[CacheMeta]*Model{},
 			Dialect:           dialect,
 			Logger:            os.Stdout,
 		},
@@ -63,10 +63,8 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 }
 
 func (t *Toy) Model(v interface{}) *ToyBrick {
-	var model *Model
-	vType := LoopTypeIndirect(reflect.ValueOf(v).Type())
-	// lazy init model
-	model = t.GetModel(vType)
+	vVal := LoopIndirect(reflect.ValueOf(v))
+	model := t.GetModel(vVal)
 	toyBrick := NewToyBrick(t, model)
 	if t.debug {
 		toyBrick = toyBrick.Debug()
@@ -75,9 +73,9 @@ func (t *Toy) Model(v interface{}) *ToyBrick {
 }
 
 func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
-	vType := LoopTypeIndirect(reflect.ValueOf(v).Type())
-	svType := LoopTypeIndirect(reflect.ValueOf(sv).Type())
-	model, subModel := t.GetModel(vType), t.GetModel(svType)
+	vVal := LoopIndirect(reflect.ValueOf(v))
+	svVal := LoopIndirect(reflect.ValueOf(sv))
+	model, subModel := t.GetModel(vVal), t.GetModel(svVal)
 	middleModel := NewMiddleModel(model, subModel)
 	return NewToyBrick(t, middleModel)
 }
@@ -97,11 +95,11 @@ func (t *Toy) Close() error {
 }
 
 func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
-	_type := LoopTypeIndirect(field.StructField().Type)
-	if _type.Kind() != reflect.Struct {
+	val := LoopIndirect(field.FieldValue())
+	if val.Kind() != reflect.Struct {
 		return nil
 	}
-	if subModel := t.CacheModels[_type]; subModel != nil {
+	if subModel := t.GetModel(val); subModel != nil {
 		if relationField, ok := model.Association[BelongToWith][field.Name()]; ok {
 			return t.BelongToBind(model, subModel, field, relationField)
 		}
@@ -115,11 +113,11 @@ func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
 
 func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 
-	_type := LoopTypeIndirect(field.StructField().Type)
-	if _type.Kind() != reflect.Struct {
+	val := LoopIndirect(field.FieldValue())
+	if val.Kind() != reflect.Struct {
 		return nil
 	}
-	if subModel := t.CacheModels[_type]; subModel != nil {
+	if subModel := t.GetModel(val); subModel != nil {
 		if relationField, ok := subModel.Association[OneToOneWith][field.Name()]; ok {
 			return t.OneToOneBind(model, subModel, field, relationField)
 		}
@@ -131,10 +129,10 @@ func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 }
 
 func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
-	_type := LoopTypeIndirect(field.StructField().Type)
-	if _type.Kind() == reflect.Slice {
-		elemType := LoopTypeIndirect(_type.Elem())
-		if subModel, ok := t.CacheModels[elemType]; ok {
+	val := LoopIndirect(field.FieldValue())
+	if val.Kind() == reflect.Slice {
+		elemVal := LoopGetElemAndPtr(val)
+		if subModel := t.GetModel(elemVal); subModel != nil {
 			if relationField, ok := subModel.Association[OneToManyWith][field.Name()]; ok {
 				return t.OneToManyBind(model, subModel, field, relationField)
 			}
@@ -152,11 +150,10 @@ func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyTo
 
 func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
 
-	_type := LoopTypeIndirect(field.StructField().Type)
-	if _type.Kind() == reflect.Slice {
-		elemType := LoopTypeIndirect(_type.Elem())
-
-		if subModel, ok := t.CacheModels[elemType]; ok {
+	val := LoopIndirect(field.FieldValue())
+	if val.Kind() == reflect.Slice {
+		elemVal := LoopGetElemAndPtr(val)
+		if subModel := t.GetModel(elemVal); subModel != nil {
 			middleModel := newMiddleModel(model, subModel, tag)
 			relationField := GetMiddleField(model, middleModel, isRight)
 			subRelationField := GetMiddleField(subModel, middleModel, !isRight)
@@ -168,8 +165,8 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 }
 
 func (t *Toy) Join(model *Model, field Field) *Join {
-	_type := LoopTypeIndirect(field.StructField().Type)
-	subModel := t.GetModel(_type)
+	val := LoopGetElemAndPtr(field.FieldValue())
+	subModel := t.GetModel(val)
 	containerName := field.Name()
 	if model.Association[JoinWith][containerName] != nil && subModel.Association[JoinWith][containerName] != nil {
 		return &Join{
@@ -227,7 +224,7 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 		panic("sub relation key must have same type with sub model primary key")
 	}
 
-	t.CacheMiddleModels[middleModel.ReflectType] = middleModel
+	t.CacheMiddleModels[middleModel.ReflectType][CacheMeta{middleModel.Name}] = middleModel
 
 	return &ManyToManyPreload{
 		Model:            model,

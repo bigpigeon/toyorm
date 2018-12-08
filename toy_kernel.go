@@ -11,31 +11,28 @@ import (
 	"reflect"
 )
 
+type CacheMeta struct {
+	TableName string
+}
+
 type ToyKernel struct {
-	CacheModels              map[reflect.Type]*Model
-	CacheMiddleModels        map[reflect.Type]*Model
-	CacheReverseMiddleModels map[reflect.Type]*Model
-	debug                    bool
+	CacheModels       map[reflect.Type]map[CacheMeta]*Model
+	CacheMiddleModels map[reflect.Type]map[CacheMeta]*Model
+	debug             bool
 	// map[model][container_field_name]
 	Dialect Dialect
 	Logger  io.Writer
 }
 
 // TODO testing thread safe? if not add lock
-func (t *ToyKernel) GetModel(_type reflect.Type) *Model {
-	if model, ok := t.CacheModels[_type]; ok == false {
-		model = NewModel(_type)
-		t.CacheModels[_type] = model
+func (t *ToyKernel) GetModel(val reflect.Value) *Model {
+	name := ModelName(val)
+	typ := val.Type()
+	if model, ok := t.CacheModels[typ][CacheMeta{name}]; ok == false {
+		model = newModel(val, name)
+		t.CacheModels[typ][CacheMeta{name}] = model
 	}
-	return t.CacheModels[_type]
-}
-
-func (t *ToyKernel) GetMiddleModel(_type reflect.Type) *Model {
-	if model, ok := t.CacheModels[_type]; ok == false {
-		model = NewModel(_type)
-		t.CacheModels[_type] = model
-	}
-	return t.CacheModels[_type]
+	return t.CacheModels[typ][CacheMeta{name}]
 }
 
 func (t *ToyKernel) SetDebug(debug bool) {

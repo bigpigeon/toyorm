@@ -120,7 +120,7 @@ func (t *CollectionBrick) RightValuePreload(fv interface{}) *CollectionBrick {
 	return t.Scope(func(t *CollectionBrick) *CollectionBrick {
 		field := t.Model.fieldSelect(fv)
 
-		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
+		subModel := t.Toy.GetModel(LoopGetElemAndPtr(field.FieldValue()))
 		newSubt := NewCollectionBrick(t.Toy, subModel).CopyStatus(t)
 
 		newt := *t
@@ -144,7 +144,7 @@ func (t *CollectionBrick) Preload(fv interface{}) *CollectionBrick {
 		//if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
 		//	return subBrick
 		//}
-		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
+		subModel := t.Toy.GetModel(LoopGetElemAndPtr(field.FieldValue()))
 		newSubt := NewCollectionBrick(t.Toy, subModel).CopyStatus(t)
 
 		newt := *t
@@ -185,9 +185,9 @@ func (t *CollectionBrick) CustomOneToOnePreload(container, relationship interfac
 	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+		subModel = t.Toy.GetModel(LoopIndirect(reflect.ValueOf(args[0])))
 	} else {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
+		subModel = t.Toy.GetModel(LoopIndirect(containerField.FieldValue()))
 	}
 	relationshipField := subModel.fieldSelect(relationship)
 	preload := t.Toy.OneToOneBind(t.Model, subModel, containerField, relationshipField)
@@ -210,9 +210,9 @@ func (t *CollectionBrick) CustomBelongToPreload(container, relationship interfac
 	containerField, relationshipField := t.Model.fieldSelect(container), t.Model.fieldSelect(relationship)
 	var subModel *Model
 	if len(args) > 0 {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+		subModel = t.Toy.GetModel(LoopIndirect(reflect.ValueOf(args[0])))
 	} else {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(containerField.StructField().Type))
+		subModel = t.Toy.GetModel(LoopIndirect(containerField.FieldValue()))
 	}
 	preload := t.Toy.BelongToBind(t.Model, subModel, containerField, relationshipField)
 	if preload == nil {
@@ -234,9 +234,9 @@ func (t *CollectionBrick) CustomOneToManyPreload(container, relationship interfa
 	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+		subModel = t.Toy.GetModel(LoopGetElemAndPtr(reflect.ValueOf(args[0])))
 	} else {
-		subModel = t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(containerField.StructField().Type))
+		subModel = t.Toy.GetModel(LoopGetElemAndPtr(containerField.FieldValue()))
 	}
 	relationshipField := subModel.fieldSelect(relationship)
 	preload := t.Toy.OneToManyBind(t.Model, subModel, containerField, relationshipField)
@@ -259,11 +259,11 @@ func (t *CollectionBrick) CustomManyToManyPreload(middleStruct, container, relat
 	containerField := t.Model.fieldSelect(container)
 	var subModel *Model
 	if len(args) > 0 {
-		subModel = t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(args[0])))
+		subModel = t.Toy.GetModel(LoopGetElemAndPtr(reflect.ValueOf(args[0])))
 	} else {
-		subModel = t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(containerField.StructField().Type))
+		subModel = t.Toy.GetModel(LoopGetElemAndPtr(containerField.FieldValue()))
 	}
-	middleModel := t.Toy.GetModel(LoopTypeIndirect(reflect.TypeOf(middleStruct)))
+	middleModel := t.Toy.GetModel(LoopGetElemAndPtr(reflect.ValueOf(middleStruct)))
 	relationField, subRelationField := middleModel.fieldSelect(relation), middleModel.fieldSelect(subRelation)
 	preload := t.Toy.ManyToManyPreloadBind(t.Model, subModel, middleModel, containerField, relationField, subRelationField)
 	if preload == nil {

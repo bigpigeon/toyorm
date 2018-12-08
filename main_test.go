@@ -243,7 +243,7 @@ type TestGroupByTableGroup struct {
 }
 
 func (t *TestGroupByTableGroup) TableName() string {
-	return ModelName(reflect.TypeOf(TestGroupByTable{}))
+	return ModelName(reflect.ValueOf(TestGroupByTable{}))
 }
 
 type TestForeignKeyTable struct {
@@ -708,7 +708,7 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 		if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
 			return subBrick
 		}
-		subModel := t.Toy.GetModel(LoopTypeIndirectSliceAndPtr(field.StructField().Type))
+		subModel := t.Toy.GetModel(LoopGetElemAndPtr(field.FieldValue()))
 		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
 
 		newt := *t

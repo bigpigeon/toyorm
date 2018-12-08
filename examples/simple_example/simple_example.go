@@ -42,7 +42,7 @@ type ProductGroup struct {
 
 // map to sql table name
 func (p ProductGroup) TableName() string {
-	return toyorm.ModelName(reflect.TypeOf(Product{}))
+	return toyorm.ModelName(reflect.ValueOf(Product{}))
 }
 
 func main() {

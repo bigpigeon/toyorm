@@ -14,7 +14,7 @@ import (
 )
 
 func TestStructRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}))
 	data := []struct {
 		Name     string
 		Category string
@@ -48,7 +48,7 @@ func TestStructRecord(t *testing.T) {
 }
 
 func TestNameMapRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}))
 	data := []map[string]interface{}{{
 		"Name":     "bigpigeon",
 		"Category": "user",
@@ -75,7 +75,7 @@ func TestNameMapRecord(t *testing.T) {
 }
 
 func TestOffsetMapRecord(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}))
 	data := []map[uintptr]interface{}{{
 		Offsetof(TestCreateTable3{}.Name):     "bigpigeon",
 		Offsetof(TestCreateTable3{}.Category): "user",
@@ -101,7 +101,7 @@ func TestOffsetMapRecord(t *testing.T) {
 }
 
 func TestStructRecordGroupBy(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}))
 	data := []struct {
 		Name     string
 		Category string
@@ -153,7 +153,7 @@ func TestStructRecordGroupBy(t *testing.T) {
 }
 
 func TestNameMapRecordGroupBy(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}))
 	data := []map[string]interface{}{{
 		"Name":     "bigpigeon",
 		"Category": "user",
@@ -201,7 +201,7 @@ func TestNameMapRecordGroupBy(t *testing.T) {
 }
 
 func TestOffsetMapRecordGroupBy(t *testing.T) {
-	model := NewModel(reflect.ValueOf(TestCreateTable3{}).Type())
+	model := NewModel(reflect.ValueOf(TestCreateTable3{}))
 	data := []map[uintptr]interface{}{{
 		Offsetof(TestCreateTable3{}.Name):     "bigpigeon",
 		Offsetof(TestCreateTable3{}.Category): "user",
@@ -258,7 +258,7 @@ func TestRecordFieldType(t *testing.T) {
 		Tags     []int `toyorm:"type:VARCHAR(1024)"`
 		JsonData Extra `toyorm:"type:VARCHAR(1024)"`
 	}
-	model := NewModel(reflect.ValueOf(User{}).Type())
+	model := NewModel(reflect.ValueOf(User{}))
 	for _, data := range []interface{}{
 		[]User{
 			{

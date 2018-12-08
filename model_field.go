@@ -35,6 +35,7 @@ type Field interface {
 	Attrs() map[string]string         // get all extension attribute
 	SqlType() string                  // sql type declaration
 	StructField() reflect.StructField // model struct attribute
+	FieldValue() reflect.Value        // model meta field value
 	JoinWith() string                 // join with specified container field declaration,when call ToyBrick.Preload(<container field>) will automatic association this field
 	BelongToWith() string             // BelongTo with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
 	OneToOneWith() string             // OneToOne with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
@@ -86,6 +87,7 @@ type modelField struct {
 	autoIncrement bool
 	isForeign     bool
 	field         reflect.StructField
+	fieldValue    reflect.Value
 	alias         string
 	Association   map[AssociationType]string
 }
@@ -127,6 +129,10 @@ func (m *modelField) IsForeign() bool {
 
 func (m *modelField) StructField() reflect.StructField {
 	return m.field
+}
+
+func (m *modelField) FieldValue() reflect.Value {
+	return m.fieldValue
 }
 
 func (m *modelField) Attr(s string) string {
@@ -207,7 +213,7 @@ func GetTagKeyVal(tag string) []*tagKeyValue {
 	return keyValList
 }
 
-func NewField(f *reflect.StructField, table_name string) *modelField {
+func NewField(f *reflect.StructField, fieldVal reflect.Value, table_name string) *modelField {
 	field := &modelField{
 		field:       *f,
 		attrs:       map[string]string{},
@@ -215,6 +221,7 @@ func NewField(f *reflect.StructField, table_name string) *modelField {
 		offset:      f.Offset,
 		sqlType:     ToSqlType(f.Type),
 		Association: map[AssociationType]string{},
+		fieldValue:  fieldVal,
 	}
 
 	// set attribute by tag

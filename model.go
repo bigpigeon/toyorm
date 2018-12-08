@@ -129,14 +129,14 @@ func (m *Model) GetUniqueIndexMap() map[string][]Field {
 	return fieldMap
 }
 
-func NewModel(_type reflect.Type) *Model {
-	if _type.Kind() != reflect.Struct {
-		panic(ErrInvalidModelType(_type.Name()))
+func NewModel(val reflect.Value) *Model {
+	if val.Kind() != reflect.Struct {
+		panic(ErrInvalidModelType(val.Type().Name()))
 	}
-	if _type.Name() == "" {
+	if val.Type().Name() == "" {
 		panic(ErrInvalidModelName{})
 	}
-	return newModel(_type, ModelName(_type))
+	return newModel(val, ModelName(val))
 }
 
 func NewMiddleModel(model, subModel *Model) *Model {
@@ -161,10 +161,12 @@ func newMiddleModel(model, subModel *Model, tag reflect.StructTag) *Model {
 		fields[0].Name = "L_" + fields[0].Name
 		fields[1].Name = "R_" + fields[1].Name
 	}
-	return newModel(reflect.StructOf(fields[:]), fmt.Sprintf("%s_%s", sortdModel[0].Name, sortdModel[1].Name))
+
+	return newModel(reflect.Zero(reflect.StructOf(fields[:])), fmt.Sprintf("%s_%s", sortdModel[0].Name, sortdModel[1].Name))
 }
 
-func newModel(_type reflect.Type, modelName string) *Model {
+func newModel(val reflect.Value, modelName string) *Model {
+	_type := val.Type()
 	model := &Model{
 		Name:              modelName,
 		ReflectType:       _type,
@@ -182,14 +184,15 @@ func newModel(_type reflect.Type, modelName string) *Model {
 	}
 	for i := 0; i < _type.NumField(); i++ {
 		field := _type.Field(i)
+		fieldVal := val.Field(i)
 		if field.Anonymous && field.Type.Kind() == reflect.Struct {
-			embedTable := newModel(field.Type, model.Name)
+			embedTable := newModel(fieldVal, model.Name)
 			for _, tabField := range embedTable.AllFields {
 				tabField.offset += field.Offset
 				model.AllFields = append(model.AllFields, tabField)
 			}
 		} else {
-			tField := NewField(&field, model.Name)
+			tField := NewField(&field, fieldVal, model.Name)
 			model.AllFields = append(model.AllFields, tField)
 		}
 	}

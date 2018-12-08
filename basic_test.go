@@ -133,3 +133,7 @@ func TestFindColumnFactory(t *testing.T) {
 	t.Log(scanTypes)
 	assert.Equal(t, len(columns), len(scanners))
 }
+
+func TestLoopGetElemAndPtr(t *testing.T) {
+
+}
