@@ -1,3 +1,6 @@
+### Toyorm v0.5.0-alpha (Dec 9 2018)
+- [NEW] custom table name
+
 ### Toyorm v0.4.2-alpha (Dec 2 2018)
 - [NEW] go module support
 - [FIX] save/insert with other struct type will nil field value
