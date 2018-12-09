@@ -28,6 +28,9 @@ type ToyKernel struct {
 func (t *ToyKernel) GetModel(val reflect.Value) *Model {
 	name := ModelName(val)
 	typ := val.Type()
+	if t.CacheModels[typ] == nil {
+		t.CacheModels[typ] = map[CacheMeta]*Model{}
+	}
 	if model, ok := t.CacheModels[typ][CacheMeta{name}]; ok == false {
 		model = newModel(val, name)
 		t.CacheModels[typ][CacheMeta{name}] = model

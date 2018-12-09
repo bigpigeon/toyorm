@@ -13,8 +13,9 @@ import (
 )
 
 func TestSameModel(t *testing.T) {
-	m1 := NewModel(reflect.ValueOf(TestPreloadTable{}))
-	m2 := NewModel(reflect.ValueOf(TestPreloadTable{}))
+	tab := reflect.ValueOf(TestPreloadTable{})
+	m1 := NewModel(tab)
+	m2 := NewModel(tab)
 
 	m1Value := reflect.ValueOf(*m1)
 	m2Value := reflect.ValueOf(*m2)

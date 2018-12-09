@@ -63,7 +63,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 }
 
 func (t *Toy) Model(v interface{}) *ToyBrick {
-	vVal := LoopIndirect(reflect.ValueOf(v))
+	vVal := LoopDivePtr(reflect.ValueOf(v))
 	model := t.GetModel(vVal)
 	toyBrick := NewToyBrick(t, model)
 	if t.debug {
@@ -73,8 +73,8 @@ func (t *Toy) Model(v interface{}) *ToyBrick {
 }
 
 func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {
-	vVal := LoopIndirect(reflect.ValueOf(v))
-	svVal := LoopIndirect(reflect.ValueOf(sv))
+	vVal := LoopDivePtr(reflect.ValueOf(v))
+	svVal := LoopDivePtr(reflect.ValueOf(sv))
 	model, subModel := t.GetModel(vVal), t.GetModel(svVal)
 	middleModel := NewMiddleModel(model, subModel)
 	return NewToyBrick(t, middleModel)
@@ -95,7 +95,7 @@ func (t *Toy) Close() error {
 }
 
 func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
-	val := LoopIndirect(field.FieldValue())
+	val := LoopDivePtr(field.FieldValue())
 	if val.Kind() != reflect.Struct {
 		return nil
 	}
@@ -113,7 +113,7 @@ func (t *Toy) BelongToPreload(model *Model, field Field) *BelongToPreload {
 
 func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 
-	val := LoopIndirect(field.FieldValue())
+	val := LoopDivePtr(field.FieldValue())
 	if val.Kind() != reflect.Struct {
 		return nil
 	}
@@ -129,9 +129,9 @@ func (t *Toy) OneToOnePreload(model *Model, field Field) *OneToOnePreload {
 }
 
 func (t *Toy) OneToManyPreload(model *Model, field Field) *OneToManyPreload {
-	val := LoopIndirect(field.FieldValue())
+	val := LoopDivePtr(field.FieldValue())
 	if val.Kind() == reflect.Slice {
-		elemVal := LoopGetElemAndPtr(val)
+		elemVal := LoopDiveSliceAndPtr(val)
 		if subModel := t.GetModel(elemVal); subModel != nil {
 			if relationField, ok := subModel.Association[OneToManyWith][field.Name()]; ok {
 				return t.OneToManyBind(model, subModel, field, relationField)
@@ -150,9 +150,9 @@ func (t *Toy) ManyToManyPreload(model *Model, field Field, isRight bool) *ManyTo
 
 func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, tag reflect.StructTag) *ManyToManyPreload {
 
-	val := LoopIndirect(field.FieldValue())
+	val := LoopDivePtr(field.FieldValue())
 	if val.Kind() == reflect.Slice {
-		elemVal := LoopGetElemAndPtr(val)
+		elemVal := LoopDiveSliceAndPtr(val)
 		if subModel := t.GetModel(elemVal); subModel != nil {
 			middleModel := newMiddleModel(model, subModel, tag)
 			relationField := GetMiddleField(model, middleModel, isRight)
@@ -165,7 +165,7 @@ func (t *Toy) manyToManyPreloadWithTag(model *Model, field Field, isRight bool, 
 }
 
 func (t *Toy) Join(model *Model, field Field) *Join {
-	val := LoopGetElemAndPtr(field.FieldValue())
+	val := LoopDiveSliceAndPtr(field.FieldValue())
 	subModel := t.GetModel(val)
 	containerName := field.Name()
 	if model.Association[JoinWith][containerName] != nil && subModel.Association[JoinWith][containerName] != nil {
@@ -223,7 +223,9 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 	if LoopTypeIndirect(subRelationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("sub relation key must have same type with sub model primary key")
 	}
-
+	if t.CacheMiddleModels[middleModel.ReflectType] == nil {
+		t.CacheMiddleModels[middleModel.ReflectType] = map[CacheMeta]*Model{}
+	}
 	t.CacheMiddleModels[middleModel.ReflectType][CacheMeta{middleModel.Name}] = middleModel
 
 	return &ManyToManyPreload{

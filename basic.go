@@ -143,10 +143,23 @@ func LoopIndirectAndNew(vValue reflect.Value) reflect.Value {
 	return vValue
 }
 
+func LoopDivePtr(vValue reflect.Value) reflect.Value {
+	for vValue.Kind() == reflect.Ptr {
+		if vValue.IsNil() {
+			vValue = reflect.Zero(vValue.Type().Elem())
+		} else {
+			vValue = vValue.Elem()
+		}
+	}
+
+	return vValue
+}
+
 // loop to get ptr value elem
 // if its type is ptr, get it's elem
 // if it's type is slice get it's first elem or zero value's elem type
-func LoopGetElemAndPtr(vValue reflect.Value) reflect.Value {
+// loop get will not change the source object
+func LoopDiveSliceAndPtr(vValue reflect.Value) reflect.Value {
 	for vValue.Kind() == reflect.Ptr || vValue.Kind() == reflect.Slice {
 		if vValue.Kind() == reflect.Ptr {
 			if vValue.IsNil() {
@@ -302,10 +315,20 @@ func ToSqlType(_type reflect.Type) (sqlType string) {
 // get model name with type
 func ModelName(val reflect.Value) string {
 	var modelName string
+
 	if v, ok := val.Interface().(tabler); ok {
 		modelName = v.TableName()
 	} else {
-		modelName = SqlNameConvert(val.Type().Name())
+		canModelName := false
+		if val.CanAddr() {
+			if v, ok := val.Addr().Interface().(tabler); ok {
+				modelName = v.TableName()
+				canModelName = true
+			}
+		}
+		if canModelName == false {
+			modelName = SqlNameConvert(val.Type().Name())
+		}
 	}
 	if modelName == "" {
 		panic(ErrInvalidModelName{})

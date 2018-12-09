@@ -135,5 +135,19 @@ func TestFindColumnFactory(t *testing.T) {
 }
 
 func TestLoopGetElemAndPtr(t *testing.T) {
-
+	type TestData struct {
+		Name string
+	}
+	data := []*TestData{
+		nil,
+	}
+	val := LoopDiveSliceAndPtr(reflect.ValueOf(data))
+	t.Log(val.Interface())
+	assert.Equal(t, val.Type(), reflect.TypeOf(TestData{}))
+	data = []*TestData{
+		{Name: "bigpigeon"},
+	}
+	val = LoopDiveSliceAndPtr(reflect.ValueOf(data))
+	t.Log(val.Interface())
+	assert.Equal(t, val.Type(), reflect.TypeOf(TestData{}))
 }

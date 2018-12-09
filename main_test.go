@@ -701,6 +701,63 @@ type TestSaveWithOtherTable struct {
 	Age  int
 }
 
+type TestCustomTableNameTable struct {
+	ID         uint32 `toyorm:"primary key;auto_increment"`
+	Name       string
+	BelongToID uint32 `toyorm:"index"`
+	BelongTo   *TestCustomTableNameBelongTo
+	OneToOne   *TestCustomTableNameOneToOne
+	OneToMany  []TestCustomTableNameOneToMany
+	ManyToMany []TestCustomTableNameManyToMany
+	FragNum    int
+}
+
+func (t *TestCustomTableNameTable) TableName() string {
+	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
+}
+
+type TestCustomTableNameBelongTo struct {
+	ID      uint32 `toyorm:"primary key;auto_increment"`
+	Name    string
+	FragNum int
+}
+
+func (t *TestCustomTableNameBelongTo) TableName() string {
+	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
+}
+
+type TestCustomTableNameOneToOne struct {
+	ID                         uint32 `toyorm:"primary key;auto_increment"`
+	Name                       string
+	TestCustomTableNameTableID uint32 `toyorm:"index"`
+	FragNum                    int
+}
+
+func (t *TestCustomTableNameOneToOne) TableName() string {
+	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
+}
+
+type TestCustomTableNameOneToMany struct {
+	ID                         uint32 `toyorm:"primary key;auto_increment"`
+	Name                       string
+	TestCustomTableNameTableID uint32 `toyorm:"index"`
+	FragNum                    int
+}
+
+func (t *TestCustomTableNameOneToMany) TableName() string {
+	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
+}
+
+type TestCustomTableNameManyToMany struct {
+	ID      uint32 `toyorm:"primary key;auto_increment"`
+	Name    string
+	FragNum int
+}
+
+func (t *TestCustomTableNameManyToMany) TableName() string {
+	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
+}
+
 // use to create many to many preload which have foreign key
 func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 	return func(t *ToyBrick) *ToyBrick {
@@ -708,7 +765,7 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 		if subBrick, ok := t.MapPreloadBrick[field.Name()]; ok {
 			return subBrick
 		}
-		subModel := t.Toy.GetModel(LoopGetElemAndPtr(field.FieldValue()))
+		subModel := t.Toy.GetModel(LoopDiveSliceAndPtr(field.FieldValue()))
 		newSubt := NewToyBrick(t.Toy, subModel).CopyStatus(t)
 
 		newt := *t
