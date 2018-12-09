@@ -2785,25 +2785,28 @@ func TestSaveWithOther(t *testing.T) {
 }
 
 func TestCustomTableName(t *testing.T) {
-	for _, i := range []int{1, 2} {
+	for _, i := range []int{1, 2, 10} {
 		tab := TestCustomTableNameTable{
 			FragNum:    i,
 			BelongTo:   &TestCustomTableNameBelongTo{FragNum: i},
 			OneToOne:   &TestCustomTableNameOneToOne{FragNum: i},
 			OneToMany:  []TestCustomTableNameOneToMany{{FragNum: i}},
 			ManyToMany: []TestCustomTableNameManyToMany{{FragNum: i}},
+			Join:       &TestCustomTableNameJoin{FragNum: i},
 		}
 		brick := TestDB.Model(&tab).
 			Preload(Offsetof(tab.BelongTo)).Enter().
 			Preload(Offsetof(tab.OneToOne)).Enter().
 			Preload(Offsetof(tab.OneToMany)).Enter().
-			Preload(Offsetof(tab.ManyToMany)).Enter()
+			Preload(Offsetof(tab.ManyToMany)).Enter().
+			Join(Offsetof(tab.Join)).Swap()
 		require.Equal(t, brick.Model.Name, "test_custom_table_name_table_"+fmt.Sprint(i))
 		require.Equal(t, brick.BelongToPreload["BelongTo"].SubModel.Name, "test_custom_table_name_belong_to_"+fmt.Sprint(i))
 		require.Equal(t, brick.OneToOnePreload["OneToOne"].SubModel.Name, "test_custom_table_name_one_to_one_"+fmt.Sprint(i))
 		require.Equal(t, brick.OneToManyPreload["OneToMany"].SubModel.Name, "test_custom_table_name_one_to_many_"+fmt.Sprint(i))
 		require.Equal(t, brick.ManyToManyPreload["ManyToMany"].SubModel.Name, "test_custom_table_name_many_to_many_"+fmt.Sprint(i))
 		require.Equal(t, brick.ManyToManyPreload["ManyToMany"].MiddleModel.Name, fmt.Sprintf("test_custom_table_name_many_to_many_%[1]d_test_custom_table_name_table_%[1]d", i))
+		require.Equal(t, brick.JoinMap["Join"].SubModel.Name, "test_custom_table_name_join_"+fmt.Sprint(i))
 
 	}
 }

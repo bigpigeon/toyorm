@@ -702,13 +702,14 @@ type TestSaveWithOtherTable struct {
 }
 
 type TestCustomTableNameTable struct {
-	ID         uint32 `toyorm:"primary key;auto_increment"`
+	ID         uint32 `toyorm:"primary key;auto_increment;join:Join"`
 	Name       string
 	BelongToID uint32 `toyorm:"index"`
 	BelongTo   *TestCustomTableNameBelongTo
 	OneToOne   *TestCustomTableNameOneToOne
 	OneToMany  []TestCustomTableNameOneToMany
 	ManyToMany []TestCustomTableNameManyToMany
+	Join       *TestCustomTableNameJoin
 	FragNum    int
 }
 
@@ -755,6 +756,17 @@ type TestCustomTableNameManyToMany struct {
 }
 
 func (t *TestCustomTableNameManyToMany) TableName() string {
+	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
+}
+
+type TestCustomTableNameJoin struct {
+	ID      uint32 `toyorm:"primary key;auto_increment"`
+	Name    string
+	MainID  uint32 `toyorm:"join:Join"`
+	FragNum int
+}
+
+func (t *TestCustomTableNameJoin) TableName() string {
 	return SqlNameConvert(reflect.TypeOf(*t).Name()) + "_" + fmt.Sprint(t.FragNum)
 }
 

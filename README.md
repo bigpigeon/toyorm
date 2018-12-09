@@ -990,6 +990,87 @@ result, err = brick.Find(&scanData)
 // SELECT id,created_at,updated_at,deleted_at,product_detail_product_id,data FROM `comment`   WHERE deleted_at IS NULL AND product_detail_product_id IN (?,?,?)  args:[1,2,3]
 ```
 
+### Custom Table Name
+
+custom your table name with different platform
+
+```golang
+type User struct {
+    ID uint32 `toyorm:"primary key"`
+    Name string `toyorm:"index"`
+    Platform string `toyorm:"-"`
+}
+func (u *User) TableName() string {
+    return "user_" + u.Platform
+}
+
+brick := toy.Model(&User{Platform:"p1"}).Debug()
+brick.CreateTable()
+// CREATE TABLE user_p1 (id BIGINT AUTO_INCREMENT,name VARCHAR(255), PRIMARY KEY(id))
+brick := toy.Model(&User{Platform:"p2"}).Debug()
+brick.CreateTable()
+// CREATE TABLE user_p2 (id BIGINT AUTO_INCREMENT,name VARCHAR(255), PRIMARY KEY(id))
+```
+
+table name method also work on Preload and Join
+
+```golang
+type UserDetail struct {
+    ID uint32 `toyorm:"primary key"`
+    UserID uint32
+    Data string
+}
+func (u *UserDetail) TableName() string {
+    return "user_detail_" + u.Platform
+}
+
+type User struct {
+    ID uint32 `toyorm:"primary key"`
+    Name string `toyorm:"index"`
+    Detail *UserDetail
+    Platform string `toyorm:"-"`
+}
+func (u *User) TableName() string {
+    return "user_" + u.Platform
+}
+
+brick := toy.Model(&User{Platform:"p1", Detail:&UserDetail{Platform:"p1"}}).Debug().
+    Preload(Offsetof(User{}.UserDetail)).Enter()
+brick.CreateTable()
+// CREATE TABLE user_p1 (id BIGINT AUTO_INCREMENT,name VARCHAR(255), PRIMARY KEY(id))
+// CREATE TABLE user_detail_p1 (id BIGINT AUTO_INCREMENT, user_id BIGINT, data VARCHAR(255), PRIMARY KEY(id))
+```
+
+
+in one to many or many to many mode , need to set it's first element val
+
+```golang
+type Address struct {
+    ID uint32 `toyorm:"primary key"`
+    UserID uint32
+    Addr string
+    Platform string `toyorm:"-"`
+}
+func (a *Address) TableName() string {
+    return "address_" + a.Platform
+}
+type User struct {
+    ID uint32 `toyorm:"primary key"`
+    Name string `toyorm:"index"`
+    Addresses []Address
+    Platform string `toyorm:"-"`
+}
+func (u *User) TableName() string {
+    return "user_" + u.Platform
+}
+
+brick := toy.Model(&User{Platform:"p1", Addresses:[]Address{{Platform:"p1"}}}).Debug().
+    Preload(Offsetof(User{}.Addresses)).Enter()
+brick.CreateTable()
+// CREATE TABLE user_p1 (id BIGINT AUTO_INCREMENT,name VARCHAR(255), PRIMARY KEY(id))
+// CREATE TABLE address_p1 (id BIGINT AUTO_INCREMENT, user_id BIGINT, addr VARCHAR(255), PRIMARY KEY(id))
+```
+
 ### Result
 
 **use Report to view sql action**
