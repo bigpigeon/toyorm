@@ -327,7 +327,9 @@ func ModelName(val reflect.Value) string {
 			}
 		}
 		if canModelName == false {
-			modelName = SqlNameConvert(val.Type().Name())
+			if typeName := val.Type().Name(); typeName != "" {
+				modelName = SqlNameConvert(val.Type().Name())
+			}
 		}
 	}
 	if modelName == "" {

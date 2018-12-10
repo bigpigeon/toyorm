@@ -16,9 +16,7 @@ type CacheMeta struct {
 }
 
 type ToyKernel struct {
-	CacheModels       map[reflect.Type]map[CacheMeta]*Model
-	CacheMiddleModels map[reflect.Type]map[CacheMeta]*Model
-	debug             bool
+	debug bool
 	// map[model][container_field_name]
 	Dialect Dialect
 	Logger  io.Writer
@@ -26,16 +24,11 @@ type ToyKernel struct {
 
 // TODO testing thread safe? if not add lock
 func (t *ToyKernel) GetModel(val reflect.Value) *Model {
+	if val.Kind() != reflect.Struct {
+		panic(ErrInvalidModelType("invalid struct type " + val.Type().Name()))
+	}
 	name := ModelName(val)
-	typ := val.Type()
-	if t.CacheModels[typ] == nil {
-		t.CacheModels[typ] = map[CacheMeta]*Model{}
-	}
-	if model, ok := t.CacheModels[typ][CacheMeta{name}]; ok == false {
-		model = newModel(val, name)
-		t.CacheModels[typ][CacheMeta{name}] = model
-	}
-	return t.CacheModels[typ][CacheMeta{name}]
+	return newModel(val, name)
 }
 
 func (t *ToyKernel) SetDebug(debug bool) {

@@ -54,10 +54,8 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 		},
 		DefaultModelHandlerChain: map[reflect.Type]map[string]HandlersChain{},
 		ToyKernel: ToyKernel{
-			CacheModels:       map[reflect.Type]map[CacheMeta]*Model{},
-			CacheMiddleModels: map[reflect.Type]map[CacheMeta]*Model{},
-			Dialect:           dialect,
-			Logger:            os.Stdout,
+			Dialect: dialect,
+			Logger:  os.Stdout,
 		},
 	}, nil
 }
@@ -223,10 +221,6 @@ func (t *Toy) ManyToManyPreloadBind(model, subModel, middleModel *Model, contain
 	if LoopTypeIndirect(subRelationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("sub relation key must have same type with sub model primary key")
 	}
-	if t.CacheMiddleModels[middleModel.ReflectType] == nil {
-		t.CacheMiddleModels[middleModel.ReflectType] = map[CacheMeta]*Model{}
-	}
-	t.CacheMiddleModels[middleModel.ReflectType][CacheMeta{middleModel.Name}] = middleModel
 
 	return &ManyToManyPreload{
 		Model:            model,

@@ -8,6 +8,7 @@ package toyorm
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 	. "unsafe"
 )
@@ -35,4 +36,19 @@ func TestBugCreateTableManyToManyReportLoss(t *testing.T) {
 	for _, preloadResult := range result.MiddleModelPreload {
 		assert.NotEqual(t, preloadResult.Report(), "")
 	}
+}
+
+func TestBugCreateCustomNameTableDirtyCache(t *testing.T) {
+	tab := TestCustomTableNameTable{
+		FragNum:  1,
+		BelongTo: &TestCustomTableNameBelongTo{FragNum: 1}}
+	brick := TestDB.Model(&tab).
+		Preload(Offsetof(tab.BelongTo)).Enter()
+	t.Log(brick.BelongToPreload["BelongTo"].SubModel.Name)
+	tab2 := TestCustomTableNameTable{
+		FragNum:  1,
+		BelongTo: &TestCustomTableNameBelongTo{FragNum: 2}}
+	brick = TestDB.Model(&tab2).
+		Preload(Offsetof(tab.BelongTo)).Enter()
+	require.Equal(t, brick.BelongToPreload["BelongTo"].SubModel.Name, "test_custom_table_name_belong_to_2")
 }

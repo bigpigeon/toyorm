@@ -1,3 +1,6 @@
+### Toyorm v0.5.1-alpha (Dec 10 2018)
+- [FIX] custom preload table name has dirty cache data
+
 ### Toyorm v0.5.0-alpha (Dec 9 2018)
 - [NEW] custom table name
 

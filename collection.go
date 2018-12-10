@@ -52,9 +52,7 @@ type ToyCollection struct {
 func OpenCollection(driverName string, dataSourceName ...string) (*ToyCollection, error) {
 	t := ToyCollection{
 		ToyKernel: ToyKernel{
-			CacheModels:       map[reflect.Type]map[CacheMeta]*Model{},
-			CacheMiddleModels: map[reflect.Type]map[CacheMeta]*Model{},
-			Logger:            os.Stdout,
+			Logger: os.Stdout,
 		},
 		DefaultHandlerChain: map[string]CollectionHandlersChain{
 			"CreateTable":              {CollectionHandlerSimplePreload("CreateTable"), CollectionHandlerAssignToAllDb, CollectionHandlerCreateTable},
@@ -247,10 +245,6 @@ func (t *ToyCollection) ManyToManyPreloadBind(model, subModel, middleModel *Mode
 	if LoopTypeIndirect(subRelationField.StructField().Type) != subModel.GetOnePrimary().StructField().Type {
 		panic("sub relation key must have same type with sub model primary key")
 	}
-	if t.CacheMiddleModels[middleModel.ReflectType] == nil {
-		t.CacheMiddleModels[middleModel.ReflectType] = map[CacheMeta]*Model{}
-	}
-	t.CacheMiddleModels[middleModel.ReflectType][CacheMeta{middleModel.Name}] = middleModel
 
 	return &ManyToManyPreload{
 		Model:            model,
