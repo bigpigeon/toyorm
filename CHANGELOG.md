@@ -1,3 +1,5 @@
+- [FIX] order by conflict with limit/offset
+
 ### Toyorm v0.5.1-alpha (Dec 10 2018)
 - [FIX] custom preload table name has dirty cache data
 

@@ -157,12 +157,6 @@ func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, or
 		searchExec := dia.SearchExec(search)
 		exec = exec.Append(" WHERE "+searchExec.Source(), searchExec.Args()...)
 	}
-	if limit != 0 {
-		exec = exec.Append(fmt.Sprintf(" LIMIT %d", limit))
-	}
-	if offset != 0 {
-		exec = exec.Append(fmt.Sprintf(" OFFSET %d", offset))
-	}
 	if len(orderBy) > 0 {
 		var __list []string
 		for _, column := range orderBy {
@@ -176,6 +170,13 @@ func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, or
 			list = append(list, column.Column())
 		}
 		exec = exec.Append(" GROUP BY " + strings.Join(list, ","))
+	}
+
+	if limit != 0 {
+		exec = exec.Append(fmt.Sprintf(" LIMIT %d", limit))
+	}
+	if offset != 0 {
+		exec = exec.Append(fmt.Sprintf(" OFFSET %d", offset))
 	}
 	return exec
 }

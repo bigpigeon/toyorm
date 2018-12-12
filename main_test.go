@@ -14,6 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"time"
@@ -797,16 +798,12 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 func createTableUnit(brick *ToyBrick) func(t testing.TB) {
 	return func(t testing.TB) {
 		result, err := brick.DropTableIfExist()
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-		}
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
 
 		result, err = brick.CreateTable()
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-		}
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
 	}
 }
 

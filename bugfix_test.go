@@ -52,3 +52,17 @@ func TestBugCreateCustomNameTableDirtyCache(t *testing.T) {
 		Preload(Offsetof(tab.BelongTo)).Enter()
 	require.Equal(t, brick.BelongToPreload["BelongTo"].SubModel.Name, "test_custom_table_name_belong_to_2")
 }
+
+func TestBugOrderByConflictWithLimit(t *testing.T) {
+	type TestOrderByLimitTable struct {
+		ModelDefault
+		Data string
+	}
+	var tab TestOrderByLimitTable
+	brick := TestDB.Model(&tab)
+	createTableUnit(brick)(t)
+	var data []TestOrderByLimitTable
+	result, err := brick.OrderBy(Offsetof(tab.CreatedAt)).Limit(2).Find(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+}

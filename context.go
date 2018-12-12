@@ -8,6 +8,7 @@ package toyorm
 
 import (
 	"math"
+	"time"
 )
 
 const abortIndex int = math.MaxInt8 / 2
@@ -21,6 +22,18 @@ type Context struct {
 	Result   *Result
 	value    map[interface{}]interface{}
 	//err      error
+}
+
+func (c *Context) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (c *Context) Done() <-chan struct{} {
+	return nil
+}
+
+func (c *Context) Err() error {
+	return nil
 }
 
 func NewContext(handlers HandlersChain, brick *ToyBrick, columns ModelRecords) *Context {
