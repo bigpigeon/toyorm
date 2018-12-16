@@ -559,7 +559,7 @@ func insertValuesFormat(model *Model, columnValues []ColumnNameValue) (string, s
 		var val reflect.Value
 		if v, ok := valueMap[r.Name()]; ok {
 			val = v
-		} else if r.AutoIncrement() {
+		} else if r.AutoIncrement() || r.IsPrimary() {
 			continue
 		} else {
 			val = reflect.Zero(r.StructField().Type)

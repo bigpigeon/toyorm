@@ -66,3 +66,25 @@ func TestBugOrderByConflictWithLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, result.Err())
 }
+
+func TestBugPrimaryKeyWithZero(t *testing.T) {
+	skillTestDB(t, "sqlite3")
+	type TestPrimaryKeyWithZero struct {
+		ID   uint32 `toyorm:"primary key"`
+		Data string
+	}
+	var tab TestPrimaryKeyWithZero
+	brick := TestDB.Model(&tab)
+	createTableUnit(brick)(t)
+	data := TestPrimaryKeyWithZero{
+		Data: "some meta data",
+	}
+	result, err := brick.Debug().Save(&data)
+	require.NoError(t, err)
+	require.Error(t, result.Err())
+	//{
+	//	result, err := brick.Debug().Save(&data)
+	//	require.NoError(t, err)
+	//	require.NoError(t, result.Err())
+	//}
+}
