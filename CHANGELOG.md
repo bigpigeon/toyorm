@@ -1,3 +1,5 @@
+- [FIX] get custom default primary key not work
+- [FIX] allow insert/save with zero primary key
 - [FIX] order by conflict with limit/offset
 
 ### Toyorm v0.5.1-alpha (Dec 10 2018)

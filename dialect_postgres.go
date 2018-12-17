@@ -339,7 +339,7 @@ func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnNameV
 
 func (dia PostgreSqlDialect) InsertExec(model *Model, columnValues []ColumnNameValue) ExecValue {
 	exec := dia.insertExec(model, columnValues)
-	if len(model.GetPrimary()) == 1 && model.GetOnePrimary().AutoIncrement() {
+	if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
 		exec = exec.Append(" RETURNING " + model.GetOnePrimary().Column())
 	}
 	return exec

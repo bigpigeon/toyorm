@@ -575,3 +575,7 @@ func insertValuesFormat(model *Model, columnValues []ColumnNameValue) (string, s
 	qBytes = qBytes[:len(qBytes)-1]
 	return string(fieldBytes), string(qBytes), args
 }
+
+func IntKind(kind reflect.Kind) bool {
+	return kind >= reflect.Int && kind <= reflect.Uint64
+}

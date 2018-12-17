@@ -88,3 +88,34 @@ func TestBugPrimaryKeyWithZero(t *testing.T) {
 	//	require.NoError(t, result.Err())
 	//}
 }
+
+func TestBugCustomDefaultPrimaryKey(t *testing.T) {
+	type TestCustomDefaultPrimaryKey struct {
+		ID   uint32 `toyorm:"primary key"`
+		Data string
+	}
+	brick := TestDB.Model(&TestCustomDefaultPrimaryKey{})
+	//createTableUnit(brick)(t)
+	result, err := brick.DropTableIfExist()
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	if TestDriver == "postgres" {
+		_, err := brick.Exec(DefaultExec{query: `CREATE TABLE "test_custom_default_primary_key" (id SERIAL,data VARCHAR(255) ,PRIMARY KEY(id))`})
+		require.NoError(t, err)
+	} else if TestDriver == "mysql" {
+		_, err := brick.Exec(DefaultExec{query: "CREATE TABLE `test_custom_default_primary_key` (id INTEGER AUTO_INCREMENT,data VARCHAR(255) ,PRIMARY KEY(id))"})
+		require.NoError(t, err)
+	} else if TestDriver == "sqlite3" {
+		_, err := brick.Exec(DefaultExec{query: "CREATE TABLE `test_custom_default_primary_key` (id INTEGER PRIMARY KEY AUTOINCREMENT,data VARCHAR(255) )"})
+		require.NoError(t, err)
+	} else {
+		return
+	}
+	data := TestCustomDefaultPrimaryKey{
+		Data: "some thing",
+	}
+	result, err = brick.Insert(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	require.Equal(t, uint32(1), data.ID)
+}

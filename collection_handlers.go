@@ -242,7 +242,7 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
-	setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
+	//setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 		var err error
@@ -265,15 +265,18 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 		)
 
 		if action.Error == nil {
-			// set primary field value if model is autoincrement
-			if setInsertId {
-				primaryKeyName := ctx.Brick.Model.GetOnePrimary().Name()
-				// just set not zero primary key
-				if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
-					if lastId, err := action.Result.LastInsertId(); err == nil {
-						ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
-					} else {
-						return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
+			// set primary field value if model has one primary key
+			if len(ctx.Brick.Model.GetPrimary()) == 1 {
+				primaryKey := ctx.Brick.Model.GetOnePrimary()
+				primaryKeyName := primaryKey.Name()
+				if IntKind(primaryKey.StructField().Type.Kind()) {
+					// just set not zero primary key
+					if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
+						if lastId, err := action.Result.LastInsertId(); err == nil {
+							ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
+						} else {
+							return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
+						}
 					}
 				}
 			}
@@ -556,7 +559,7 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
-	setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
+	//setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
 	for i, record := range ctx.Result.Records.GetRecords() {
 		var action CollectionExecAction
 		var err error
@@ -579,18 +582,22 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 				)
 
 				if action.Error == nil {
-					// set primary field value if model is autoincrement
-					if setInsertId {
-						primaryKeyName := ctx.Brick.Model.GetOnePrimary().Name()
-						// just set not zero primary key
-						if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
-							if lastId, err := action.Result.LastInsertId(); err == nil {
-								ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
-							} else {
-								return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
+					// set primary field value if model has one primary key
+					if len(ctx.Brick.Model.GetPrimary()) == 1 {
+						primaryKey := ctx.Brick.Model.GetOnePrimary()
+						primaryKeyName := primaryKey.Name()
+						if IntKind(primaryKey.StructField().Type.Kind()) {
+							// just set not zero primary key
+							if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
+								if lastId, err := action.Result.LastInsertId(); err == nil {
+									ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
+								} else {
+									return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
+								}
 							}
 						}
 					}
+
 				}
 			} else {
 				action.Exec = ctx.Brick.SaveExec(record)
