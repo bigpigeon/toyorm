@@ -709,6 +709,16 @@ func HandlerSaveTimeGenerate(ctx *Context) error {
 	return nil
 }
 
+func HandlerUSaveTimeGenerate(ctx *Context) error {
+	now := reflect.ValueOf(time.Now())
+	if updateField := ctx.Brick.Model.GetFieldWithName("UpdatedAt"); updateField != nil {
+		for _, record := range ctx.Result.Records.GetRecords() {
+			record.SetField(updateField.Name(), now)
+		}
+	}
+	return nil
+}
+
 // preload schedule belongTo -> Next() -> oneToOne -> oneToMany -> manyToMany(sub -> middle)
 func HandlerCreateTablePreload(option string) func(ctx *Context) error {
 	return func(ctx *Context) (err error) {

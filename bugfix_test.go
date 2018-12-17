@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 	. "unsafe"
 )
 
@@ -118,4 +119,40 @@ func TestBugCustomDefaultPrimaryKey(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, result.Err())
 	require.Equal(t, uint32(1), data.ID)
+}
+
+func TestBugUSaveCreatedAt(t *testing.T) {
+	type TestUSaveCreatedAt struct {
+		ID        uint32 `toyorm:"primary key;auto_increment"`
+		Data      string
+		CreatedAt time.Time
+	}
+	brick := TestDB.Model(&TestUSaveCreatedAt{})
+	createTableUnit(brick)(t)
+	data := TestUSaveCreatedAt{
+		Data: "test data",
+	}
+	result, err := brick.Insert(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	t.Log(data.CreatedAt)
+	var oldCreatedAt time.Time
+	{
+		var data TestUSaveCreatedAt
+		result, err = brick.Find(&data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		oldCreatedAt = data.CreatedAt
+	}
+	data.CreatedAt = time.Time{}
+	result, err = brick.USave(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	{
+		var data TestUSaveCreatedAt
+		result, err = brick.Find(&data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		require.Equal(t, oldCreatedAt, data.CreatedAt)
+	}
 }
