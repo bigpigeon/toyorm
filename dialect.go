@@ -41,7 +41,7 @@ type Dialect interface {
 	SaveExec(*Model, []ColumnNameValue) ExecValue
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
-	CountExec(*Model) ExecValue
+	CountExec(model *Model, alias string) ExecValue
 	SearchExec(search SearchList) ExecValue
 	TemplateExec(BasicExec, map[string]BasicExec) (ExecValue, error)
 	JoinExec(*JoinSwap) ExecValue
@@ -399,7 +399,10 @@ func (dia DefaultDialect) DropForeignKey(model *Model, ForeignKeyField Field) Ex
 
 }
 
-func (dia DefaultDialect) CountExec(model *Model) ExecValue {
+func (dia DefaultDialect) CountExec(model *Model, alias string) ExecValue {
+	if alias != "" {
+		return DefaultExec{fmt.Sprintf("SELECT count(*) FROM `%s` as `%s`", model.Name, alias), nil}
+	}
 	return DefaultExec{fmt.Sprintf("SELECT count(*) FROM `%s`", model.Name), nil}
 }
 

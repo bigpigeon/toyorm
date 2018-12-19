@@ -398,7 +398,11 @@ func (dia PostgreSqlDialect) DropForeignKey(model *Model, ForeignKeyField Field)
 
 }
 
-func (dia PostgreSqlDialect) CountExec(model *Model) ExecValue {
+func (dia PostgreSqlDialect) CountExec(model *Model, alias string) ExecValue {
+	if alias != "" {
+		return QToSExec{DefaultExec{fmt.Sprintf(`SELECT count(*) FROM "%s" as "%s"`, model.Name, alias), nil}}
+
+	}
 	return QToSExec{DefaultExec{fmt.Sprintf(`SELECT count(*) FROM "%s"`, model.Name), nil}}
 }
 

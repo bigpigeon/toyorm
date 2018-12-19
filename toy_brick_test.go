@@ -2379,6 +2379,16 @@ func TestJoin(t *testing.T) {
 			assert.Equal(t, elem.PriceJoin.Star, elem.PriceJoin.StarJoin.Star)
 		}
 	}
+	// join count
+	{
+		brick := tabBrick.Where(ExprEqual, Offsetof(tab.Name), "test join 1").
+			Join(Offsetof(tab.NameJoin)).Where(ExprEqual, Offsetof(tab.NameJoin.SubData), "test join name 1").Swap().
+			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
+		count, err := brick.Count()
+		require.NoError(t, err)
+		require.Equal(t, count, 1)
+		t.Logf("count %d", count)
+	}
 	// condition join test
 	{
 		brick := tabBrick.Where(ExprEqual, Offsetof(tab.Data), "test join 1").

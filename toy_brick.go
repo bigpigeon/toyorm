@@ -852,7 +852,9 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 }
 
 func (t *ToyBrick) CountExec() (exec ExecValue) {
-	exec = t.Toy.Dialect.CountExec(t.Model)
+	exec = t.Toy.Dialect.CountExec(t.Model, t.alias)
+	jExec := t.Toy.Dialect.JoinExec(joinSwap(nil, t))
+	exec = exec.Append(" "+jExec.Source(), jExec.Args()...)
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 

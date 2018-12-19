@@ -629,7 +629,7 @@ func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
 }
 
 func (t *CollectionBrick) CountExec() (exec ExecValue) {
-	exec = t.Toy.Dialect.CountExec(t.Model)
+	exec = t.Toy.Dialect.CountExec(t.Model, "")
 	cExec := t.ConditionExec()
 	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
 	return
