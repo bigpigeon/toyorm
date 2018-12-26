@@ -187,9 +187,10 @@ func HandlerInsert(ctx *Context) error {
 			action.Exec = ctx.Brick.InsertExec(record)
 		} else {
 			tempMap := DefaultTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
-			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
-			tempMap["Values"] = getValuesExec(values)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
+			columnsExec, valExec := getInsertColumnExecAndValue(values)
+			tempMap["Columns"] = columnsExec
+			tempMap["Values"] = valExec
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 			if err != nil {
 				return err
@@ -633,10 +634,11 @@ func HandlerSave(ctx *Context) error {
 			}
 		} else {
 			tempMap := DefaultTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
-			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
-			tempMap["Values"] = getValuesExec(values)
-			tempMap["UpdateValues"] = getUpdateValuesExec(values)
+			values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record)
+			columnsExec, valExec := getInsertColumnExecAndValue(values)
+			tempMap["Columns"] = columnsExec
+			tempMap["Values"] = valExec
+			tempMap["UpdateValues"] = getUpdateValuesExec(values.ToValueList())
 			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
 			if err != nil {
 				return err

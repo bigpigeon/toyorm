@@ -455,6 +455,25 @@ func getColumnExec(columns []Column) BasicExec {
 	return BasicExec{strings.Join(_list, ","), nil}
 }
 
+func getInsertColumnExecAndValue(values FieldValueList) (BasicExec, BasicExec) {
+	var _list []string
+	var args []interface{}
+	var qList []string
+
+	for _, val := range values {
+		if IsZero(val.Value()) {
+			if val.IsPrimary() || val.AutoIncrement() || val.Default() == "" {
+				continue
+			}
+		}
+		_list = append(_list, val.Column())
+		qList = append(qList, "?")
+		args = append(args, val.Value().Interface())
+	}
+	return BasicExec{strings.Join(_list, ","), nil},
+		BasicExec{strings.Join(qList, ","), args}
+}
+
 // e.g return BasicExec{query: "?,?,?" args:[1,2,3]}
 func getValuesExec(values []ColumnValue) BasicExec {
 	var args []interface{}
@@ -561,9 +580,17 @@ func insertValuesFormat(model *Model, columnValues []ColumnNameValue) (string, s
 			val = v
 		} else if r.AutoIncrement() || r.IsPrimary() {
 			continue
+		} else if _default := r.Default(); _default != "" {
+			continue
 		} else {
 			val = reflect.Zero(r.StructField().Type)
 		}
+		if IsZero(val) {
+			if r.AutoIncrement() || r.IsPrimary() || r.Default() != "" {
+				continue
+			}
+		}
+
 		fieldBuff.WriteString(r.Column())
 		fieldBuff.WriteByte(',')
 		qBytes = append(qBytes, '?', ',')

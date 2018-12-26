@@ -228,7 +228,7 @@ join          | string                 | to select related field when call brick
 belong to     | string                 | to select related field when call brick.Preload with BelongTo container
 one to one    | string                 | to select related field when call brick.Preload with OneToOne container
 one to many   | string                 | to select related field when call brick.Preload with OneToMany container
-
+default       | srring                 | default value in database
 
 other custom TAG will append to end of CREATE TABLE field
 

@@ -40,7 +40,7 @@ type Field interface {
 	BelongToWith() string             // BelongTo with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
 	OneToOneWith() string             // OneToOne with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
 	OneToManyWith() string            // OneToMany with specified container field declaration,ToyBrick.Preload(<container field>) will automatic association this field
-
+	Default() string                  // default value in database
 	Source() Field
 	ToColumnAlias(alias string) Field
 	ToFieldValue(value reflect.Value) FieldValue
@@ -89,6 +89,7 @@ type modelField struct {
 	field         reflect.StructField
 	fieldValue    reflect.Value
 	alias         string
+	defaultVal    string
 	Association   map[AssociationType]string
 }
 
@@ -145,6 +146,10 @@ func (m *modelField) Attrs() map[string]string {
 
 func (m *modelField) SqlType() string {
 	return m.sqlType
+}
+
+func (m *modelField) Default() string {
+	return m.defaultVal
 }
 
 func (m *modelField) JoinWith() string {
@@ -262,6 +267,8 @@ func NewField(f *reflect.StructField, fieldVal reflect.Value, table_name string)
 			field.Association[OneToOneWith] = tagKeyVal.Val
 		case "one to many":
 			field.Association[OneToManyWith] = tagKeyVal.Val
+		case "default":
+			field.defaultVal = tagKeyVal.Val
 		//case "middle model with":
 		//	field.Association[MiddleModelWith] = val
 		//case "left model with":

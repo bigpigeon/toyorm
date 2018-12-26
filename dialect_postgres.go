@@ -65,6 +65,9 @@ func (dia PostgreSqlDialect) CreateTable(model *Model, foreign map[string]Foreig
 		} else {
 			s = fmt.Sprintf("%s %s", sqlField.Column(), sqlField.SqlType())
 		}
+		if _default := sqlField.Default(); _default != "" {
+			s += " DEFAULT " + _default
+		}
 		for k, v := range sqlField.Attrs() {
 			if v == "" {
 				s += " " + k

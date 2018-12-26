@@ -2169,8 +2169,9 @@ func TestCustomExec(t *testing.T) {
 
 	data := []TestCustomExecTable{
 		{Data: "test custom exec table 1", Sync: 1},
-		{Data: "test custom exec table 2", Sync: 2},
+		{ModelDefault: ModelDefault{ID: 55}, Data: "test custom exec table 2", Sync: 2},
 	}
+
 	var result *Result
 	var err error
 	if TestDriver == "postgres" {
@@ -2184,9 +2185,13 @@ func TestCustomExec(t *testing.T) {
 	}
 	t.Logf("report:\n%s\n", result.Report())
 	if TestDriver == "postgres" {
-		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5) RETURNING id")
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,data,sync) Values($1,$2,$3,$4) RETURNING id")
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,data,sync) Values($1,$2,$3,$4,$5) RETURNING id")
+
 	} else {
-		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?)")
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,data,sync) Values(?,?,?,?)")
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,data,sync) Values(?,?,?,?,?)")
+
 	}
 
 	var scanData []TestCustomExecTable
@@ -2819,4 +2824,32 @@ func TestCustomTableName(t *testing.T) {
 		require.Equal(t, brick.JoinMap["Join"].SubModel.Name, "test_custom_table_name_join_"+fmt.Sprint(i))
 
 	}
+}
+
+func TestDefaultValue(t *testing.T) {
+	type TestDefaultTable struct {
+		ID           uint32 `toyorm:"primary key;auto_increment"`
+		Data         string
+		DefaultStr   string  `toyorm:"default:'test';NOT NULL"`
+		DefaultInt   int     `toyorm:"default:200;NOT NULL"`
+		DefaultFloat float64 `toyorm:"default:52.5;NOT NULL"`
+		DefaultBool  bool    `toyorm:"default:true;NOT NULL"`
+	}
+	brick := TestDB.Model(&TestDefaultTable{}).Debug()
+	createTableUnit(brick)(t)
+	data := TestDefaultTable{}
+	result, err := brick.Insert(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+
+	fData := TestDefaultTable{Data: "test default value"}
+	result, err = brick.Find(&fData)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+
+	t.Log(fData)
+	assert.Equal(t, fData.DefaultStr, "test")
+	assert.Equal(t, fData.DefaultInt, 200)
+	assert.Equal(t, fData.DefaultFloat, 52.5)
+	assert.Equal(t, fData.DefaultBool, true)
 }

@@ -923,11 +923,13 @@ func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) Fi
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
 				if t.ignoreModeSelector[mode].Ignore(fieldValue) == false {
-					if mField.IsPrimary() && IsZero(fieldValue) {
-
-					} else {
-						columnValues = append(columnValues, mField.ToColumnAlias(t.alias).ToFieldValue(fieldValue))
-					}
+					// move primary key check to dialect
+					//if mField.IsPrimary() && IsZero(fieldValue) {
+					//
+					//} else {
+					//	columnValues = append(columnValues, mField.ToColumnAlias(t.alias).ToFieldValue(fieldValue))
+					//}
+					columnValues = append(columnValues, mField.ToColumnAlias(t.alias).ToFieldValue(fieldValue))
 				}
 			}
 		}

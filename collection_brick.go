@@ -696,11 +696,11 @@ func (t *CollectionBrick) getFieldValuePairWithRecord(mode Mode, record ModelRec
 		for _, mField := range fields {
 			if fieldValue := record.Field(mField.Name()); fieldValue.IsValid() {
 				if t.ignoreModeSelector[mode].Ignore(fieldValue) == false {
-					if mField.IsPrimary() && IsZero(fieldValue) {
-
-					} else {
-						columnValues = append(columnValues, mField.ToFieldValue(fieldValue))
-					}
+					// move primary key check to dialect
+					//if mField.IsPrimary() && IsZero(fieldValue) {
+					//} else {
+					//}
+					columnValues = append(columnValues, mField.ToFieldValue(fieldValue))
 				}
 			}
 		}

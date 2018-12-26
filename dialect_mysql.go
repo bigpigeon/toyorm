@@ -41,6 +41,9 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 		if sqlField.AutoIncrement() {
 			s += " AUTO_INCREMENT"
 		}
+		if _default := sqlField.Default(); _default != "" {
+			s += " DEFAULT " + _default
+		}
 		for k, v := range sqlField.Attrs() {
 			if v == "" {
 				s += " " + k

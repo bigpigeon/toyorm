@@ -1,3 +1,6 @@
+- [NEW] add default tag match default value in database
+- [CHANGE] brick.Template method , the insertion part has changed
+
 ### Toyorm v0.5.3-alpha (Dec 17 2018)
 - [FIX] Count does not work when there is Join statement
 - [FIX] USave will generate new createdAt value
