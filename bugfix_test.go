@@ -9,6 +9,7 @@ package toyorm
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"reflect"
 	"testing"
 	"time"
 	. "unsafe"
@@ -155,4 +156,12 @@ func TestBugUSaveCreatedAt(t *testing.T) {
 		require.NoError(t, result.Err())
 		require.Equal(t, oldCreatedAt, data.CreatedAt)
 	}
+}
+
+func TestBugZeroWithNotStruct(t *testing.T) {
+	type TestDataSub struct {
+		Data string
+	}
+	v := IsZero(reflect.ValueOf([]TestDataSub{}))
+	t.Log(v)
 }
