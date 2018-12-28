@@ -14,6 +14,7 @@ import (
 
 type Toy struct {
 	db                       *sql.DB
+	objMustAddr              bool
 	DefaultHandlerChain      map[string]HandlersChain
 	DefaultModelHandlerChain map[reflect.Type]map[string]HandlersChain
 	ToyKernel
@@ -62,12 +63,23 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 
 func (t *Toy) Model(v interface{}) *ToyBrick {
 	vVal := LoopDivePtr(reflect.ValueOf(v))
+	if t.objMustAddr && vVal.CanAddr() == false {
+		panic("object must can addr")
+	}
 	model := t.GetModel(vVal)
 	toyBrick := NewToyBrick(t, model)
 	if t.debug {
 		toyBrick = toyBrick.Debug()
 	}
+	//toyBrick.objMustAddr = t.objMustAddr // wait to implement it
+
 	return toyBrick
+}
+
+// required object in Toy.[Model]
+// TODO Brick.[Insert,Find,Update,Save,USave,Delete] method's parameter must be point object
+func (t *Toy) MustAddr(b bool) {
+	t.objMustAddr = b
 }
 
 func (t *Toy) MiddleModel(v, sv interface{}) *ToyBrick {

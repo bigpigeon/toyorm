@@ -47,6 +47,8 @@ type ToyBrick struct {
 	SwapMap    map[string]*JoinSwap
 	JoinMap    map[string]*Join
 
+	objMustAddr bool // TODO maybe not a good way
+
 	BrickCommon
 }
 
@@ -712,6 +714,9 @@ func (t *ToyBrick) Count() (count int, err error) {
 // insert is difficult that have preload data
 func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
+	if t.objMustAddr && vValue.CanAddr() == false {
+		panic("object must can addr")
+	}
 	var records ModelRecords
 	switch vValue.Kind() {
 	case reflect.Slice:
@@ -732,6 +737,9 @@ func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
 
 func (t *ToyBrick) Find(v interface{}) (*Result, error) {
 	vValue := LoopIndirectAndNew(reflect.ValueOf(v))
+	if t.objMustAddr && vValue.CanAddr() == false {
+		panic("object must can addr")
+	}
 	if vValue.CanSet() == false {
 		return nil, ErrCannotSet{"v"}
 	}
@@ -741,6 +749,9 @@ func (t *ToyBrick) Find(v interface{}) (*Result, error) {
 
 func (t *ToyBrick) Update(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
+	if t.objMustAddr && vValue.CanAddr() == false {
+		panic("object must can addr")
+	}
 	vValueList := reflect.MakeSlice(reflect.SliceOf(vValue.Type()), 0, 1)
 	vValueList = reflect.Append(vValueList, vValue)
 	handlers := t.Toy.ModelHandlers("Update", t.Model)
@@ -750,7 +761,9 @@ func (t *ToyBrick) Update(v interface{}) (*Result, error) {
 
 func (t *ToyBrick) Save(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
-
+	if t.objMustAddr && vValue.CanAddr() == false {
+		panic("object must can addr")
+	}
 	switch vValue.Kind() {
 	case reflect.Slice:
 		records := NewRecords(t.Model, vValue)
@@ -765,7 +778,9 @@ func (t *ToyBrick) Save(v interface{}) (*Result, error) {
 // save with exist data
 func (t *ToyBrick) USave(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
-
+	if t.objMustAddr && vValue.CanAddr() == false {
+		panic("object must can addr")
+	}
 	switch vValue.Kind() {
 	case reflect.Slice:
 		records := NewRecords(t.Model, vValue)
@@ -779,6 +794,9 @@ func (t *ToyBrick) USave(v interface{}) (*Result, error) {
 
 func (t *ToyBrick) Delete(v interface{}) (*Result, error) {
 	vValue := LoopIndirect(reflect.ValueOf(v))
+	if t.objMustAddr && vValue.CanAddr() == false {
+		panic("object must can addr")
+	}
 	var records ModelRecords
 	switch vValue.Kind() {
 	case reflect.Slice:

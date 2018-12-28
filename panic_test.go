@@ -7,6 +7,7 @@
 package toyorm
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 	. "unsafe"
 )
@@ -138,4 +139,25 @@ func TestPanicDuplicateNameWithBelongToAssociationField(t *testing.T) {
 	}()
 	// error example
 	TestDB.Model(&MainTable{}).Preload(Offsetof(MainTable{}.BelongToData))
+}
+
+func TestObjectMustAddr(t *testing.T) {
+	type ObjectMustAddrTable struct {
+		ID   uint32 `toyorm:"primary key;auto_increment"`
+		Data string
+	}
+	TestDB.objMustAddr = true
+	defer func() {
+		TestDB.objMustAddr = false
+	}()
+	defer func() {
+		err := recover()
+		t.Log(err)
+		if err == nil {
+			t.Log("non panic when objMustAddr is true")
+			t.Fail()
+		}
+		require.Equal(t, "object must can addr", err)
+	}()
+	TestDB.Model(ObjectMustAddrTable{})
 }
