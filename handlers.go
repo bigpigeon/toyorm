@@ -157,20 +157,18 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 }
 
 func HandlerInsertTimeGenerate(ctx *Context) error {
-	records := ctx.Result.Records
-	createField := ctx.Brick.Model.GetFieldWithName("CreatedAt")
-	updateField := ctx.Brick.Model.GetFieldWithName("UpdatedAt")
-	if createField != nil || updateField != nil {
-		current := time.Now()
-		if createField != nil {
-			for _, record := range records.GetRecords() {
-				record.SetField(createField.Name(), reflect.ValueOf(current))
+	now := reflect.ValueOf(time.Now())
+	records := ctx.Result.Records.GetRecords()
+	if createAtField := ctx.Brick.Model.GetFieldWithName("CreatedAt"); createAtField != nil {
+		for _, record := range records {
+			if fieldValue := record.Field(createAtField.Name()); fieldValue.IsValid() == false || IsZero(fieldValue) {
+				record.SetField(createAtField.Name(), now)
 			}
 		}
-		if updateField != nil {
-			for _, record := range records.GetRecords() {
-				record.SetField(updateField.Name(), reflect.ValueOf(current))
-			}
+	}
+	if updateField := ctx.Brick.Model.GetFieldWithName("UpdatedAt"); updateField != nil {
+		for _, record := range records {
+			record.SetField(updateField.Name(), now)
 		}
 	}
 	return nil
@@ -696,15 +694,16 @@ func HandlerUSave(ctx *Context) error {
 
 func HandlerSaveTimeGenerate(ctx *Context) error {
 	now := reflect.ValueOf(time.Now())
+	records := ctx.Result.Records.GetRecords()
 	if createAtField := ctx.Brick.Model.GetFieldWithName("CreatedAt"); createAtField != nil {
-		for _, record := range ctx.Result.Records.GetRecords() {
+		for _, record := range records {
 			if fieldValue := record.Field(createAtField.Name()); fieldValue.IsValid() == false || IsZero(fieldValue) {
 				record.SetField(createAtField.Name(), now)
 			}
 		}
 	}
 	if updateField := ctx.Brick.Model.GetFieldWithName("UpdatedAt"); updateField != nil {
-		for _, record := range ctx.Result.Records.GetRecords() {
+		for _, record := range records {
 			record.SetField(updateField.Name(), now)
 		}
 	}

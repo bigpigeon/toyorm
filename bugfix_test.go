@@ -162,6 +162,31 @@ func TestBugZeroWithNotStruct(t *testing.T) {
 	type TestDataSub struct {
 		Data string
 	}
-	v := IsZero(reflect.ValueOf([]TestDataSub{}))
-	t.Log(v)
+	var d []TestDataSub
+	v := IsZero(reflect.ValueOf(d))
+	require.True(t, v)
+}
+
+func TestBugNotZeroCreatedAt(t *testing.T) {
+	type TestNotZeroCreatedAtTable struct {
+		ID        uint32 `toyorm:"primary key;auto_increment"`
+		CreatedAt time.Time
+	}
+	var tab TestNotZeroCreatedAtTable
+	brick := TestDB.Model(&tab)
+	createTableUnit(brick)(t)
+	date, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
+	require.NoError(t, err)
+	data := TestNotZeroCreatedAtTable{
+		CreatedAt: date,
+	}
+	result, err := brick.Insert(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	var fData TestNotZeroCreatedAtTable
+	result, err = brick.Find(&fData)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	t.Logf("old date %s new date %s", date, fData.CreatedAt)
+	require.True(t, date.Equal(fData.CreatedAt))
 }

@@ -1,3 +1,4 @@
+- [CHANGE] In Insert operation, CreatedAt field will keep the value unchanged when it is not zero
 - [FIX] invoke IsZero with not struct value will panic
 - [NEW] add default tag match default value in database
 - [CHANGE] brick.Template method , the insertion part has changed
