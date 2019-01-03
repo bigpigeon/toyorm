@@ -133,19 +133,19 @@ func (dia PostgreSqlDialect) ConditionExec(search SearchList, limit, offset int,
 
 	}
 
-	if len(orderBy) > 0 {
-		var __list []string
-		for _, column := range orderBy {
-			__list = append(__list, column.Column())
-		}
-		exec = exec.Append(" ORDER BY " + strings.Join(__list, ","))
-	}
 	if len(groupBy) > 0 {
 		var __list []string
 		for _, column := range groupBy {
 			__list = append(__list, column.Column())
 		}
 		exec = exec.Append(" GROUP BY " + strings.Join(__list, ","))
+	}
+	if len(orderBy) > 0 {
+		var __list []string
+		for _, column := range orderBy {
+			__list = append(__list, column.Column())
+		}
+		exec = exec.Append(" ORDER BY " + strings.Join(__list, ","))
 	}
 	if limit != 0 {
 		exec = exec.Append(fmt.Sprintf(" LIMIT %d", limit))

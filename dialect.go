@@ -94,9 +94,6 @@ func (dia DefaultDialect) CreateTable(model *Model, foreign map[string]ForeignKe
 		if sqlField.AutoIncrement() {
 			s += " AUTO_INCREMENT"
 		}
-		if _default := sqlField.Default(); _default != "" {
-			s += " DEFAULT " + _default
-		}
 		for k, v := range sqlField.Attrs() {
 			if v == "" {
 				s += " " + k
@@ -160,13 +157,6 @@ func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, or
 		searchExec := dia.SearchExec(search)
 		exec = exec.Append(" WHERE "+searchExec.Source(), searchExec.Args()...)
 	}
-	if len(orderBy) > 0 {
-		var __list []string
-		for _, column := range orderBy {
-			__list = append(__list, column.Column())
-		}
-		exec = exec.Append(" ORDER BY " + strings.Join(__list, ","))
-	}
 	if len(groupBy) > 0 {
 		var list []string
 		for _, column := range groupBy {
@@ -174,7 +164,13 @@ func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, or
 		}
 		exec = exec.Append(" GROUP BY " + strings.Join(list, ","))
 	}
-
+	if len(orderBy) > 0 {
+		var __list []string
+		for _, column := range orderBy {
+			__list = append(__list, column.Column())
+		}
+		exec = exec.Append(" ORDER BY " + strings.Join(__list, ","))
+	}
 	if limit != 0 {
 		exec = exec.Append(fmt.Sprintf(" LIMIT %d", limit))
 	}

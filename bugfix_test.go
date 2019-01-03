@@ -190,3 +190,19 @@ func TestBugNotZeroCreatedAt(t *testing.T) {
 	t.Logf("old date %s new date %s", date, fData.CreatedAt)
 	require.True(t, date.Equal(fData.CreatedAt))
 }
+
+func TestBugOrderByConflictWithGroupBy(t *testing.T) {
+	{
+		brick := TestDB.Model(&TestGroupByTable{})
+		createTableUnit(brick)(t)
+	}
+
+	var tab TestGroupByTableGroup
+	brick := TestDB.Model(&tab)
+
+	brick = brick.GroupBy(Offsetof(tab.Name), Offsetof(tab.Address)).OrderBy(Offsetof(tab.Name))
+	var data []TestGroupByTableGroup
+	result, err := brick.Find(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+}
