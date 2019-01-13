@@ -66,6 +66,25 @@ func (a *aliasField) ToFieldValue(value reflect.Value) FieldValue {
 	return &fieldValue{a, value}
 }
 
+type tempField struct {
+	Field
+	temp string
+}
+
+func (a *tempField) Source() Field { return a.Field }
+
+func (a *tempField) Column() string {
+	return fmt.Sprintf(a.temp, a.Field.Column())
+}
+
+func (a *tempField) ToFieldValue(value reflect.Value) FieldValue {
+	return &fieldValue{a, value}
+}
+
+func (a *tempField) ToColumnAlias(alias string) Field {
+	return &tempField{a.Field.ToColumnAlias(alias), a.temp}
+}
+
 type fieldValue struct {
 	Field
 	value reflect.Value

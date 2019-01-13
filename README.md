@@ -524,6 +524,14 @@ brick = brick.OrderBy(brick.ToDesc(Offsetof(Product{}.Name)))
 // ORDER BY name DESC
 ```
 
+#### Template Field
+
+sometimes the condition of sql is not a normal field, use TempField to wrapper normal field
+
+```golang
+brick = brick.Where("=", brick.TempField(Offsetof(Product{}.Name), "LOWER(%s)"), "name")
+// WHERE LOWER(name) = ?
+```
 
 #### Transaction
 

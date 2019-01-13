@@ -2853,3 +2853,41 @@ func TestDefaultValue(t *testing.T) {
 	assert.Equal(t, fData.DefaultFloat, 52.5)
 	assert.Equal(t, fData.DefaultBool, true)
 }
+
+func TestTempField(t *testing.T) {
+	type TestTempFieldTable struct {
+		ID    uint32 `toyorm:"primary key;auto_increment"`
+		Data  string
+		Tag   string
+		Score int32
+	}
+
+	brick := TestDB.Model(&TestTempFieldTable{}).Debug()
+	createTableUnit(brick)(t)
+	brick = brick.Alias("m")
+	for i := 0; i < 10; i++ {
+		result, err := brick.Insert(&TestTempFieldTable{
+			Data:  "TEST",
+			Tag:   fmt.Sprint(i % 2),
+			Score: int32(i),
+		})
+		resultProcessor(result, err)(t)
+	}
+	var data []TestTempFieldTable
+	result, err := brick.BindDefaultFields(
+		Offsetof(TestTempFieldTable{}.Tag),
+		brick.TempField(Offsetof(TestTempFieldTable{}.Score), "MAX(%s)"),
+	).GroupBy(Offsetof(TestTempFieldTable{}.Tag)).
+		Where(ExprEqual, brick.TempField(Offsetof(TestTempFieldTable{}.Data), "LOWER(%s)"), "test").
+		OrderBy(brick.TempField(Offsetof(TestTempFieldTable{}.Tag), "%s DESC")).
+		Find(&data)
+	resultProcessor(result, err)(t)
+	t.Logf("%#v\n", data)
+	for _, d := range data {
+		if d.Tag == "1" {
+			require.Equal(t, d.Score, int32(9))
+		} else if d.Tag == "0" {
+			require.Equal(t, d.Score, int32(8))
+		}
+	}
+}

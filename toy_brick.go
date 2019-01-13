@@ -514,11 +514,8 @@ func (t *ToyBrick) OrderBy(vList ...FieldSelection) *ToyBrick {
 		newt := *t.CleanOwnOrderBy()
 		newt.orderBy = nil
 		for i, v := range vList {
-			if column, ok := v.(Field); ok {
-				newt.orderBy = append(newt.orderBy, column)
-			} else {
-				newt.orderBy = append(newt.orderBy, t.Model.fieldSelect(v).ToColumnAlias(t.alias))
-			}
+			field := t.Model.fieldSelect(v)
+			newt.orderBy = append(newt.orderBy, field.ToColumnAlias(t.alias))
 			newt.OwnOrderBy = append(newt.OwnOrderBy, i)
 		}
 		return &newt
@@ -531,11 +528,8 @@ func (t *ToyBrick) GroupBy(vList ...FieldSelection) *ToyBrick {
 		newt := *t.CleanOwnGroupBy()
 		newt.groupBy = nil
 		for i, v := range vList {
-			if column, ok := v.(Field); ok {
-				newt.groupBy = append(newt.groupBy, column)
-			} else {
-				newt.groupBy = append(newt.groupBy, t.Model.fieldSelect(v).ToColumnAlias(t.alias))
-			}
+			field := t.Model.fieldSelect(v)
+			newt.groupBy = append(newt.groupBy, field.ToColumnAlias(t.alias))
 			newt.OwnGroupBy = append(newt.OwnGroupBy, i)
 		}
 		return &newt
