@@ -1,3 +1,5 @@
+### Toyorm v0.6.1-alpha (Dec 28 2018)
+- [NEW] add TempField method for ToyBrick
 - [FIX] order by conflict with group by
 
 ### Toyorm v0.6.0-alpha (Dec 28 2018)
