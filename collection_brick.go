@@ -661,20 +661,24 @@ func (t *CollectionBrick) DeleteExec() ExecValue {
 	return exec
 }
 
-func (t *CollectionBrick) InsertExec(record ModelRecord) ExecValue {
+func (t *CollectionBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToNameValueList())
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, 0, 0, nil, nil)
+	exec, err := t.Toy.Dialect.InsertExec(t.template, t.Model, recorders, cExec)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
 }
 
-func (t *CollectionBrick) SaveExec(record ModelRecord) ExecValue {
+func (t *CollectionBrick) SaveExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
-	exec := t.Toy.Dialect.SaveExec(t.Model, recorders.ToNameValueList())
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, 0, 0, nil, nil)
+	exec, err := t.Toy.Dialect.SaveExec(t.template, t.Model, recorders, cExec)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
 }
 
 // collection not support table alias

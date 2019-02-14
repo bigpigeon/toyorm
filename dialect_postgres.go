@@ -156,6 +156,11 @@ func (dia PostgreSqlDialect) ConditionExec(search SearchList, limit, offset int,
 	return exec
 }
 
+func (dia PostgreSqlDialect) ConditionBasicExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) *BasicExec {
+	exec := dia.ConditionExec(search, limit, offset, orderBy, groupBy)
+	return &BasicExec{exec.Source(), exec.Args()}
+}
+
 func (dia PostgreSqlDialect) SearchExec(s SearchList) ExecValue {
 	var stack []ExecValue
 	for i := 0; i < len(s); i++ {
@@ -340,49 +345,93 @@ func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnNameV
 	return exec
 }
 
-func (dia PostgreSqlDialect) InsertExec(model *Model, columnValues []ColumnNameValue) ExecValue {
-	exec := dia.insertExec(model, columnValues)
-	if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
-		exec = exec.Append(" RETURNING " + model.GetOnePrimary().Column())
-	}
-	return exec
-}
+func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
 
-// postgres have not replace use ON CONFLICT(%s) replace
-func (dia PostgreSqlDialect) SaveExec(model *Model, columnNameValues []ColumnNameValue) ExecValue {
-	fieldStr, qStr, args := insertValuesFormat(model, columnNameValues)
-
-	var exec ExecValue = QToSExec{}
-	exec = exec.Append(
-		fmt.Sprintf(`INSERT INTO "%s"(%s) VALUES(%s)`, model.Name, fieldStr, qStr),
-		args...,
-	)
 	primaryKeys := model.GetPrimary()
 	var primaryKeyNames []string
 	for _, key := range primaryKeys {
 		primaryKeyNames = append(primaryKeyNames, key.Column())
 	}
+	if temp == nil {
+		if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
+			temp = &BasicExec{
+				fmt.Sprintf(
+					"INSERT INTO `$ModelName`($Columns) VALUES($Values) RETURNING %s",
+					primaryKeyNames[0],
+				), nil}
+		} else {
+			temp = &BasicExec{
+				fmt.Sprintf(
+					"INSERT INTO `$ModelName`($Columns) VALUES($Values)",
+				), nil}
+		}
+	}
+	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
+}
+
+// postgres have not replace use ON CONFLICT(%s) replace
+func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+
+	primaryKeys := model.GetPrimary()
+	var primaryKeyNames []string
+	for _, key := range primaryKeys {
+		primaryKeyNames = append(primaryKeyNames, key.Column())
+	}
+	if temp == nil {
+		if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
+			temp = &BasicExec{
+				fmt.Sprintf(
+					"INSERT INTO `$ModelName`($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas RETURNING %s",
+					primaryKeyNames[0],
+					primaryKeyNames[0],
+				), nil}
+		} else {
+			temp = &BasicExec{
+				fmt.Sprintf(
+					"INSERT INTO `$ModelName`($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas",
+					strings.Join(primaryKeyNames, ","),
+				), nil}
+		}
+	}
+	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
+}
+
+func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) *SaveTemplate {
 	var recordList []string
-	var casField ColumnNameValue
-	for _, r := range columnNameValues {
+	var casField BasicExec
+	for _, r := range columnValues {
 		if r.Name() == "Cas" {
-			casField = r
+			casField = BasicExec{
+				fmt.Sprintf(" WHERE %s.%s = ?", model.Name, r.Column()),
+				[]interface{}{r.Value().Int() - 1},
+			}
 		}
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
 	}
-	exec = exec.Append(fmt.Sprintf(" ON CONFLICT(%s) DO UPDATE SET %s",
-		strings.Join(primaryKeyNames, ","),
-		strings.Join(recordList, ","),
-	))
-
-	if casField != nil {
-		exec = exec.Append(fmt.Sprintf(" WHERE %s.%s = ?", model.Name, casField.Column()), casField.Value().Int()-1)
+	columns, values := getInsertColumnExecAndValue(columnValues)
+	execMap := SaveTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+		},
+		Columns:      columns,
+		Values:       values,
+		UpdateValues: BasicExec{strings.Join(recordList, ","), nil},
+		Cas:          casField,
+		Condition:    *condition,
 	}
-	// save only process has id data
-	//if len(model.GetPrimary()) == 1 && model.GetOnePrimary().AutoIncrement() {
-	//	exec = exec.Append(" RETURNING " + model.GetOnePrimary().Column())
-	//}
-	return exec
+	return &execMap
 }
 
 func (dia PostgreSqlDialect) AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue {

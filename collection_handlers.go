@@ -247,7 +247,10 @@ func CollectionHandlerInsert(ctx *CollectionContext) error {
 		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 		var err error
 		if ctx.Brick.template == nil {
-			action.Exec = ctx.Brick.InsertExec(record)
+			action.Exec, err = ctx.Brick.InsertExec(record)
+			if err != nil {
+				return err
+			}
 		} else {
 			tempMap := DefaultCollectionTemplateExec(ctx.Brick)
 			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record).ToValueList()
@@ -574,7 +577,10 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 
 		if ctx.Brick.template == nil {
 			if useInsert {
-				action.Exec = ctx.Brick.InsertExec(record)
+				action.Exec, err = ctx.Brick.InsertExec(record)
+				if err != nil {
+					return err
+				}
 				action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
 					ctx.Brick.Toy.dbs[action.dbIndex],
 					action.Exec,
@@ -600,7 +606,10 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 
 				}
 			} else {
-				action.Exec = ctx.Brick.SaveExec(record)
+				action.Exec, err = ctx.Brick.SaveExec(record)
+				if err != nil {
+					return err
+				}
 				action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
 					ctx.Brick.Toy.dbs[action.dbIndex],
 					action.Exec,

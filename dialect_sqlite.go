@@ -22,16 +22,44 @@ func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
 	}
 }
 
-func (dia Sqlite3Dialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
-	// optimization column format
-	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
-	var exec ExecValue = DefaultExec{}
-	exec = exec.Append(
-		fmt.Sprintf("INSERT OR REPLACE INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
-		args...,
-	)
+func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+	}
+	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
+}
+
+func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"INSERT OR REPLACE INTO `$ModelName`($Columns) VALUES($Values)", nil}
+	}
+
+	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println("[WARNING]save with replace may overwrite existing data")
-	return exec
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
+}
+
+func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) *SaveTemplate {
+	columns, values := getInsertColumnExecAndValue(columnValues)
+	execMap := SaveTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+		},
+		Columns:   columns,
+		Values:    values,
+		Condition: *condition,
+	}
+	return &execMap
 }
 
 func (dia Sqlite3Dialect) CreateTable(model *Model, foreign map[string]ForeignKey) (execlist []ExecValue) {

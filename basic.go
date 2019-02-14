@@ -613,3 +613,70 @@ func insertValuesFormat(model *Model, columnValues []ColumnNameValue) (string, s
 func IntKind(kind reflect.Kind) bool {
 	return kind >= reflect.Int && kind <= reflect.Uint64
 }
+
+func GetInsertInitValues(model *Model, columnValues []ColumnNameValue) []ColumnNameValue {
+	valueMap := map[string]ColumnNameValue{}
+	for _, c := range columnValues {
+		valueMap[c.Name()] = c
+	}
+	values := make([]ColumnNameValue, 0, len(columnValues))
+	for _, r := range model.GetSqlFields() {
+		var val ColumnNameValue
+		if v, ok := valueMap[r.Name()]; ok {
+			val = v
+		} else if r.AutoIncrement() || r.IsPrimary() {
+			continue
+		} else if _default := r.Default(); _default != "" {
+			continue
+		} else {
+			val = r.ToFieldValue(reflect.Zero(r.StructField().Type))
+		}
+		if IsZero(val.Value()) {
+			if r.AutoIncrement() || r.IsPrimary() || r.Default() != "" {
+				continue
+			}
+		}
+		values = append(values, val)
+	}
+	return values
+}
+
+func GetSaveValues(model *Model, columnValues []ColumnNameValue) []ColumnNameValue {
+	valueMap := map[string]ColumnNameValue{}
+	for _, c := range columnValues {
+		valueMap[c.Name()] = c
+	}
+	values := make([]ColumnNameValue, 0, len(columnValues))
+	for _, r := range model.GetSqlFields() {
+		if r.IsPrimary() {
+			continue
+		}
+		if name := r.Name(); name == "CreatedAt" {
+			continue
+		}
+
+		if v, ok := valueMap[r.Name()]; ok {
+			if IsZero(v.Value()) {
+				if r.AutoIncrement() {
+					continue
+				}
+			}
+			values = append(values, v)
+		}
+	}
+	return values
+}
+
+func GetCasValue(model *Model, columnValues []ColumnNameValue) ColumnNameValue {
+	for _, r := range model.GetSqlFields() {
+		if r.Name() == "Cas" {
+			for _, c := range columnValues {
+				if c.Name() == "Cas" {
+					return c
+				}
+			}
+			break
+		}
+	}
+	return nil
+}

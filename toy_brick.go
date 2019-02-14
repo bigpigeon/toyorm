@@ -32,12 +32,13 @@ type ToyBrick struct {
 	debug bool
 	tx    *sql.Tx
 
-	orderBy  FieldList
-	Search   SearchList
-	offset   int
-	limit    int
-	groupBy  FieldList
-	template *BasicExec
+	orderBy     FieldList
+	Search      SearchList
+	offset      int
+	limit       int
+	groupBy     FieldList
+	template    *BasicExec
+	templateMap map[TempMode]*BasicExec
 	// use join to association query in one command
 	preSwap    *PreJoinSwap
 	OwnOrderBy []int
@@ -536,13 +537,27 @@ func (t *ToyBrick) GroupBy(vList ...FieldSelection) *ToyBrick {
 	})
 }
 
+// use custom template sql replace default sql, it will replace all mode template sql
 func (t *ToyBrick) Template(temp string, args ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
 		if temp == "" && len(args) == 0 {
-			newt.template = nil
+			newt.templateMap[TempDefault] = nil
 		} else {
-			newt.template = &BasicExec{temp, args}
+			newt.templateMap[TempDefault] = &BasicExec{temp, args}
+		}
+		return &newt
+	})
+}
+
+// use custom template sql replace default sql
+func (t *ToyBrick) TemplateMode(mode TempMode, temp string, args ...interface{}) *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		if temp == "" && len(args) == 0 {
+			newt.templateMap[mode] = nil
+		} else {
+			newt.templateMap[mode] = &BasicExec{temp, args}
 		}
 		return &newt
 	})
@@ -901,20 +916,25 @@ func (t *ToyBrick) DeleteExec() ExecValue {
 	return exec
 }
 
-func (t *ToyBrick) InsertExec(record ModelRecord) ExecValue {
+func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-	exec := t.Toy.Dialect.InsertExec(t.Model, recorders.ToNameValueList())
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+
+	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
+	exec, err := t.Toy.Dialect.InsertExec(t.template, t.Model, recorders, cExec)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
 }
 
-func (t *ToyBrick) SaveExec(record ModelRecord) ExecValue {
+func (t *ToyBrick) SaveExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
-	exec := t.Toy.Dialect.SaveExec(t.Model, recorders.ToNameValueList())
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
+	exec, err := t.Toy.Dialect.SaveExec(t.template, t.Model, recorders, cExec)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
 }
 
 func (t *ToyBrick) getFieldValuePairWithRecord(mode Mode, record ModelRecord) FieldValueList {

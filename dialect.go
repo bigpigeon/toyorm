@@ -33,12 +33,14 @@ type Dialect interface {
 	HasTable(*Model) ExecValue
 	CreateTable(*Model, map[string]ForeignKey) []ExecValue
 	DropTable(*Model) ExecValue
+
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) ExecValue
+	ConditionBasicExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) *BasicExec
 	FindExec(model *Model, columns []Column, alias string) ExecValue
 	UpdateExec(*Model, []ColumnValue) ExecValue
 	DeleteExec(*Model) ExecValue
-	InsertExec(*Model, []ColumnNameValue) ExecValue
-	SaveExec(*Model, []ColumnNameValue) ExecValue
+	InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error)
+	SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error)
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 	CountExec(model *Model, alias string) ExecValue
@@ -180,6 +182,12 @@ func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, or
 	return exec
 }
 
+// TODO do not convert the ConditionExec result
+func (dia DefaultDialect) ConditionBasicExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) *BasicExec {
+	exec := dia.ConditionExec(search, limit, offset, orderBy, groupBy)
+	return &BasicExec{exec.Source(), exec.Args()}
+}
+
 func (dia DefaultDialect) SearchExec(s SearchList) ExecValue {
 	var stack []ExecValue
 	for i := 0; i < len(s); i++ {
@@ -222,6 +230,7 @@ func (dia DefaultDialect) SearchExec(s SearchList) ExecValue {
 				fmt.Sprintf("NOT(%s)", last.Source()),
 				last.Args()...,
 			)
+
 		case ExprIgnore:
 			continue
 
@@ -246,13 +255,11 @@ func (dia DefaultDialect) SearchExec(s SearchList) ExecValue {
 				fmt.Sprintf("%s >= ?", s[i].Val.Column()),
 				s[i].Val.Value().Interface(),
 			)
-
 		case ExprLess:
 			exec = exec.Append(
 				fmt.Sprintf("%s < ?", s[i].Val.Column()),
 				s[i].Val.Value().Interface(),
 			)
-
 		case ExprLessEqual:
 			exec = exec.Append(
 				fmt.Sprintf("%s <= ?", s[i].Val.Column()),
@@ -358,28 +365,52 @@ func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
 	return DefaultExec{fmt.Sprintf("DELETE FROM `%s`", model.Name), nil}
 }
 
-func (dia DefaultDialect) InsertExec(model *Model, columnValues []ColumnNameValue) ExecValue {
+func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
 	// optimization column format
-	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
+	if temp == nil {
+		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+	}
+	columns, values := getInsertColumnExecAndValue(columnValues)
 
-	var exec ExecValue = DefaultExec{}
-	exec = exec.Append(
-		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
-		args...,
-	)
-	return exec
+	execMap := SaveTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+		},
+		Columns:   columns,
+		Values:    values,
+		Condition: *condition,
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia DefaultDialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
+func (dia DefaultDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
 	// optimization column format
-	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
+	if temp == nil {
+		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+	}
+	columns, values := getInsertColumnExecAndValue(columnValues)
 
-	var exec ExecValue = DefaultExec{}
-	exec = exec.Append(
-		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
-		args...,
-	)
-	return exec
+	execMap := SaveTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+		},
+		Columns:      columns,
+		Values:       values,
+		UpdateValues: BasicExec{},
+		Condition:    *condition,
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
 func (dia DefaultDialect) AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue {

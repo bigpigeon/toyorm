@@ -65,7 +65,7 @@ func NewRecords(model *Model, value reflect.Value) ModelRecords {
 	} else if elemType.Kind() == reflect.Struct {
 		return NewStructRecords(model, value)
 	} else {
-		panic(ErrInvalidRecordType{})
+		panic(ErrInvalidRecordType{elemType})
 	}
 }
 
@@ -78,7 +78,7 @@ func NewRecord(model *Model, value reflect.Value) ModelRecord {
 	} else if vType.Kind() == reflect.Struct {
 		return NewStructRecord(model, value)
 	} else {
-		panic(ErrInvalidRecordType{})
+		panic(ErrInvalidRecordType{vType})
 	}
 }
 

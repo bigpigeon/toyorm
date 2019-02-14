@@ -181,18 +181,9 @@ func HandlerInsert(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{affectData: []int{i}}
 		var err error
-		if ctx.Brick.template == nil {
-			action.Exec = ctx.Brick.InsertExec(record)
-		} else {
-			tempMap := DefaultTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeInsert, record)
-			columnsExec, valExec := getInsertColumnExecAndValue(values)
-			tempMap["Columns"] = columnsExec
-			tempMap["Values"] = valExec
-			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
-			if err != nil {
-				return err
-			}
+		action.Exec, err = ctx.Brick.InsertExec(record)
+		if err != nil {
+			return err
 		}
 		var executor Executor
 		if ctx.Brick.tx != nil {
@@ -246,6 +237,7 @@ func HandlerFind(ctx *Context) error {
 
 	// use template or use default exec
 	if ctx.Brick.template == nil {
+
 		action.Exec = ctx.Brick.FindExec(columns)
 	} else {
 		tempMap := DefaultTemplateExec(ctx.Brick)
@@ -596,51 +588,45 @@ func HandlerSave(ctx *Context) error {
 				useInsert = true
 			}
 		}
-		if ctx.Brick.template == nil {
-			if useInsert {
-				action.Exec = ctx.Brick.InsertExec(record)
-				action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
-					executor,
-					action.Exec,
-					ctx.Brick.debugPrint,
-				)
 
-				if action.Error == nil {
-					// set primary field value if model has one primary key
-					if len(ctx.Brick.Model.GetPrimary()) == 1 {
-						primaryKey := ctx.Brick.Model.GetOnePrimary()
-						primaryKeyName := primaryKey.Name()
-						if IntKind(primaryKey.StructField().Type.Kind()) {
-							// just set not zero primary key
-							if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
-								if lastId, err := action.Result.LastInsertId(); err == nil {
-									ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
-								} else {
-									return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
-								}
+		if useInsert {
+			action.Exec, err = ctx.Brick.InsertExec(record)
+			if err != nil {
+				return err
+			}
+			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
+				executor,
+				action.Exec,
+				ctx.Brick.debugPrint,
+			)
+
+			if action.Error == nil {
+				// set primary field value if model has one primary key
+				if len(ctx.Brick.Model.GetPrimary()) == 1 {
+					primaryKey := ctx.Brick.Model.GetOnePrimary()
+					primaryKeyName := primaryKey.Name()
+					if IntKind(primaryKey.StructField().Type.Kind()) {
+						// just set not zero primary key
+						if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
+							if lastId, err := action.Result.LastInsertId(); err == nil {
+								ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
+							} else {
+								return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
 							}
 						}
 					}
 				}
-			} else {
-				action.Exec = ctx.Brick.SaveExec(record)
-				action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
-					executor,
-					action.Exec,
-					ctx.Brick.debugPrint,
-				)
 			}
 		} else {
-			tempMap := DefaultTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record)
-			columnsExec, valExec := getInsertColumnExecAndValue(values)
-			tempMap["Columns"] = columnsExec
-			tempMap["Values"] = valExec
-			tempMap["UpdateValues"] = getUpdateValuesExec(values.ToValueList())
-			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+			action.Exec, err = ctx.Brick.SaveExec(record)
 			if err != nil {
 				return err
 			}
+			action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
+				executor,
+				action.Exec,
+				ctx.Brick.debugPrint,
+			)
 		}
 
 		ctx.Result.AddRecord(action)

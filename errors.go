@@ -9,6 +9,7 @@ package toyorm
 import (
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 var (
@@ -39,10 +40,11 @@ func (e ErrInvalidPreloadField) Error() string {
 }
 
 type ErrInvalidRecordType struct {
+	Typ reflect.Type
 }
 
 func (e ErrInvalidRecordType) Error() string {
-	return fmt.Sprintf("record type must be the struct or map[string]interface{} or map[uintptr]interface{}")
+	return fmt.Sprintf("record type must be the struct or map[string]interface{} or map[uintptr]interface{} not the %s", e.Typ)
 }
 
 type ErrRepeatField struct {

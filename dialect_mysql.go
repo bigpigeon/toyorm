@@ -97,28 +97,55 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 	return
 }
 
-// replace will failure when have foreign key
-func (dia MySqlDialect) SaveExec(model *Model, columnValues []ColumnNameValue) ExecValue {
-	var exec ExecValue = DefaultExec{}
-	fieldStr, qStr, args := insertValuesFormat(model, columnValues)
-	exec = exec.Append(
-		fmt.Sprintf("INSERT INTO `%s`(%s) VALUES(%s)", model.Name, fieldStr, qStr),
-		args...,
-	)
+func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+	}
+	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
+}
 
+// replace will failure when have foreign key
+func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues", nil}
+	}
+	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
+}
+
+func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) *SaveTemplate {
 	var recordList []string
+	var casField string
 	for _, r := range columnValues {
 		switch r.Name() {
 		case "Cas":
-			recordList = append(recordList, fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\")", r.Column()))
+			casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", r.Column())
 		default:
 			recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
 		}
 
 	}
-	exec = exec.Append(fmt.Sprintf(" ON DUPLICATE KEY UPDATE %s",
-		strings.Join(recordList, ","),
-	))
-
-	return exec
+	columns, values := getInsertColumnExecAndValue(columnValues)
+	execMap := SaveTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+		},
+		Columns:      columns,
+		Values:       values,
+		UpdateValues: BasicExec{strings.Join(recordList, ","), nil},
+		Cas:          BasicExec{casField, nil},
+		Condition:    *condition,
+	}
+	return &execMap
 }
