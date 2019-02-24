@@ -97,11 +97,11 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 	return
 }
 
-func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 	if temp == nil {
-		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -110,11 +110,11 @@ func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues F
 }
 
 // replace will failure when have foreign key
-func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 	if temp == nil {
-		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues", nil}
+		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues", nil}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
 
 	basicExec, err := execMap.Render()
 	if err != nil {
@@ -123,7 +123,7 @@ func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues Fie
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) *SaveTemplate {
+func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
 	var recordList []string
 	var casField string
 	for _, r := range columnValues {
@@ -135,11 +135,13 @@ func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues
 		}
 
 	}
-	columns, values := getInsertColumnExecAndValue(columnValues)
+	columns, values := getInsertColumnExecAndValue(model, columnValues)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
+			Alias: alias,
+			Quote: "`",
 		},
 		Columns:      columns,
 		Values:       values,

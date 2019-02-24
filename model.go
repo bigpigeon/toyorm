@@ -185,14 +185,14 @@ func newModel(val reflect.Value, modelName string) *Model {
 	for i := 0; i < _type.NumField(); i++ {
 		field := _type.Field(i)
 		fieldVal := val.Field(i)
-		tField := NewField(&field, fieldVal, model.Name)
-		if field.Anonymous && field.Type.Kind() == reflect.Struct && tField.Name() == "" {
+		if field.Anonymous && field.Type.Kind() == reflect.Struct {
 			embedTable := newModel(fieldVal, model.Name)
 			for _, tabField := range embedTable.AllFields {
 				tabField.offset += field.Offset
 				model.AllFields = append(model.AllFields, tabField)
 			}
 		} else {
+			tField := NewField(&field, fieldVal, model.Name)
 			model.AllFields = append(model.AllFields, tField)
 		}
 	}

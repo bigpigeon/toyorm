@@ -81,11 +81,18 @@ func GetTemplateExec(exec BasicExec, execs map[string]BasicExec) (*BasicExec, er
 type TemplateBasic struct {
 	Temp  BasicExec
 	Model *Model
+	Alias string
+	Quote string
 }
 
 func (b *TemplateBasic) DefaultExecs() map[string]BasicExec {
+	modelDef := b.Quote + b.Model.Name + b.Quote
+	if b.Alias != "" {
+		modelDef = b.Quote + b.Model.Name + b.Quote + " as " + b.Alias
+	}
 	result := map[string]BasicExec{
 		"ModelName": {b.Model.Name, nil},
+		"ModelDef":  {modelDef, nil},
 	}
 	for _, field := range b.Model.GetSqlFields() {
 		// add field name placeholder exec
@@ -121,6 +128,7 @@ const (
 	TempDefault TempMode = iota
 	TempInsert
 	TempSave
+	TempUSave
 	TempUpdate
 	TempFind
 	TempCreateTable

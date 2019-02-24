@@ -236,13 +236,13 @@ func HandlerFind(ctx *Context) error {
 	columns, scannersGen := FindColumnFactory(ctx.Result.Records, ctx.Brick)
 
 	// use template or use default exec
-	if ctx.Brick.template == nil {
+	if temp := ctx.Brick.templateSelect(TempFind); temp == nil {
 
 		action.Exec = ctx.Brick.FindExec(columns)
 	} else {
 		tempMap := DefaultTemplateExec(ctx.Brick)
 		tempMap["Columns"] = getColumnExec(columns)
-		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*temp, tempMap)
 		if err != nil {
 			return err
 		}
@@ -548,14 +548,14 @@ func HandlerUpdate(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{affectData: []int{i}}
 		var err error
-		if ctx.Brick.template == nil {
+		if temp := ctx.Brick.templateSelect(TempUpdate); temp == nil {
 			action.Exec = ctx.Brick.UpdateExec(record)
 		} else {
 			tempMap := DefaultTemplateExec(ctx.Brick)
 			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList()
 			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
 			tempMap["Values"] = getUpdateValuesExec(values)
-			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*temp, tempMap)
 			if err != nil {
 				return err
 			}
@@ -659,14 +659,14 @@ func HandlerUSave(ctx *Context) error {
 				ConditionKeyVal[casField.Name()] = record.Field(casField.Name()).Int() - 1
 			}
 			brick := notIgnoreBrick.WhereGroup(ExprAnd, ConditionKeyVal)
-			if ctx.Brick.template == nil {
+			if temp := ctx.Brick.templateSelect(TempUSave); temp == nil {
 				action.Exec = brick.UpdateExec(record)
 				action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 			} else {
 				tempMap := DefaultTemplateExec(brick)
 				values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
 				tempMap["UpdateValues"] = getUpdateValuesExec(values)
-				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*temp, tempMap)
 				if err != nil {
 					return err
 				}

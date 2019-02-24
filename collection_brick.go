@@ -664,7 +664,7 @@ func (t *CollectionBrick) DeleteExec() ExecValue {
 func (t *CollectionBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
 	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, 0, 0, nil, nil)
-	exec, err := t.Toy.Dialect.InsertExec(t.template, t.Model, recorders, cExec)
+	exec, err := t.Toy.Dialect.InsertExec(t.template, t.Model, recorders, cExec, "")
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +674,7 @@ func (t *CollectionBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 func (t *CollectionBrick) SaveExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
 	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, 0, 0, nil, nil)
-	exec, err := t.Toy.Dialect.SaveExec(t.template, t.Model, recorders, cExec)
+	exec, err := t.Toy.Dialect.SaveExec(t.template, t.Model, recorders, cExec, "")
 	if err != nil {
 		return nil, err
 	}

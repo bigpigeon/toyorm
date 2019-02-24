@@ -2185,12 +2185,12 @@ func TestCustomExec(t *testing.T) {
 	}
 	t.Logf("report:\n%s\n", result.Report())
 	if TestDriver == "postgres" {
-		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,data,sync) Values($1,$2,$3,$4) RETURNING id")
-		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,data,sync) Values($1,$2,$3,$4,$5) RETURNING id")
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5) RETURNING id")
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5,$6) RETURNING id")
 
 	} else {
-		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,data,sync) Values(?,?,?,?)")
-		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,data,sync) Values(?,?,?,?,?)")
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?)")
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?,?)")
 
 	}
 
@@ -2771,18 +2771,22 @@ func TestSaveWithOther(t *testing.T) {
 		Name: "pigeon",
 	}
 	result, err := brick.Save(&data)
-	resultProcessor(result, err)(t)
+	assert.NoError(t, err)
+	assert.NoError(t, result.Err())
+
 	type OtherTable struct {
 		ID  uint32
 		Age int
 	}
 	otherData := OtherTable{ID: data.ID, Age: 22}
 	result, err = brick.Save(&otherData)
-	resultProcessor(result, err)(t)
+	assert.NoError(t, err)
+	assert.NoError(t, result.Err())
 
 	var fData TestSaveWithOtherTable
 	result, err = brick.Find(&fData)
-	resultProcessor(result, err)(t)
+	assert.NoError(t, err)
+	assert.NoError(t, result.Err())
 	assert.Equal(t, fData.Name, "pigeon")
 
 	// test insert only id
@@ -2791,10 +2795,13 @@ func TestSaveWithOther(t *testing.T) {
 	}
 	otherData2 := OtherTable2{}
 	result, err = brick.Save(&otherData2)
-	resultProcessor(result, err)(t)
+	assert.NoError(t, err)
+	assert.NoError(t, result.Err())
+
 	var fData2 TestSaveWithOtherTable
 	result, err = brick.Where(ExprEqual, Offsetof(TestSaveWithOtherTable{}.ID), otherData2.ID).Find(&fData2)
-	resultProcessor(result, err)(t)
+	assert.NoError(t, err)
+	assert.NoError(t, result.Err())
 	assert.Equal(t, fData2.Name, "")
 	assert.Equal(t, fData2.Age, 0)
 }
@@ -2864,7 +2871,7 @@ func TestTempField(t *testing.T) {
 
 	brick := TestDB.Model(&TestTempFieldTable{}).Debug()
 	createTableUnit(brick)(t)
-	brick = brick.Alias("m")
+
 	for i := 0; i < 10; i++ {
 		result, err := brick.Insert(&TestTempFieldTable{
 			Data:  "TEST",
@@ -2873,6 +2880,7 @@ func TestTempField(t *testing.T) {
 		})
 		resultProcessor(result, err)(t)
 	}
+	brick = brick.Alias("m")
 	var data []TestTempFieldTable
 	result, err := brick.BindDefaultFields(
 		Offsetof(TestTempFieldTable{}.Tag),

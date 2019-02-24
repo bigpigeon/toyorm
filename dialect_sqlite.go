@@ -22,11 +22,11 @@ func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
 	}
 }
 
-func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 	if temp == nil {
-		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -34,12 +34,12 @@ func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, columnValues
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 	if temp == nil {
-		temp = &BasicExec{"INSERT OR REPLACE INTO `$ModelName`($Columns) VALUES($Values)", nil}
+		temp = &BasicExec{"INSERT OR REPLACE INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
 
-	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -48,12 +48,14 @@ func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, columnValues F
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) *SaveTemplate {
-	columns, values := getInsertColumnExecAndValue(columnValues)
+func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
+	columns, values := getInsertColumnExecAndValue(model, columnValues)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
+			Alias: alias,
+			Quote: "`",
 		},
 		Columns:   columns,
 		Values:    values,

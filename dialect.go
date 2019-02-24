@@ -39,8 +39,8 @@ type Dialect interface {
 	FindExec(model *Model, columns []Column, alias string) ExecValue
 	UpdateExec(*Model, []ColumnValue) ExecValue
 	DeleteExec(*Model) ExecValue
-	InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error)
-	SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error)
+	InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error)
+	SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error)
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 	CountExec(model *Model, alias string) ExecValue
@@ -365,17 +365,19 @@ func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
 	return DefaultExec{fmt.Sprintf("DELETE FROM `%s`", model.Name), nil}
 }
 
-func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 	// optimization column format
 	if temp == nil {
-		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	columns, values := getInsertColumnExecAndValue(columnValues)
+	columns, values := getInsertColumnExecAndValue(model, columnValues)
 
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
+			Alias: alias,
+			Quote: "`",
 		},
 		Columns:   columns,
 		Values:    values,
@@ -388,17 +390,19 @@ func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, columnValues
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia DefaultDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia DefaultDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 	// optimization column format
 	if temp == nil {
-		temp = &BasicExec{"INSERT INTO `$ModelName`($Columns) VALUES($Values)", nil}
+		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	columns, values := getInsertColumnExecAndValue(columnValues)
+	columns, values := getInsertColumnExecAndValue(model, columnValues)
 
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
+			Alias: alias,
+			Quote: "`",
 		},
 		Columns:      columns,
 		Values:       values,

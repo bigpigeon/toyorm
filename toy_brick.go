@@ -37,7 +37,6 @@ type ToyBrick struct {
 	offset      int
 	limit       int
 	groupBy     FieldList
-	template    *BasicExec
 	templateMap map[TempMode]*BasicExec
 	// use join to association query in one command
 	preSwap    *PreJoinSwap
@@ -59,6 +58,7 @@ func NewToyBrick(toy *Toy, model *Model) *ToyBrick {
 		MapPreloadBrick: map[string]*ToyBrick{},
 		SwapMap:         map[string]*JoinSwap{},
 		JoinMap:         map[string]*Join{},
+		templateMap:     map[TempMode]*BasicExec{},
 		BrickCommon: BrickCommon{
 			Model:             model,
 			BelongToPreload:   map[string]*BelongToPreload{},
@@ -541,6 +541,10 @@ func (t *ToyBrick) GroupBy(vList ...FieldSelection) *ToyBrick {
 func (t *ToyBrick) Template(temp string, args ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
+		newt.templateMap = map[TempMode]*BasicExec{}
+		for k, v := range t.templateMap {
+			newt.templateMap[k] = v
+		}
 		if temp == "" && len(args) == 0 {
 			newt.templateMap[TempDefault] = nil
 		} else {
@@ -554,6 +558,10 @@ func (t *ToyBrick) Template(temp string, args ...interface{}) *ToyBrick {
 func (t *ToyBrick) TemplateMode(mode TempMode, temp string, args ...interface{}) *ToyBrick {
 	return t.Scope(func(t *ToyBrick) *ToyBrick {
 		newt := *t
+		newt.templateMap = map[TempMode]*BasicExec{}
+		for k, v := range t.templateMap {
+			newt.templateMap[k] = v
+		}
 		if temp == "" && len(args) == 0 {
 			newt.templateMap[mode] = nil
 		} else {
@@ -920,7 +928,7 @@ func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
 
 	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
-	exec, err := t.Toy.Dialect.InsertExec(t.template, t.Model, recorders, cExec)
+	exec, err := t.Toy.Dialect.InsertExec(t.templateSelect(TempInsert), t.Model, recorders, cExec, t.alias)
 	if err != nil {
 		return nil, err
 	}
@@ -930,7 +938,7 @@ func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 func (t *ToyBrick) SaveExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
 	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
-	exec, err := t.Toy.Dialect.SaveExec(t.template, t.Model, recorders, cExec)
+	exec, err := t.Toy.Dialect.SaveExec(t.templateSelect(TempSave), t.Model, recorders, cExec, t.alias)
 	if err != nil {
 		return nil, err
 	}
@@ -992,6 +1000,13 @@ func (t *ToyBrick) getSelectFields(records ModelRecordFieldTypes) FieldList {
 		fields = aliasFields
 	}
 	return getFieldsWithRecords(fields, records)
+}
+
+func (t *ToyBrick) templateSelect(mode TempMode) *BasicExec {
+	if temp := t.templateMap[mode]; temp != nil {
+		return temp
+	}
+	return t.templateMap[TempDefault]
 }
 
 func (t *ToyBrick) CleanOwnOrderBy() *ToyBrick {

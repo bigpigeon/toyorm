@@ -462,14 +462,23 @@ func getColumnExec(columns []Column) BasicExec {
 	return BasicExec{strings.Join(_list, ","), nil}
 }
 
-func getInsertColumnExecAndValue(values FieldValueList) (BasicExec, BasicExec) {
+func getInsertColumnExecAndValue(model *Model, values FieldValueList) (BasicExec, BasicExec) {
 	var _list []string
 	var args []interface{}
 	var qList []string
-
-	for _, val := range values {
+	valMap := map[string]FieldValue{}
+	for i, f := range values {
+		valMap[f.Name()] = values[i]
+	}
+	for _, field := range model.GetSqlFields() {
+		var val FieldValue
+		if v, ok := valMap[field.Name()]; ok {
+			val = v
+		} else {
+			val = field.ToFieldValue(reflect.Zero(field.StructField().Type))
+		}
 		if IsZero(val.Value()) {
-			if val.IsPrimary() || val.AutoIncrement() || val.Default() == "" {
+			if val.IsPrimary() || val.AutoIncrement() || val.Default() != "" {
 				continue
 			}
 		}
@@ -477,6 +486,16 @@ func getInsertColumnExecAndValue(values FieldValueList) (BasicExec, BasicExec) {
 		qList = append(qList, "?")
 		args = append(args, val.Value().Interface())
 	}
+	//for _, val := range values {
+	//	if IsZero(val.Value()) {
+	//		if val.IsPrimary() || val.AutoIncrement() || val.Default() != "" {
+	//			continue
+	//		}
+	//	}
+	//	_list = append(_list, val.Column())
+	//	qList = append(qList, "?")
+	//	args = append(args, val.Value().Interface())
+	//}
 	return BasicExec{strings.Join(_list, ","), nil},
 		BasicExec{strings.Join(qList, ","), args}
 }

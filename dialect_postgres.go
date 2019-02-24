@@ -345,7 +345,7 @@ func (dia PostgreSqlDialect) insertExec(model *Model, columnValues []ColumnNameV
 	return exec
 }
 
-func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 
 	primaryKeys := model.GetPrimary()
 	var primaryKeyNames []string
@@ -356,17 +356,17 @@ func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, columnVal
 		if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
 			temp = &BasicExec{
 				fmt.Sprintf(
-					"INSERT INTO `$ModelName`($Columns) VALUES($Values) RETURNING %s",
+					`INSERT INTO $ModelDef($Columns) VALUES($Values) RETURNING %s`,
 					primaryKeyNames[0],
 				), nil}
 		} else {
 			temp = &BasicExec{
 				fmt.Sprintf(
-					"INSERT INTO `$ModelName`($Columns) VALUES($Values)",
+					`INSERT INTO $ModelDef($Columns) VALUES($Values)`,
 				), nil}
 		}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -375,7 +375,7 @@ func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, columnVal
 }
 
 // postgres have not replace use ON CONFLICT(%s) replace
-func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) (ExecValue, error) {
+func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
 
 	primaryKeys := model.GetPrimary()
 	var primaryKeyNames []string
@@ -386,19 +386,19 @@ func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, columnValue
 		if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
 			temp = &BasicExec{
 				fmt.Sprintf(
-					"INSERT INTO `$ModelName`($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas RETURNING %s",
+					`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas RETURNING %s`,
 					primaryKeyNames[0],
 					primaryKeyNames[0],
 				), nil}
 		} else {
 			temp = &BasicExec{
 				fmt.Sprintf(
-					"INSERT INTO `$ModelName`($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas",
+					`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas`,
 					strings.Join(primaryKeyNames, ","),
 				), nil}
 		}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition)
+	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
 
 	basicExec, err := execMap.Render()
 	if err != nil {
@@ -407,7 +407,7 @@ func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, columnValue
 	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
 }
 
-func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec) *SaveTemplate {
+func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
 	var recordList []string
 	var casField BasicExec
 	for _, r := range columnValues {
@@ -419,11 +419,13 @@ func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, columnV
 		}
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
 	}
-	columns, values := getInsertColumnExecAndValue(columnValues)
+	columns, values := getInsertColumnExecAndValue(model, columnValues)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
+			Alias: alias,
+			Quote: `"`,
 		},
 		Columns:      columns,
 		Values:       values,
