@@ -654,8 +654,11 @@ type TestJoinTable struct {
 }
 
 type TestSaveTable struct {
-	ModelDefault
-	Data string `toyorm:"index"`
+	ID        uint32     `toyorm:"primary key;auto_increment"`
+	CreatedAt time.Time  `toyorm:"NULL"`
+	UpdatedAt time.Time  `toyorm:"NULL"`
+	DeletedAt *time.Time `toyorm:"index;NULL"`
+	Data      string     `toyorm:"index"`
 }
 
 type TestCasTable struct {

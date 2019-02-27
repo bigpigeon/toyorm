@@ -2560,6 +2560,39 @@ func TestSave(t *testing.T) {
 	assert.True(t, data.UpdatedAt.After(oldUpdateAt))
 }
 
+func TestSaveNoneCreatedAt(t *testing.T) {
+	skillTestDB(t, "sqlite3")
+	brick := TestDB.Model(&TestSaveTable{}).Debug()
+	createTableUnit(brick)(t)
+
+	data := TestSaveTable{
+		Data: "test save",
+	}
+
+	result, err := brick.Save(&data)
+	resultProcessor(result, err)(t)
+	assert.NotZero(t, data.CreatedAt)
+	assert.NotZero(t, data.UpdatedAt)
+	// reset created at & save & find it again
+	var oldFData TestSaveTable
+	result, err = brick.Find(&oldFData)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+
+	data.CreatedAt = time.Time{}
+	result, err = brick.Save(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+
+	var fData TestSaveTable
+	result, err = brick.Find(&fData)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+
+	t.Logf("old createdAt %s new createdAt %s", oldFData.CreatedAt, fData.CreatedAt)
+	assert.True(t, oldFData.CreatedAt.Equal(fData.CreatedAt))
+}
+
 func TestSaveCas(t *testing.T) {
 	skillTestDB(t, "sqlite3")
 	brick := TestDB.Model(&TestCasTable{})

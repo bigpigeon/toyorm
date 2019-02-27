@@ -126,15 +126,14 @@ func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues Fie
 func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
 	var recordList []string
 	var casField string
-	for _, r := range columnValues {
-		switch r.Name() {
-		case "Cas":
-			casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", r.Column())
-		default:
-			recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
-		}
-
+	saveColumnValues, casValue := GetSaveValues(model, columnValues)
+	for _, r := range saveColumnValues {
+		recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
 	}
+	if casValue != nil {
+		casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", casValue.Column())
+	}
+
 	columns, values := getInsertColumnExecAndValue(model, columnValues)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{

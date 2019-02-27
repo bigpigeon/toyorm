@@ -660,18 +660,19 @@ func GetInsertInitValues(model *Model, columnValues []ColumnNameValue) []ColumnN
 	return values
 }
 
-func GetSaveValues(model *Model, columnValues []ColumnNameValue) []ColumnNameValue {
-	valueMap := map[string]ColumnNameValue{}
+func GetSaveValues(model *Model, columnValues FieldValueList) (FieldValueList, FieldValue) {
+	valueMap := map[string]FieldValue{}
 	for _, c := range columnValues {
 		valueMap[c.Name()] = c
 	}
-	values := make([]ColumnNameValue, 0, len(columnValues))
+	var cas FieldValue
+	values := make(FieldValueList, 0, len(columnValues))
 	for _, r := range model.GetSqlFields() {
-		if r.IsPrimary() {
-			continue
-		}
 		if name := r.Name(); name == "CreatedAt" {
 			continue
+		}
+		if r.Name() == "Cas" {
+			cas = valueMap[r.Name()]
 		}
 
 		if v, ok := valueMap[r.Name()]; ok {
@@ -683,7 +684,7 @@ func GetSaveValues(model *Model, columnValues []ColumnNameValue) []ColumnNameVal
 			values = append(values, v)
 		}
 	}
-	return values
+	return values, cas
 }
 
 func GetCasValue(model *Model, columnValues []ColumnNameValue) ColumnNameValue {

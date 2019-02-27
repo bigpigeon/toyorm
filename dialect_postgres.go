@@ -410,14 +410,15 @@ func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, columnValue
 func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
 	var recordList []string
 	var casField BasicExec
-	for _, r := range columnValues {
-		if r.Name() == "Cas" {
-			casField = BasicExec{
-				fmt.Sprintf(" WHERE %s.%s = ?", model.Name, r.Column()),
-				[]interface{}{r.Value().Int() - 1},
-			}
-		}
+	saveColumnValues, casValue := GetSaveValues(model, columnValues)
+	for _, r := range saveColumnValues {
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
+	}
+	if casValue != nil {
+		casField = BasicExec{
+			fmt.Sprintf(" WHERE %s.%s = ?", model.Name, casValue.Column()),
+			[]interface{}{casValue.Value().Int() - 1},
+		}
 	}
 	columns, values := getInsertColumnExecAndValue(model, columnValues)
 	execMap := SaveTemplate{
