@@ -128,7 +128,10 @@ func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, save Dialect
 	var casField string
 
 	for _, r := range save.SaveFieldList {
-		recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
+		// FIXME the cas statement of mysql is it assignment statement
+		if save.CasField != r {
+			recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
+		}
 	}
 	if save.CasField != nil {
 		casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", save.CasField.Column())
