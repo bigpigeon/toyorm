@@ -602,19 +602,9 @@ func HandlerSave(ctx *Context) error {
 
 			if action.Error == nil {
 				// set primary field value if model has one primary key
-				if len(ctx.Brick.Model.GetPrimary()) == 1 {
-					primaryKey := ctx.Brick.Model.GetOnePrimary()
-					primaryKeyName := primaryKey.Name()
-					if IntKind(primaryKey.StructField().Type.Kind()) {
-						// just set not zero primary key
-						if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
-							if lastId, err := action.Result.LastInsertId(); err == nil {
-								ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
-							} else {
-								return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
-							}
-						}
-					}
+				err = setNumberPrimaryKey(ctx, record, action)
+				if err != nil {
+					return err
 				}
 			}
 		} else {
@@ -635,46 +625,29 @@ func HandlerSave(ctx *Context) error {
 }
 
 func HandlerUSave(ctx *Context) error {
-	notIgnoreBrick := ctx.Brick.IgnoreMode(ModeDefault, IgnoreNo)
+	//setInsertId := len(ctx.Brick.Model.GetPrimary()) == 1 && ctx.Brick.Model.GetOnePrimary().AutoIncrement() == true
+	var executor Executor
+	if ctx.Brick.tx != nil {
+		executor = ctx.Brick.tx
+	} else {
+		executor = ctx.Brick.Toy.db
+	}
 	for i, record := range ctx.Result.Records.GetRecords() {
 		var action ExecAction
 		var err error
 		action = ExecAction{affectData: []int{i}}
-		var useInsert bool
-		ConditionKeyVal := map[string]interface{}{}
-		// if have any zero primary key,, return error ,otherwise use update
-		for _, field := range ctx.Brick.Model.PrimaryFields {
-			if fieldVal := record.Field(field.Name()); fieldVal.IsValid() == false || IsZero(fieldVal) {
-				useInsert = true
-			} else {
-				ConditionKeyVal[field.Name()] = fieldVal.Interface()
-			}
+		action.Exec, err = ctx.Brick.USaveExec(record)
+		if err != nil {
+			return err
 		}
-		if useInsert {
-			action.Exec = DefaultExec{"nil sql", nil}
-			action.Error = ErrNilPrimaryKey{}
-		} else {
-			// cas process
-			if casField := ctx.Brick.Model.GetFieldWithName("Cas"); casField != nil {
-				ConditionKeyVal[casField.Name()] = record.Field(casField.Name()).Int() - 1
-			}
-			brick := notIgnoreBrick.WhereGroup(ExprAnd, ConditionKeyVal)
-			if temp := ctx.Brick.templateSelect(TempUSave); temp == nil {
-				action.Exec = brick.UpdateExec(record)
-				action.Result, action.Error = ctx.Brick.Exec(action.Exec)
-			} else {
-				tempMap := DefaultTemplateExec(brick)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
-				tempMap["UpdateValues"] = getUpdateValuesExec(values)
-				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*temp, tempMap)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
+		action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
+			executor,
+			action.Exec,
+			ctx.Brick.debugPrint,
+		)
 		ctx.Result.AddRecord(action)
 	}
+
 	return nil
 }
 

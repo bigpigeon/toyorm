@@ -175,3 +175,12 @@ type ErrNilPrimaryKey struct{}
 func (e ErrNilPrimaryKey) Error() string {
 	return fmt.Sprintf("this record has zero primary key")
 }
+
+type ErrInvalidConditionWord struct {
+	Word      string
+	Condition string
+}
+
+func (e ErrInvalidConditionWord) Error() string {
+	return fmt.Sprintf("invalid expression '%s' in condition '%s'", e.Word, e.Condition)
+}

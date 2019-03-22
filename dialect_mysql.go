@@ -97,11 +97,11 @@ func (dia MySqlDialect) CreateTable(model *Model, foreign map[string]ForeignKey)
 	return
 }
 
-func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
+func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
 	if temp == nil {
 		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
+	execMap := dia.saveTemplate(temp, model, save, condition)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -110,11 +110,11 @@ func (dia MySqlDialect) InsertExec(temp *BasicExec, model *Model, columnValues F
 }
 
 // replace will failure when have foreign key
-func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
+func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
 	if temp == nil {
 		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues", nil}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
+	execMap := dia.saveTemplate(temp, model, save, condition)
 
 	basicExec, err := execMap.Render()
 	if err != nil {
@@ -123,30 +123,30 @@ func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, columnValues Fie
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
+func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) *SaveTemplate {
 	var recordList []string
 	var casField string
-	saveColumnValues, casValue := GetSaveValues(model, columnValues)
-	for _, r := range saveColumnValues {
+
+	for _, r := range save.SaveFieldList {
 		recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
 	}
-	if casValue != nil {
-		casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", casValue.Column())
+	if save.CasField != nil {
+		casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", save.CasField.Column())
 	}
 
-	columns, values := getInsertColumnExecAndValue(model, columnValues)
+	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
-			Alias: alias,
+			Alias: "",
 			Quote: "`",
 		},
 		Columns:      columns,
 		Values:       values,
 		UpdateValues: BasicExec{strings.Join(recordList, ","), nil},
 		Cas:          BasicExec{casField, nil},
-		Condition:    *condition,
+		Conditions:   *dia.ConditionBasicExec(condition),
 	}
 	return &execMap
 }

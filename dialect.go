@@ -24,6 +24,22 @@ type Executor interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 }
 
+type DialectConditionArgs struct {
+	search        SearchList
+	limit, offset int
+	orderBy       []Column
+	groupBy       []Column
+}
+
+type DialectSaveArgs struct {
+	CreatedAtField  FieldValue
+	UpdatedAtField  FieldValue
+	CasField        FieldValue
+	InsertFieldList FieldValueList
+	SaveFieldList   FieldValueList
+	PrimaryFields   FieldValueList
+}
+
 type Dialect interface {
 	// some database like postgres not support LastInsertId, need QueryRow to get the return id
 	InsertExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
@@ -35,12 +51,13 @@ type Dialect interface {
 	DropTable(*Model) ExecValue
 
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) ExecValue
-	ConditionBasicExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) *BasicExec
+	ConditionBasicExec(args DialectConditionArgs) *BasicExec
 	FindExec(model *Model, columns []Column, alias string) ExecValue
 	UpdateExec(*Model, []ColumnValue) ExecValue
 	DeleteExec(*Model) ExecValue
-	InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error)
-	SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error)
+	InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
+	SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
+	USaveExec(temp *BasicExec, model *Model, alias string, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
 	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 	CountExec(model *Model, alias string) ExecValue
@@ -183,8 +200,8 @@ func (dia DefaultDialect) ConditionExec(search SearchList, limit, offset int, or
 }
 
 // TODO do not convert the ConditionExec result
-func (dia DefaultDialect) ConditionBasicExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) *BasicExec {
-	exec := dia.ConditionExec(search, limit, offset, orderBy, groupBy)
+func (dia DefaultDialect) ConditionBasicExec(args DialectConditionArgs) *BasicExec {
+	exec := dia.ConditionExec(args.search, args.limit, args.offset, args.orderBy, args.groupBy)
 	return &BasicExec{exec.Source(), exec.Args()}
 }
 
@@ -365,23 +382,24 @@ func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
 	return DefaultExec{fmt.Sprintf("DELETE FROM `%s`", model.Name), nil}
 }
 
-func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
+func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
 	// optimization column format
 	if temp == nil {
 		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	columns, values := getInsertColumnExecAndValue(model, columnValues)
+
+	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
 
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
-			Alias: alias,
+			Alias: "",
 			Quote: "`",
 		},
-		Columns:   columns,
-		Values:    values,
-		Condition: *condition,
+		Columns:    columns,
+		Values:     values,
+		Conditions: *dia.ConditionBasicExec(condition),
 	}
 	basicExec, err := execMap.Render()
 	if err != nil {
@@ -390,12 +408,55 @@ func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, columnValues
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia DefaultDialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
+func (dia DefaultDialect) SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
 	// optimization column format
 	if temp == nil {
 		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	columns, values := getInsertColumnExecAndValue(model, columnValues)
+	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
+
+	execMap := SaveTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: "`",
+		},
+		Columns:      columns,
+		Values:       values,
+		UpdateValues: BasicExec{},
+		Conditions:   *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
+}
+
+func (dia DefaultDialect) USaveExec(temp *BasicExec, model *Model, alias string, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
+	// optimization column format
+	if temp == nil {
+		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
+	}
+	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
+
+	for _, p := range save.PrimaryFields {
+		condition.search = condition.search.Condition(p, ExprEqual, ExprAnd)
+	}
+
+	if save.CasField != nil {
+		condition.search = condition.search.Condition(save.CasField, ExprEqual, ExprAnd)
+	}
+
+	updateValExec := BasicExec{}
+	var updateQueryList []string
+	for _, val := range save.SaveFieldList {
+		updateQueryList = append(updateQueryList, val.Column()+" = ? ")
+		updateValExec.args = append(updateValExec.args, val.Value().Interface())
+	}
+	updateValExec.query = strings.Join(updateQueryList, ",")
 
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
@@ -406,8 +467,8 @@ func (dia DefaultDialect) SaveExec(temp *BasicExec, model *Model, columnValues F
 		},
 		Columns:      columns,
 		Values:       values,
-		UpdateValues: BasicExec{},
-		Condition:    *condition,
+		UpdateValues: updateValExec,
+		Conditions:   *dia.ConditionBasicExec(condition),
 	}
 	basicExec, err := execMap.Render()
 	if err != nil {
@@ -441,7 +502,7 @@ func (dia DefaultDialect) CountExec(model *Model, alias string) ExecValue {
 }
 
 func (dia DefaultDialect) TemplateExec(tExec BasicExec, execs map[string]BasicExec) (ExecValue, error) {
-	exec, err := getTemplateExec(tExec, execs)
+	exec, err := GetTemplateExec(tExec, execs)
 	if err != nil {
 		return nil, err
 	}

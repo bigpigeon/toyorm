@@ -8,6 +8,7 @@ package toyorm
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	. "unsafe"
@@ -46,63 +47,15 @@ func TestSafeAppend(t *testing.T) {
 
 }
 
-func TestTemplateExecWord(t *testing.T) {
-	{
-		exec, err := getTemplateExec(BasicExec{
-			query: "Select $ModelName $db $1",
-		}, map[string]BasicExec{
-			"ModelName": {"user", nil},
-			"db":        {"toyorm", nil},
-			"1":         {"args1", nil},
-		})
-		assert.Nil(t, err)
-		t.Log(exec.query)
-		assert.Equal(t, exec.query, "Select user toyorm args1")
-	}
-	{
-		exec, err := getTemplateExec(BasicExec{
-			query: "Select $ModelName-$db_$1",
-		}, map[string]BasicExec{
-			"ModelName": {"user", nil},
-			"db":        {"toyorm", nil},
-			"1":         {"args1", nil},
-		})
-		assert.Nil(t, err)
-		t.Log(exec.query)
-		assert.Equal(t, exec.query, "Select user-toyorm_args1")
-	}
-	{
-		_, err := getTemplateExec(BasicExec{
-			query: "Select $-",
-		}, map[string]BasicExec{})
-		assert.Equal(t, err, ErrTemplateExecInvalidWord{"$"})
-	}
-	{
-		_, err := getTemplateExec(BasicExec{
-			query: "Select $User-",
-		}, map[string]BasicExec{})
-		assert.Equal(t, err, ErrTemplateExecInvalidWord{"$User"})
-	}
-
-	{
-		exec, err := getTemplateExec(BasicExec{
-			query: "Select \\$User",
-		}, map[string]BasicExec{})
-		assert.Nil(t, err)
-		t.Log(exec.query)
-		assert.Equal(t, exec.query, "Select $User")
-	}
-}
-
 func TestTemplateExec(t *testing.T) {
 	{
-		exec, err := getTemplateExec(BasicExec{
-			query: "Select * From $ModelName $Condition Or id = ? $Limit",
+		exec, err := GetTemplateExec(BasicExec{
+			query: "Select * From $ModelName $Conditions Or id = ? $Limit",
 			args:  []interface{}{2},
 		}, map[string]BasicExec{
-			"ModelName": {"user", nil},
-			"Condition": {"WHERE age > ? AND id = ?", []interface{}{20, 1}},
-			"Limit":     {"Limit = ?", []interface{}{10}},
+			"ModelName":  {"user", nil},
+			"Conditions": {"WHERE age > ? AND id = ?", []interface{}{20, 1}},
+			"Limit":      {"Limit = ?", []interface{}{10}},
 		})
 		assert.Nil(t, err)
 		t.Log(exec.query, exec.args)
@@ -150,4 +103,48 @@ func TestLoopGetElemAndPtr(t *testing.T) {
 	val = LoopDiveSliceAndPtr(reflect.ValueOf(data))
 	t.Log(val.Interface())
 	assert.Equal(t, val.Type(), reflect.TypeOf(TestData{}))
+}
+
+func TestConditionToReversePolandExpr(t *testing.T) {
+	{
+		cond := "a | b & c & (d & e | f) | g"
+		expr, err := conditionToReversePolandExprDebug(cond, map[string]BasicExec{}, true)
+		require.NoError(t, err)
+		t.Log(string(expr))
+		assert.Equal(t, string(expr), "abcde&f|&&g||")
+	}
+	{
+		cond := "a & (b | c | (d | e))"
+		expr, err := conditionToReversePolandExprDebug(cond, map[string]BasicExec{}, true)
+		require.NoError(t, err)
+		t.Log(string(expr))
+		assert.Equal(t, string(expr), "abcde|||&")
+	}
+	{
+		cond := "a|b&c&(d|e&f)"
+		expr, err := conditionToReversePolandExprDebug(cond, map[string]BasicExec{}, true)
+		require.NoError(t, err)
+		t.Log(string(expr))
+		assert.Equal(t, string(expr), "abcdef&|&&|")
+	}
+	{
+		cond := "a & (|b | c | (d | e))"
+		_, err := conditionToReversePolandExprDebug(cond, map[string]BasicExec{}, true)
+		t.Log(err)
+		require.Equal(t, err, ErrInvalidConditionWord{"a & (|", cond})
+	}
+
+	{
+		cond := "a & o (b | c | (d | e))"
+		_, err := conditionToReversePolandExprDebug(cond, map[string]BasicExec{}, true)
+		t.Log(err)
+		require.Equal(t, err, ErrInvalidConditionWord{"a & o (b", cond})
+	}
+	{
+		cond := "a && b"
+		_, err := conditionToReversePolandExprDebug(cond, map[string]BasicExec{}, true)
+		t.Log(err)
+		require.Equal(t, err, ErrInvalidConditionWord{"a &&", cond})
+	}
+
 }

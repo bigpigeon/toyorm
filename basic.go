@@ -7,8 +7,8 @@
 package toyorm
 
 import (
-	"bytes"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -376,76 +376,6 @@ func DefaultCollectionTemplateExec(brick *CollectionBrick) map[string]BasicExec 
 	return result
 }
 
-// placeholder format:
-// $Name   ok
-// $name   ok
-// $1Name  ok
-// $User-Name  ok
-// $user_name  ok
-// $User-  no, the placeholder are interception as $User
-// $user_name_ no, the placeholder are interception as $user_name
-// $-   error, placeholder is null
-func getTemplateExec(exec BasicExec, execs map[string]BasicExec) (BasicExec, error) {
-	buff := bytes.Buffer{}
-	var pre, i int
-	var args []interface{}
-	isEscaping := false
-	qNum := 0
-	for i < len(exec.query) {
-		switch exec.query[i] {
-		case '$':
-			if isEscaping == false {
-				buff.WriteString(exec.query[pre:i])
-				i++
-				pre = i
-				end := i
-				for i < len(exec.query) {
-					c := exec.query[i]
-					i++
-					if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
-						end = i
-					} else if c == '-' || c == '_' {
-
-					} else {
-						break
-					}
-				}
-				word := exec.query[pre:end]
-				if word == "" {
-					return BasicExec{}, ErrTemplateExecInvalidWord{"$"}
-				} else if match, ok := execs[word]; ok {
-					buff.WriteString(match.query)
-					args = append(args, match.args...)
-				} else {
-					return BasicExec{}, ErrTemplateExecInvalidWord{"$" + word}
-				}
-
-				pre, i = end, end
-			} else {
-				buff.WriteString(exec.query[pre : i-1])
-				buff.WriteByte(exec.query[i])
-
-				pre, i = i+1, i+1
-			}
-		case '?':
-			args = append(args, exec.args[qNum])
-			qNum++
-			i++
-		case '\\':
-			i++
-			isEscaping = true
-			continue
-		default:
-			i++
-		}
-		isEscaping = false
-	}
-	args = append(args, exec.args[qNum:]...)
-
-	buff.WriteString(exec.query[pre:i])
-	return BasicExec{buff.String(), args}, nil
-}
-
 func columnsValueToColumn(values []ColumnValue) []Column {
 	columns := make([]Column, len(values))
 	for i := range values {
@@ -462,14 +392,13 @@ func getColumnExec(columns []Column) BasicExec {
 	return BasicExec{strings.Join(_list, ","), nil}
 }
 
-func getInsertColumnExecAndValue(model *Model, values FieldValueList) (BasicExec, BasicExec) {
-	var _list []string
-	var args []interface{}
-	var qList []string
+func getInsertFieldValue(model *Model, values FieldValueList) FieldValueList {
 	valMap := map[string]FieldValue{}
 	for i, f := range values {
 		valMap[f.Name()] = values[i]
 	}
+	var result FieldValueList
+
 	for _, field := range model.GetSqlFields() {
 		var val FieldValue
 		if v, ok := valMap[field.Name()]; ok {
@@ -482,22 +411,53 @@ func getInsertColumnExecAndValue(model *Model, values FieldValueList) (BasicExec
 				continue
 			}
 		}
-		_list = append(_list, val.Column())
-		qList = append(qList, "?")
-		args = append(args, val.Value().Interface())
+		result = append(result, val)
 	}
-	//for _, val := range values {
-	//	if IsZero(val.Value()) {
-	//		if val.IsPrimary() || val.AutoIncrement() || val.Default() != "" {
-	//			continue
-	//		}
-	//	}
-	//	_list = append(_list, val.Column())
-	//	qList = append(qList, "?")
-	//	args = append(args, val.Value().Interface())
-	//}
-	return BasicExec{strings.Join(_list, ","), nil},
-		BasicExec{strings.Join(qList, ","), args}
+	return result
+}
+
+func getSaveArgs(model *Model, columnValues FieldValueList) DialectSaveArgs {
+	valueMap := map[string]FieldValue{}
+	for _, c := range columnValues {
+		valueMap[c.Name()] = c
+	}
+	args := DialectSaveArgs{}
+	for _, field := range model.GetSqlFields() {
+		var val FieldValue
+		needInsert, needSave := true, true
+		if v, ok := valueMap[field.Name()]; ok {
+			val = v
+		} else {
+			needSave = false
+			val = field.ToFieldValue(reflect.Zero(field.StructField().Type))
+		}
+		if val.IsPrimary() {
+			args.PrimaryFields = append(args.PrimaryFields, val)
+		}
+		// insert field detect
+		if IsZero(val.Value()) {
+			if val.AutoIncrement() || val.IsPrimary() || val.Default() != "" {
+				needInsert = false
+			}
+		}
+		if name := field.Name(); name == "CreatedAt" {
+			args.CreatedAtField = val
+			needSave = false
+		}
+		if name := field.Name(); name == "UpdatedAt" {
+			args.UpdatedAtField = val
+		}
+		if field.Name() == "Cas" {
+			args.CasField = val
+		}
+		if needInsert {
+			args.InsertFieldList = append(args.InsertFieldList, val)
+		}
+		if needSave {
+			args.SaveFieldList = append(args.SaveFieldList, val)
+		}
+	}
+	return args
 }
 
 // e.g return BasicExec{query: "?,?,?" args:[1,2,3]}
@@ -591,73 +551,8 @@ func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Col
 	return columns, fn
 }
 
-func insertValuesFormat(model *Model, columnValues []ColumnNameValue) (string, string, []interface{}) {
-	valueMap := map[string]reflect.Value{}
-	for _, c := range columnValues {
-		valueMap[c.Name()] = c.Value()
-	}
-	fieldBuff := bytes.Buffer{}
-	qBytes := make([]byte, 0, len(model.GetSqlFields())*2)
-	args := make([]interface{}, 0, len(model.GetSqlFields()))
-
-	for _, r := range model.GetSqlFields() {
-		var val reflect.Value
-		if v, ok := valueMap[r.Name()]; ok {
-			val = v
-		} else if r.AutoIncrement() || r.IsPrimary() {
-			continue
-		} else if _default := r.Default(); _default != "" {
-			continue
-		} else {
-			val = reflect.Zero(r.StructField().Type)
-		}
-		if IsZero(val) {
-			if r.AutoIncrement() || r.IsPrimary() || r.Default() != "" {
-				continue
-			}
-		}
-
-		fieldBuff.WriteString(r.Column())
-		fieldBuff.WriteByte(',')
-		qBytes = append(qBytes, '?', ',')
-		args = append(args, val.Interface())
-	}
-	fieldBytes := fieldBuff.Bytes()
-	// last buff must be ,
-	fieldBytes = fieldBytes[:len(fieldBytes)-1]
-	qBytes = qBytes[:len(qBytes)-1]
-	return string(fieldBytes), string(qBytes), args
-}
-
 func IntKind(kind reflect.Kind) bool {
 	return kind >= reflect.Int && kind <= reflect.Uint64
-}
-
-func GetInsertInitValues(model *Model, columnValues []ColumnNameValue) []ColumnNameValue {
-	valueMap := map[string]ColumnNameValue{}
-	for _, c := range columnValues {
-		valueMap[c.Name()] = c
-	}
-	values := make([]ColumnNameValue, 0, len(columnValues))
-	for _, r := range model.GetSqlFields() {
-		var val ColumnNameValue
-		if v, ok := valueMap[r.Name()]; ok {
-			val = v
-		} else if r.AutoIncrement() || r.IsPrimary() {
-			continue
-		} else if _default := r.Default(); _default != "" {
-			continue
-		} else {
-			val = r.ToFieldValue(reflect.Zero(r.StructField().Type))
-		}
-		if IsZero(val.Value()) {
-			if r.AutoIncrement() || r.IsPrimary() || r.Default() != "" {
-				continue
-			}
-		}
-		values = append(values, val)
-	}
-	return values
 }
 
 func GetSaveValues(model *Model, columnValues FieldValueList) (FieldValueList, FieldValue) {
@@ -687,16 +582,132 @@ func GetSaveValues(model *Model, columnValues FieldValueList) (FieldValueList, F
 	return values, cas
 }
 
-func GetCasValue(model *Model, columnValues []ColumnNameValue) ColumnNameValue {
-	for _, r := range model.GetSqlFields() {
-		if r.Name() == "Cas" {
-			for _, c := range columnValues {
-				if c.Name() == "Cas" {
-					return c
+func setNumberPrimaryKey(ctx *Context, record ModelRecord, action ExecAction) error {
+	// set primary field value if model has one primary key
+	if len(ctx.Brick.Model.GetPrimary()) == 1 {
+		primaryKey := ctx.Brick.Model.GetOnePrimary()
+		primaryKeyName := primaryKey.Name()
+		if IntKind(primaryKey.StructField().Type.Kind()) {
+			// just set not zero primary key
+			if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
+				if lastId, err := action.Result.LastInsertId(); err == nil {
+					record.SetField(primaryKeyName, reflect.ValueOf(lastId))
+				} else {
+					return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
 				}
 			}
-			break
 		}
 	}
 	return nil
+}
+
+type CharStack []byte
+
+func (s *CharStack) Push(b byte) {
+	*s = append(*s, b)
+}
+
+func (s *CharStack) Pop() byte {
+	b := (*s)[len(*s)-1]
+	*s = (*s)[:len(*s)-1]
+	return b
+}
+
+func conditionToReversePolandExprDebug(cond string, execs map[string]BasicExec, debug bool) (CharStack, error) {
+	var stack CharStack
+	var operationStack CharStack
+	okToAsii := map[bool]byte{false: '0', true: '1'}
+	type wordNeed bool
+	const needOp wordNeed = true
+	const needWord wordNeed = false
+	need := needWord
+	for i := 0; i < len(cond); {
+		switch cond[i] {
+		case ' ':
+			i++
+		case '|', '&':
+			if need != needOp {
+				return nil, ErrInvalidConditionWord{cond[:i+1], cond}
+			}
+			switch cond[i] {
+			case '|':
+				endOf := len(operationStack)
+				for j := len(operationStack) - 1; j >= 0; j-- {
+					if operationStack[j] == '&' {
+						stack = append(stack, operationStack[j])
+						endOf = j
+					} else {
+						break
+					}
+				}
+				operationStack = operationStack[:endOf]
+				operationStack = append(operationStack, '|')
+			case '&':
+				operationStack = append(operationStack, '&')
+			}
+			need = needWord
+			i++
+		case '(', ')':
+			switch cond[i] {
+			case '(':
+				operationStack = append(operationStack, '(')
+			case ')':
+				endOf := len(operationStack)
+				for j := len(operationStack) - 1; j >= 0; j-- {
+					endOf = j
+					if operationStack[j] != '(' {
+						stack = append(stack, operationStack[j])
+					} else {
+						break
+					}
+				}
+				operationStack = operationStack[:endOf]
+			}
+			i++
+		default:
+			if need != needWord {
+				return nil, ErrInvalidConditionWord{cond[:i+1], cond}
+			}
+			if e := findWord(cond[i:]); e != 0 {
+				if debug {
+					if e != 1 {
+						return nil, errors.New("cannot use more than one character word in debug mode")
+					}
+					stack = append(stack, cond[i])
+				} else {
+					_, ok := execs[cond[i:i+e]]
+					stack = append(stack, okToAsii[ok])
+				}
+				i += e
+				need = needOp
+			} else {
+				return nil, ErrInvalidConditionWord{cond[:i+1], cond}
+			}
+		}
+
+	}
+	for j := len(operationStack) - 1; j >= 0; j-- {
+		stack = append(stack, operationStack[j])
+	}
+
+	return stack, nil
+}
+
+//  a | b & c & (d & e | f) | g => a b c d e & f | & & g | |
+//  a & (b | c | (d | e)) => a b c d e | | | &
+func conditionToReversePolandExpr(cond string, execs map[string]BasicExec) (CharStack, error) {
+	return conditionToReversePolandExprDebug(cond, execs, false)
+}
+
+func getInsertColumnExecAndValue(model *Model, values FieldValueList) (BasicExec, BasicExec) {
+	var _list []string
+	var args []interface{}
+	var qList []string
+	for _, val := range values {
+		_list = append(_list, val.Column())
+		qList = append(qList, "?")
+		args = append(args, val.Value().Interface())
+	}
+	return BasicExec{strings.Join(_list, ","), nil},
+		BasicExec{strings.Join(qList, ","), args}
 }

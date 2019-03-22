@@ -22,11 +22,11 @@ func (dia Sqlite3Dialect) HasTable(model *Model) ExecValue {
 	}
 }
 
-func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
+func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
 	if temp == nil {
 		temp = &BasicExec{"INSERT INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
-	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
+	execMap := dia.saveTemplate(temp, model, save, condition)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -34,12 +34,12 @@ func (dia Sqlite3Dialect) InsertExec(temp *BasicExec, model *Model, columnValues
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) (ExecValue, error) {
+func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
 	if temp == nil {
 		temp = &BasicExec{"INSERT OR REPLACE INTO $ModelDef($Columns) VALUES($Values)", nil}
 	}
 
-	execMap := dia.saveTemplate(temp, model, columnValues, condition, alias)
+	execMap := dia.saveTemplate(temp, model, save, condition)
 	basicExec, err := execMap.Render()
 	if err != nil {
 		return nil, err
@@ -48,18 +48,18 @@ func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, columnValues F
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, columnValues FieldValueList, condition *BasicExec, alias string) *SaveTemplate {
-	columns, values := getInsertColumnExecAndValue(model, columnValues)
+func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) *SaveTemplate {
+	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
-			Alias: alias,
+			Alias: "",
 			Quote: "`",
 		},
-		Columns:   columns,
-		Values:    values,
-		Condition: *condition,
+		Columns:    columns,
+		Values:     values,
+		Conditions: *dia.ConditionBasicExec(condition),
 	}
 	return &execMap
 }

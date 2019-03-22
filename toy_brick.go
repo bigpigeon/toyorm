@@ -926,9 +926,12 @@ func (t *ToyBrick) DeleteExec() ExecValue {
 
 func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeInsert, record)
-
-	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
-	exec, err := t.Toy.Dialect.InsertExec(t.templateSelect(TempInsert), t.Model, recorders, cExec, t.alias)
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	save := getSaveArgs(t.Model, recorders)
+	exec, err := t.Toy.Dialect.InsertExec(t.templateSelect(TempInsert), t.Model, save, condition)
 	if err != nil {
 		return nil, err
 	}
@@ -937,8 +940,26 @@ func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {
 
 func (t *ToyBrick) SaveExec(record ModelRecord) (ExecValue, error) {
 	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
-	cExec := t.Toy.Dialect.ConditionBasicExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
-	exec, err := t.Toy.Dialect.SaveExec(t.templateSelect(TempSave), t.Model, recorders, cExec, t.alias)
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	save := getSaveArgs(t.Model, recorders)
+	exec, err := t.Toy.Dialect.SaveExec(t.templateSelect(TempSave), t.Model, save, condition)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
+}
+
+func (t *ToyBrick) USaveExec(record ModelRecord) (ExecValue, error) {
+	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	save := getSaveArgs(t.Model, recorders)
+	exec, err := t.Toy.Dialect.USaveExec(t.templateSelect(TempInsert), t.Model, t.alias, save, condition)
 	if err != nil {
 		return nil, err
 	}

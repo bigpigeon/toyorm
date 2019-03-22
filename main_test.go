@@ -15,6 +15,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -878,7 +879,7 @@ var testDebug = flag.Bool("debug", false, "debug print")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-
+	var exitNum int
 	if *currentDriver == "sqlite" {
 		*currentDriver = "sqlite3"
 	}
@@ -940,7 +941,10 @@ func TestMain(m *testing.M) {
 		}
 		// reset id generate
 		idGenerator = map[reflect.Type]chan int{}
-		m.Run()
+		exitNum = m.Run()
+		if exitNum != 0 {
+			os.Exit(exitNum)
+		}
 	Close:
 		TestDB.Close()
 		TestCollectionDB.Close()

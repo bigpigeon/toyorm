@@ -2595,7 +2595,7 @@ func TestSaveNoneCreatedAt(t *testing.T) {
 
 func TestSaveCas(t *testing.T) {
 	skillTestDB(t, "sqlite3")
-	brick := TestDB.Model(&TestCasTable{})
+	brick := TestDB.Model(&TestCasTable{}).Debug()
 	createTableUnit(brick)(t)
 	data := TestCasTable{
 		Name:       "test cas data",
@@ -2902,7 +2902,7 @@ func TestTempField(t *testing.T) {
 		Score int32
 	}
 
-	brick := TestDB.Model(&TestTempFieldTable{}).Debug()
+	brick := TestDB.Model(&TestTempFieldTable{})
 	createTableUnit(brick)(t)
 
 	for i := 0; i < 10; i++ {
