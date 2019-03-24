@@ -371,20 +371,11 @@ func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, save Dialec
 		primaryKeyNames = append(primaryKeyNames, key.Column())
 	}
 	if temp == nil {
-		if len(model.GetPrimary()) == 1 && IntKind(model.GetOnePrimary().StructField().Type.Kind()) {
-			temp = &BasicExec{
-				fmt.Sprintf(
-					`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT(%[1]s) DO UPDATE SET $UpdateValues $Cas`,
-					primaryKeyNames[0],
-					primaryKeyNames[0],
-				), nil}
-		} else {
-			temp = &BasicExec{
-				fmt.Sprintf(
-					`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas`,
-					strings.Join(primaryKeyNames, ","),
-				), nil}
-		}
+		temp = &BasicExec{
+			fmt.Sprintf(
+				`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas`,
+				strings.Join(primaryKeyNames, ","),
+			), nil}
 	}
 	execMap := dia.saveTemplate(temp, model, save, condition)
 
