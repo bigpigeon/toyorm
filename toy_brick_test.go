@@ -2210,7 +2210,7 @@ func TestCustomExec(t *testing.T) {
 		assert.NotZero(t, scanData[i].UpdatedAt)
 	}
 
-	result, err = brick.Template("UPDATE $ModelName SET $Values WHERE id = ?", 2).Update(&TestCustomExecTable{Sync: 5})
+	result, err = brick.Template("UPDATE $ModelName SET $UpdateValues WHERE id = ?", 2).Update(&TestCustomExecTable{Sync: 5})
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)

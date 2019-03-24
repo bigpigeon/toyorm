@@ -313,20 +313,35 @@ func (dia PostgreSqlDialect) FindExec(model *Model, columns []Column, alias stri
 	return exec
 }
 
-func (dia PostgreSqlDialect) UpdateExec(model *Model, columnValues []ColumnValue) ExecValue {
+func (dia PostgreSqlDialect) UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error) {
 	var recordList []string
 	var args []interface{}
-	for _, r := range columnValues {
-		recordList = append(recordList, r.Column()+"=?")
+	if temp == nil {
+		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
+	}
+	for _, r := range update.UpdateFieldList {
+		recordList = append(recordList, r.Column()+" = ?")
 		args = append(args, r.Value().Interface())
 	}
-	var exec ExecValue = QToSExec{}
 
-	exec = exec.Append(
-		fmt.Sprintf(`UPDATE "%s" SET %s`, model.Name, strings.Join(recordList, ",")),
-		args...,
-	)
-	return exec
+	execMap := UpdateTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: `"`,
+		},
+		UpdateValues: BasicExec{
+			query: strings.Join(recordList, ","),
+			args:  args,
+		},
+		Conditions: *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
 }
 
 func (dia PostgreSqlDialect) DeleteExec(model *Model) (exec ExecValue) {

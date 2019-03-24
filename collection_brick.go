@@ -647,11 +647,13 @@ func (t *CollectionBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
 	return exec
 }
 
-func (t *CollectionBrick) UpdateExec(record ModelRecord) ExecValue {
-	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList())
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+func (t *CollectionBrick) UpdateExec(record ModelRecord) (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	recorders := t.getFieldValuePairWithRecord(ModeUpdate, record)
+	return t.Toy.Dialect.UpdateExec(t.template, t.Model, DialectUpdateArgs{recorders}, condition)
 }
 
 func (t *CollectionBrick) DeleteExec() ExecValue {
@@ -683,6 +685,20 @@ func (t *CollectionBrick) SaveExec(record ModelRecord) (ExecValue, error) {
 	}
 	save := getSaveArgs(t.Model, recorders)
 	exec, err := t.Toy.Dialect.SaveExec(t.template, t.Model, save, condition)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
+}
+
+func (t *CollectionBrick) USaveExec(record ModelRecord) (ExecValue, error) {
+	recorders := t.getFieldValuePairWithRecord(ModeSave, record)
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	save := getSaveArgs(t.Model, recorders)
+	exec, err := t.Toy.Dialect.USaveExec(t.template, t.Model, "", save, condition)
 	if err != nil {
 		return nil, err
 	}

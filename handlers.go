@@ -548,17 +548,9 @@ func HandlerUpdate(ctx *Context) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := ExecAction{affectData: []int{i}}
 		var err error
-		if temp := ctx.Brick.templateSelect(TempUpdate); temp == nil {
-			action.Exec = ctx.Brick.UpdateExec(record)
-		} else {
-			tempMap := DefaultTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList()
-			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
-			tempMap["Values"] = getUpdateValuesExec(values)
-			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*temp, tempMap)
-			if err != nil {
-				return err
-			}
+		action.Exec, err = ctx.Brick.UpdateExec(record)
+		if err != nil {
+			return err
 		}
 
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec)
@@ -1085,7 +1077,11 @@ func HandlerSoftDelete(ctx *Context) error {
 		}
 	}
 	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
-	action.Exec = ctx.Brick.UpdateExec(record)
+	var err error
+	action.Exec, err = ctx.Brick.UpdateExec(record)
+	if err != nil {
+		return err
+	}
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 	ctx.Result.AddRecord(action)
 	return nil

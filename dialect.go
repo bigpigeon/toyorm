@@ -40,6 +40,10 @@ type DialectSaveArgs struct {
 	PrimaryFields   FieldValueList
 }
 
+type DialectUpdateArgs struct {
+	UpdateFieldList FieldValueList
+}
+
 type Dialect interface {
 	// some database like postgres not support LastInsertId, need QueryRow to get the return id
 	InsertExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
@@ -53,13 +57,13 @@ type Dialect interface {
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) ExecValue
 	ConditionBasicExec(args DialectConditionArgs) *BasicExec
 	FindExec(model *Model, columns []Column, alias string) ExecValue
-	UpdateExec(*Model, []ColumnValue) ExecValue
+	UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error)
 	DeleteExec(*Model) ExecValue
 	InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
 	SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
 	USaveExec(temp *BasicExec, model *Model, alias string, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
-	AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
-	DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
+	//AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
+	//DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
 	CountExec(model *Model, alias string) ExecValue
 	SearchExec(search SearchList) ExecValue
 	TemplateExec(BasicExec, map[string]BasicExec) (ExecValue, error)
@@ -363,19 +367,35 @@ func (dia DefaultDialect) FindExec(model *Model, columns []Column, alias string)
 	return exec
 }
 
-func (dia DefaultDialect) UpdateExec(model *Model, columnValues []ColumnValue) ExecValue {
+func (dia DefaultDialect) UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error) {
 	var recordList []string
 	var args []interface{}
-	for _, r := range columnValues {
-		recordList = append(recordList, r.Column()+"=?")
+	if temp == nil {
+		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
+	}
+	for _, r := range update.UpdateFieldList {
+		recordList = append(recordList, r.Column()+" = ?")
 		args = append(args, r.Value().Interface())
 	}
-	var exec ExecValue = DefaultExec{}
-	exec = exec.Append(
-		fmt.Sprintf("UPDATE `%s` SET %s", model.Name, strings.Join(recordList, ",")),
-		args...,
-	)
-	return exec
+
+	execMap := UpdateTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: "`",
+		},
+		UpdateValues: BasicExec{
+			query: strings.Join(recordList, ","),
+			args:  args,
+		},
+		Conditions: *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
 func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {

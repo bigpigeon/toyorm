@@ -291,6 +291,19 @@ func (exec *SaveTemplate) Render() (*BasicExec, error) {
 	return GetTemplateExec(exec.Temp, execs)
 }
 
+type UpdateTemplate struct {
+	TemplateBasic
+	UpdateValues BasicExec
+	Conditions   BasicExec
+}
+
+func (exec *UpdateTemplate) Render() (*BasicExec, error) {
+	execs := exec.DefaultExecs()
+	execs["UpdateValues"] = exec.UpdateValues
+	execs["Conditions"] = exec.Conditions
+	return GetTemplateExec(exec.Temp, execs)
+}
+
 type TempMode int8
 
 const (

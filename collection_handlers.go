@@ -575,57 +575,45 @@ func CollectionHandlerSave(ctx *CollectionContext) error {
 			}
 		}
 
-		if ctx.Brick.template == nil {
-			if useInsert {
-				action.Exec, err = ctx.Brick.InsertExec(record)
-				if err != nil {
-					return err
-				}
-				action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
-					ctx.Brick.Toy.dbs[action.dbIndex],
-					action.Exec,
-					ctx.Brick.debugPrint(action.dbIndex),
-				)
-
-				if action.Error == nil {
-					// set primary field value if model has one primary key
-					if len(ctx.Brick.Model.GetPrimary()) == 1 {
-						primaryKey := ctx.Brick.Model.GetOnePrimary()
-						primaryKeyName := primaryKey.Name()
-						if IntKind(primaryKey.StructField().Type.Kind()) {
-							// just set not zero primary key
-							if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
-								if lastId, err := action.Result.LastInsertId(); err == nil {
-									ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
-								} else {
-									return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
-								}
-							}
-						}
-					}
-
-				}
-			} else {
-				action.Exec, err = ctx.Brick.SaveExec(record)
-				if err != nil {
-					return err
-				}
-				action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
-					ctx.Brick.Toy.dbs[action.dbIndex],
-					action.Exec,
-					ctx.Brick.debugPrint(action.dbIndex),
-				)
-			}
-		} else {
-			tempMap := DefaultCollectionTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
-			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
-			tempMap["Values"] = getValuesExec(values)
-			tempMap["UpdateValues"] = getUpdateValuesExec(values)
-			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
+		if useInsert {
+			action.Exec, err = ctx.Brick.InsertExec(record)
 			if err != nil {
 				return err
 			}
+			action.Result, action.Error = ctx.Brick.Toy.Dialect.InsertExecutor(
+				ctx.Brick.Toy.dbs[action.dbIndex],
+				action.Exec,
+				ctx.Brick.debugPrint(action.dbIndex),
+			)
+
+			if action.Error == nil {
+				// set primary field value if model has one primary key
+				if len(ctx.Brick.Model.GetPrimary()) == 1 {
+					primaryKey := ctx.Brick.Model.GetOnePrimary()
+					primaryKeyName := primaryKey.Name()
+					if IntKind(primaryKey.StructField().Type.Kind()) {
+						// just set not zero primary key
+						if fieldValue := record.Field(primaryKeyName); !fieldValue.IsValid() || IsZero(fieldValue) {
+							if lastId, err := action.Result.LastInsertId(); err == nil {
+								ctx.Result.Records.GetRecord(i).SetField(primaryKeyName, reflect.ValueOf(lastId))
+							} else {
+								return errors.New(fmt.Sprintf("get (%s) auto increment  failure reason(%s)", ctx.Brick.Model.Name, err))
+							}
+						}
+					}
+				}
+
+			}
+		} else {
+			action.Exec, err = ctx.Brick.SaveExec(record)
+			if err != nil {
+				return err
+			}
+			action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
+				ctx.Brick.Toy.dbs[action.dbIndex],
+				action.Exec,
+				ctx.Brick.debugPrint(action.dbIndex),
+			)
 		}
 
 		ctx.Result.AddRecord(action)
@@ -637,43 +625,20 @@ func CollectionHandlerUSave(ctx *CollectionContext) error {
 	if ctx.Brick.dbIndex == -1 {
 		return ErrDbIndexNotSet{}
 	}
-	notIgnoreBrick := ctx.Brick.IgnoreMode(ModeDefault, IgnoreNo)
+
 	for i, record := range ctx.Result.Records.GetRecords() {
 		var action CollectionExecAction
 		var err error
-		action = CollectionExecAction{affectData: []int{i}}
-		var useInsert bool
-		ConditionKeyVal := map[string]interface{}{}
-		// if have any zero primary key,, return error ,otherwise use update
-		for _, field := range ctx.Brick.Model.PrimaryFields {
-			if fieldVal := record.Field(field.Name()); fieldVal.IsValid() == false || IsZero(fieldVal) {
-				useInsert = true
-			} else {
-				ConditionKeyVal[field.Name()] = fieldVal.Interface()
-			}
+		action = CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
+		action.Exec, err = ctx.Brick.SaveExec(record)
+		if err != nil {
+			return err
 		}
-		if useInsert {
-			action.Exec = DefaultExec{"nil sql", nil}
-			action.Error = ErrNilPrimaryKey{}
-		} else {
-			// cas process
-			if casField := ctx.Brick.Model.GetFieldWithName("Cas"); casField != nil {
-				ConditionKeyVal[casField.Name()] = record.Field(casField.Name()).Int() - 1
-			}
-			brick := notIgnoreBrick.WhereGroup(ExprAnd, ConditionKeyVal)
-			if ctx.Brick.template == nil {
-				action.Exec = brick.UpdateExec(record)
-				action.Result, action.Error = ctx.Brick.Exec(action.Exec, brick.dbIndex)
-			} else {
-				tempMap := DefaultCollectionTemplateExec(brick)
-				values := ctx.Brick.getFieldValuePairWithRecord(ModeSave, record).ToValueList()
-				tempMap["UpdateValues"] = getUpdateValuesExec(values)
-				action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
-				if err != nil {
-					return err
-				}
-			}
-		}
+		action.Result, action.Error = ctx.Brick.Toy.Dialect.SaveExecutor(
+			ctx.Brick.Toy.dbs[action.dbIndex],
+			action.Exec,
+			ctx.Brick.debugPrint(action.dbIndex),
+		)
 
 		ctx.Result.AddRecord(action)
 	}
@@ -974,17 +939,9 @@ func CollectionHandlerUpdate(ctx *CollectionContext) error {
 	for i, record := range ctx.Result.Records.GetRecords() {
 		action := CollectionExecAction{affectData: []int{i}, dbIndex: ctx.Brick.dbIndex}
 		var err error
-		if ctx.Brick.template == nil {
-			action.Exec = ctx.Brick.UpdateExec(record)
-		} else {
-			tempMap := DefaultCollectionTemplateExec(ctx.Brick)
-			values := ctx.Brick.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList()
-			tempMap["Columns"] = getColumnExec(columnsValueToColumn(values))
-			tempMap["Values"] = getUpdateValuesExec(values)
-			action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
-			if err != nil {
-				return err
-			}
+		action.Exec, err = ctx.Brick.UpdateExec(record)
+		if err != nil {
+			return err
 		}
 		action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 		ctx.Result.AddRecord(action)
@@ -1201,7 +1158,11 @@ func HandlerCollectionSoftDelete(ctx *CollectionContext) error {
 	}
 	action := CollectionExecAction{dbIndex: ctx.Brick.dbIndex}
 	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
-	action.Exec = ctx.Brick.UpdateExec(record)
+	var err error
+	action.Exec, err = ctx.Brick.UpdateExec(record)
+	if err != nil {
+		return err
+	}
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec, action.dbIndex)
 	ctx.Result.AddRecord(action)
 	return nil

@@ -910,11 +910,13 @@ func (t *ToyBrick) FindExec(columns []Column) ExecValue {
 	return exec
 }
 
-func (t *ToyBrick) UpdateExec(record ModelRecord) ExecValue {
-	exec := t.Toy.Dialect.UpdateExec(t.Model, t.getFieldValuePairWithRecord(ModeUpdate, record).ToValueList())
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+func (t *ToyBrick) UpdateExec(record ModelRecord) (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	recorders := t.getFieldValuePairWithRecord(ModeUpdate, record)
+	return t.Toy.Dialect.UpdateExec(t.templateSelect(TempUpdate), t.Model, DialectUpdateArgs{recorders}, condition)
 }
 
 func (t *ToyBrick) DeleteExec() ExecValue {
@@ -959,7 +961,7 @@ func (t *ToyBrick) USaveExec(record ModelRecord) (ExecValue, error) {
 		0, 0, nil, nil,
 	}
 	save := getSaveArgs(t.Model, recorders)
-	exec, err := t.Toy.Dialect.USaveExec(t.templateSelect(TempInsert), t.Model, t.alias, save, condition)
+	exec, err := t.Toy.Dialect.USaveExec(t.templateSelect(TempUSave), t.Model, t.alias, save, condition)
 	if err != nil {
 		return nil, err
 	}
