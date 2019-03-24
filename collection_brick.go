@@ -486,7 +486,10 @@ func (t *CollectionBrick) HasTable() ([]bool, error) {
 }
 
 func (t *CollectionBrick) Count() (count int, err error) {
-	exec := t.CountExec()
+	exec, err := t.CountExec()
+	if err != nil {
+		return 0, err
+	}
 	countCount := 0
 	errs := ErrCollectionQueryRow{}
 	for i := range t.Toy.dbs {
@@ -628,23 +631,38 @@ func (t *CollectionBrick) QueryRow(exec ExecValue, i int) *sql.Row {
 	return row
 }
 
-func (t *CollectionBrick) CountExec() (exec ExecValue) {
-	exec = t.Toy.Dialect.CountExec(t.Model, "")
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return
+func (t *CollectionBrick) CountExec() (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	exec, err := t.Toy.Dialect.FindExec(t.template, t.Model, DialectFindArgs{
+		Columns: []Column{CountColumn{}},
+		Swap:    &JoinSwap{},
+	}, condition)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
 }
 
 func (t *CollectionBrick) ConditionExec() ExecValue {
 	return t.Toy.Dialect.ConditionExec(t.Search, 0, 0, nil, nil)
 }
 
-func (t *CollectionBrick) FindExec(records ModelRecordFieldTypes) ExecValue {
-	exec := t.Toy.Dialect.FindExec(t.Model, t.getSelectFields(records).ToColumnList(), "")
-
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+func (t *CollectionBrick) FindExec(columns []Column) (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		0, 0, nil, nil,
+	}
+	exec, err := t.Toy.Dialect.FindExec(t.template, t.Model, DialectFindArgs{
+		Columns: columns,
+		Swap:    &JoinSwap{},
+	}, condition)
+	if err != nil {
+		return nil, err
+	}
+	return exec, nil
 }
 
 func (t *CollectionBrick) UpdateExec(record ModelRecord) (ExecValue, error) {

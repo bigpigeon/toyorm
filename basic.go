@@ -551,6 +551,21 @@ func FindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *ToyBrick) ([]Col
 	return columns, fn
 }
 
+func CollectionFindColumnFactory(fieldTypes ModelRecordFieldTypes, brick *CollectionBrick) ([]Column, func(ModelRecord) []interface{}) {
+	columns := brick.getSelectFields(fieldTypes).ToColumnList()
+
+	var fn func(records ModelRecord) []interface{}
+	fn = func(record ModelRecord) []interface{} {
+		var scanners []interface{}
+		for _, field := range brick.getScanFields(record) {
+			value := record.FieldAddress(field.Name())
+			scanners = append(scanners, value.Interface())
+		}
+		return scanners
+	}
+	return columns, fn
+}
+
 func IntKind(kind reflect.Kind) bool {
 	return kind >= reflect.Int && kind <= reflect.Uint64
 }

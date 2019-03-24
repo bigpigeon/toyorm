@@ -50,6 +50,10 @@ func (dia Sqlite3Dialect) SaveExec(temp *BasicExec, model *Model, save DialectSa
 
 func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) *SaveTemplate {
 	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
+	var primaryColumns []string
+	for _, pl := range save.PrimaryFields {
+		primaryColumns = append(primaryColumns, pl.Column())
+	}
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
@@ -57,9 +61,10 @@ func (dia Sqlite3Dialect) saveTemplate(temp *BasicExec, model *Model, save Diale
 			Alias: "",
 			Quote: "`",
 		},
-		Columns:    columns,
-		Values:     values,
-		Conditions: *dia.ConditionBasicExec(condition),
+		Columns:        columns,
+		PrimaryColumns: BasicExec{strings.Join(primaryColumns, ","), nil},
+		Values:         values,
+		Conditions:     *dia.ConditionBasicExec(condition),
 	}
 	return &execMap
 }

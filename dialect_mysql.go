@@ -124,15 +124,20 @@ func (dia MySqlDialect) SaveExec(temp *BasicExec, model *Model, save DialectSave
 }
 
 func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) *SaveTemplate {
-	var recordList []string
-	var casField string
+	var primaryColumns []string
+	for _, pl := range save.PrimaryFields {
+		primaryColumns = append(primaryColumns, pl.Column())
+	}
 
+	var recordList []string
 	for _, r := range save.SaveFieldList {
 		// FIXME the cas statement of mysql is it assignment statement
 		if save.CasField != r {
 			recordList = append(recordList, fmt.Sprintf("%[1]s = VALUES(%[1]s)", r.Column()))
 		}
 	}
+
+	var casField string
 	if save.CasField != nil {
 		casField = fmt.Sprintf("%[1]s = IF(%[1]s = VALUES(%[1]s) - 1, VALUES(%[1]s) , \"update failure\"),", save.CasField.Column())
 	}
@@ -145,11 +150,12 @@ func (dia MySqlDialect) saveTemplate(temp *BasicExec, model *Model, save Dialect
 			Alias: "",
 			Quote: "`",
 		},
-		Columns:      columns,
-		Values:       values,
-		UpdateValues: BasicExec{strings.Join(recordList, ","), nil},
-		Cas:          BasicExec{casField, nil},
-		Conditions:   *dia.ConditionBasicExec(condition),
+		Columns:        columns,
+		PrimaryColumns: BasicExec{strings.Join(primaryColumns, ","), nil},
+		Values:         values,
+		UpdateValues:   BasicExec{strings.Join(recordList, ","), nil},
+		Cas:            BasicExec{casField, nil},
+		Conditions:     *dia.ConditionBasicExec(condition),
 	}
 	return &execMap
 }

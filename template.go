@@ -274,16 +274,18 @@ func (b *TemplateBasic) DefaultExecs() map[string]BasicExec {
 
 type SaveTemplate struct {
 	TemplateBasic
-	Columns      BasicExec
-	Values       BasicExec
-	UpdateValues BasicExec
-	Conditions   BasicExec
-	Cas          BasicExec
+	Columns        BasicExec
+	PrimaryColumns BasicExec
+	Values         BasicExec
+	UpdateValues   BasicExec
+	Conditions     BasicExec
+	Cas            BasicExec
 }
 
 func (exec *SaveTemplate) Render() (*BasicExec, error) {
 	execs := exec.DefaultExecs()
 	execs["Columns"] = exec.Columns
+	execs["PrimaryColumns"] = exec.PrimaryColumns
 	execs["Values"] = exec.Values
 	execs["UpdateValues"] = exec.UpdateValues
 	execs["Cas"] = exec.Cas
@@ -300,6 +302,21 @@ type UpdateTemplate struct {
 func (exec *UpdateTemplate) Render() (*BasicExec, error) {
 	execs := exec.DefaultExecs()
 	execs["UpdateValues"] = exec.UpdateValues
+	execs["Conditions"] = exec.Conditions
+	return GetTemplateExec(exec.Temp, execs)
+}
+
+type FindTemplate struct {
+	TemplateBasic
+	Columns    BasicExec
+	JoinDef    BasicExec
+	Conditions BasicExec
+}
+
+func (exec *FindTemplate) Render() (*BasicExec, error) {
+	execs := exec.DefaultExecs()
+	execs["Columns"] = exec.Columns
+	execs["JoinDef"] = exec.JoinDef
 	execs["Conditions"] = exec.Conditions
 	return GetTemplateExec(exec.Temp, execs)
 }

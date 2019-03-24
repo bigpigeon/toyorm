@@ -719,7 +719,10 @@ func (t *ToyBrick) HasTable() (b bool, err error) {
 }
 
 func (t *ToyBrick) Count() (count int, err error) {
-	exec := t.CountExec()
+	exec, err := t.CountExec()
+	if err != nil {
+		return 0, err
+	}
 	err = t.QueryRow(exec).Scan(&count)
 	return count, err
 }
@@ -886,34 +889,49 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 	return stmt, err
 }
 
-func (t *ToyBrick) CountExec() (exec ExecValue) {
-	exec = t.Toy.Dialect.CountExec(t.Model, t.alias)
-	jExec := t.Toy.Dialect.JoinExec(joinSwap(nil, t))
-	exec = exec.Append(" "+jExec.Source(), jExec.Args()...)
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
+func (t *ToyBrick) CountExec() (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		t.limit, t.offset,
+		t.orderBy.ToColumnList(), t.groupBy.ToColumnList(),
+	}
+	exec, err := t.Toy.Dialect.FindExec(t.templateSelect(TempFind), t.Model, DialectFindArgs{
+		Columns: []Column{CountColumn{}},
+		Swap:    joinSwap(nil, t),
+	}, condition)
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	return exec, nil
 }
 
 func (t *ToyBrick) ConditionExec() ExecValue {
 	return t.Toy.Dialect.ConditionExec(t.Search, t.limit, t.offset, t.orderBy.ToColumnList(), t.groupBy.ToColumnList())
 }
 
-func (t *ToyBrick) FindExec(columns []Column) ExecValue {
+func (t *ToyBrick) FindExec(columns []Column) (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		t.limit, t.offset,
+		t.orderBy.ToColumnList(), t.groupBy.ToColumnList(),
+	}
+	exec, err := t.Toy.Dialect.FindExec(t.templateSelect(TempFind), t.Model, DialectFindArgs{
+		Columns: columns,
+		Swap:    joinSwap(nil, t),
+	}, condition)
+	if err != nil {
+		return nil, err
+	}
 
-	exec := t.Toy.Dialect.FindExec(t.Model, columns, t.alias)
-	jExec := t.Toy.Dialect.JoinExec(joinSwap(nil, t))
-	exec = exec.Append(" "+jExec.Source(), jExec.Args()...)
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+	return exec, nil
 }
 
 func (t *ToyBrick) UpdateExec(record ModelRecord) (ExecValue, error) {
 	condition := DialectConditionArgs{
 		t.Search,
-		0, 0, nil, nil,
+		t.limit, t.offset,
+		t.orderBy.ToColumnList(), t.groupBy.ToColumnList(),
 	}
 	recorders := t.getFieldValuePairWithRecord(ModeUpdate, record)
 	return t.Toy.Dialect.UpdateExec(t.templateSelect(TempUpdate), t.Model, DialectUpdateArgs{recorders}, condition)

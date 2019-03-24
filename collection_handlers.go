@@ -802,16 +802,10 @@ func CollectionHandlerFind(ctx *CollectionContext) error {
 		dbIndex: ctx.Brick.dbIndex,
 	}
 	var err error
-	// use template or use default exec
-	if ctx.Brick.template == nil {
-		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
-	} else {
-		tempMap := DefaultCollectionTemplateExec(ctx.Brick)
-		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records).ToColumnList())
-		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
-		if err != nil {
-			return err
-		}
+	columns, scannersGen := CollectionFindColumnFactory(ctx.Result.Records, ctx.Brick)
+	action.Exec, err = ctx.Brick.FindExec(columns)
+	if err != nil {
+		return err
 	}
 	rows, err := ctx.Brick.Query(action.Exec, action.dbIndex)
 	if err != nil {
@@ -826,12 +820,7 @@ func CollectionHandlerFind(ctx *CollectionContext) error {
 		elem := reflect.New(ctx.Result.Records.ElemType()).Elem()
 		ctx.Result.Records.Len()
 		record := ctx.Result.Records.Add(elem)
-
-		var scanners []interface{}
-		for _, field := range ctx.Brick.getScanFields(ctx.Result.Records) {
-			value := record.Field(field.Name())
-			scanners = append(scanners, value.Addr().Interface())
-		}
+		scanners := scannersGen(record)
 		err := rows.Scan(scanners...)
 		action.Error = append(action.Error, err)
 	}
@@ -874,16 +863,11 @@ func CollectionHandlerFindOne(ctx *CollectionContext) error {
 		dbIndex: ctx.Brick.dbIndex,
 	}
 	var err error
+	columns, scannersGen := CollectionFindColumnFactory(ctx.Result.Records, ctx.Brick)
 	// use template or use default exec
-	if ctx.Brick.template == nil {
-		action.Exec = ctx.Brick.FindExec(ctx.Result.Records)
-	} else {
-		tempMap := DefaultCollectionTemplateExec(ctx.Brick)
-		tempMap["Columns"] = getColumnExec(ctx.Brick.getSelectFields(ctx.Result.Records).ToColumnList())
-		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*ctx.Brick.template, tempMap)
-		if err != nil {
-			return err
-		}
+	action.Exec, err = ctx.Brick.FindExec(columns)
+	if err != nil {
+		return err
 	}
 	rows, err := ctx.Brick.Query(action.Exec, action.dbIndex)
 	if err != nil {
@@ -898,12 +882,7 @@ func CollectionHandlerFindOne(ctx *CollectionContext) error {
 		elem := reflect.New(ctx.Result.Records.ElemType()).Elem()
 		ctx.Result.Records.Len()
 		record := ctx.Result.Records.Add(elem)
-
-		var scanners []interface{}
-		for _, field := range ctx.Brick.getScanFields(ctx.Result.Records) {
-			value := record.Field(field.Name())
-			scanners = append(scanners, value.Addr().Interface())
-		}
+		scanners := scannersGen(record)
 		err := rows.Scan(scanners...)
 		action.Error = append(action.Error, err)
 	}

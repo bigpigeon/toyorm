@@ -236,16 +236,9 @@ func HandlerFind(ctx *Context) error {
 	columns, scannersGen := FindColumnFactory(ctx.Result.Records, ctx.Brick)
 
 	// use template or use default exec
-	if temp := ctx.Brick.templateSelect(TempFind); temp == nil {
-
-		action.Exec = ctx.Brick.FindExec(columns)
-	} else {
-		tempMap := DefaultTemplateExec(ctx.Brick)
-		tempMap["Columns"] = getColumnExec(columns)
-		action.Exec, err = ctx.Brick.Toy.Dialect.TemplateExec(*temp, tempMap)
-		if err != nil {
-			return err
-		}
+	action.Exec, err = ctx.Brick.FindExec(columns)
+	if err != nil {
+		return err
 	}
 	rows, err := ctx.Brick.Query(action.Exec)
 	if err != nil {

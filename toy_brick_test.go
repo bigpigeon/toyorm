@@ -2184,24 +2184,77 @@ func TestCustomExec(t *testing.T) {
 		t.Error(err)
 	}
 	t.Logf("report:\n%s\n", result.Report())
+	exec0 := result.ActionFlow[0].(ExecAction).Exec
+	exec1 := result.ActionFlow[1].(ExecAction).Exec
 	if TestDriver == "postgres" {
-		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5) RETURNING id")
-		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5,$6) RETURNING id")
-
+		assert.Equal(t, exec0.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync,cas) Values($1,$2,$3,$4,$5,$6) RETURNING id")
+		assert.Equal(t, exec1.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync,cas) Values($1,$2,$3,$4,$5,$6,$7) RETURNING id")
 	} else {
-		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?)")
-		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?,?)")
-
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(created_at,updated_at,deleted_at,data,sync,cas) Values(?,?,?,?,?,?)")
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync,cas) Values(?,?,?,?,?,?,?)")
 	}
+	assert.NotZero(t, exec0.Args()[0])
+	assert.Equal(t, exec0.Args()[0], data[0].CreatedAt)
+	assert.NotZero(t, exec0.Args()[1])
+	assert.Equal(t, exec0.Args()[1], data[0].UpdatedAt)
+	assert.Nil(t, exec0.Args()[2])
+	assert.Equal(t, exec0.Args()[3], data[0].Data)
+	assert.Equal(t, exec0.Args()[4], data[0].Sync)
+	assert.Equal(t, exec0.Args()[5], 1)
+
+	assert.Equal(t, exec1.Args()[0], uint32(55))
+	assert.NotZero(t, exec1.Args()[1])
+	assert.Equal(t, exec1.Args()[1], data[1].CreatedAt)
+	assert.NotZero(t, exec1.Args()[2])
+	assert.Equal(t, exec1.Args()[2], data[1].UpdatedAt)
+	assert.Nil(t, exec1.Args()[3])
+	assert.Equal(t, exec1.Args()[4], data[1].Data)
+	assert.Equal(t, exec1.Args()[5], data[1].Sync)
+	assert.Equal(t, exec1.Args()[6], 1)
+
+	switch TestDriver {
+	case "mysql":
+		result, err = brick.Template("INSERT  INTO $ModelDef($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues").Save(&data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		tempStr := "INSERT  INTO `test_custom_exec_table`(id,created_at,updated_at,deleted_at,data,sync,cas) VALUES(?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE cas = IF(cas = VALUES(cas) - 1, VALUES(cas) , \"update failure\"), id = VALUES(id),updated_at = VALUES(updated_at),deleted_at = VALUES(deleted_at),data = VALUES(data),sync = VALUES(sync)"
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), tempStr)
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), tempStr)
+	case "sqlite3":
+		result, err = brick.Template("REPLACE  INTO $ModelDef($Columns) Values($Values)").Save(&data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		tempStr := "REPLACE  INTO `test_custom_exec_table`(id,created_at,updated_at,deleted_at,data,sync,cas) Values(?,?,?,?,?,?,?)"
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), tempStr)
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), tempStr)
+	case "postgres":
+		result, err = brick.Template("INSERT  INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT($PrimaryColumns) DO UPDATE SET $UpdateValues $Cas").Save(&data)
+		assert.Nil(t, err)
+		if err := result.Err(); err != nil {
+			t.Error(err)
+		}
+		tempStr := `INSERT  INTO "test_custom_exec_table"(id,created_at,updated_at,deleted_at,data,sync,cas) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO UPDATE SET id = Excluded.id,updated_at = Excluded.updated_at,deleted_at = Excluded.deleted_at,data = Excluded.data,sync = Excluded.sync,cas = Excluded.cas  WHERE test_custom_exec_table.cas = $8`
+		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), tempStr)
+		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), tempStr)
+	}
+	assert.Equal(t, data[0].Cas, 2)
+	assert.Equal(t, data[1].Cas, 2)
+	assert.True(t, data[0].UpdatedAt.After(data[0].CreatedAt))
+	assert.True(t, data[1].UpdatedAt.After(data[1].CreatedAt))
 
 	var scanData []TestCustomExecTable
-	result, err = brick.Template("SELECT $Columns FROM $ModelName").Find(&scanData)
+	result, err = brick.Template("SELECT $Columns FROM $ModelName $Conditions").
+		Limit(5).Offset(0).OrderBy(Offsetof(TestCustomExecTable{}.Data)).Find(&scanData)
 	assert.Nil(t, err)
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	t.Logf("report:\n%s\n", result.Report())
-	assert.Equal(t, result.ActionFlow[0].(QueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table")
+	assert.Equal(t, result.ActionFlow[0].(QueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync,cas FROM test_custom_exec_table  WHERE deleted_at IS NULL ORDER BY data LIMIT 5")
 	assert.Equal(t, len(scanData), len(data))
 	for i := range data {
 		assert.Equal(t, data[i].ID, scanData[i].ID)
@@ -2221,8 +2274,6 @@ func TestCustomExec(t *testing.T) {
 	} else {
 		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = ?,sync = ? WHERE id = ?")
 	}
-
-	// TODO test save
 
 }
 

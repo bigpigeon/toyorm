@@ -29,6 +29,12 @@ type ColumnNameValue interface {
 	Value() reflect.Value
 }
 
+type CountColumn struct{}
+
+func (CountColumn) Column() string {
+	return "count(*)"
+}
+
 //type modelFieldValue struct {
 //	Field
 //	value reflect.Value

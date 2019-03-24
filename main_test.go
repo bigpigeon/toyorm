@@ -616,6 +616,7 @@ type TestCustomExecTable struct {
 	ModelDefault
 	Data string
 	Sync int
+	Cas  int
 }
 
 type TestJoinNameOneToManyTable struct {

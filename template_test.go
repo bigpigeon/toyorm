@@ -179,4 +179,16 @@ func TestCheckTemplateCondition(t *testing.T) {
 			assert.Equal(t, result, checkFn())
 		}
 	}
+	{
+		var a, b, c, d, e, f bool
+		baseCond := "a|(b&c|d)|e&f"
+		checkFn := func() bool { return a || (b && c || d) || e && f }
+		for _, v := range allPossible(6) {
+			a, b, c, d, e, f = v[0], v[1], v[2], v[3], v[4], v[5]
+			t.Log(v)
+			result, err := checkTempCondition(baseCond, toExec(a, b, c, d, e, f))
+			require.NoError(t, err)
+			assert.Equal(t, result, checkFn())
+		}
+	}
 }

@@ -299,18 +299,31 @@ func (dia PostgreSqlDialect) SearchExec(s SearchList) ExecValue {
 	return stack[0]
 }
 
-func (dia PostgreSqlDialect) FindExec(model *Model, columns []Column, alias string) ExecValue {
+func (dia PostgreSqlDialect) FindExec(temp *BasicExec, model *Model, find DialectFindArgs, condition DialectConditionArgs) (ExecValue, error) {
 	var _list []string
-	for _, column := range columns {
+	if temp == nil {
+		temp = &BasicExec{"SELECT $Columns FROM $ModelDef $JoinDef $Conditions", nil}
+	}
+	for _, column := range find.Columns {
 		_list = append(_list, column.Column())
 	}
-	var exec ExecValue = QToSExec{}
-	if alias != "" {
-		exec = exec.Append(fmt.Sprintf(`SELECT %s FROM "%s" as "%s"`, strings.Join(_list, ","), model.Name, alias))
-	} else {
-		exec = exec.Append(fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(_list, ","), model.Name))
+
+	execMap := FindTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: find.Swap.Alias,
+			Quote: `"`,
+		},
+		Columns:    BasicExec{strings.Join(_list, ","), nil},
+		JoinDef:    dia.JoinExec(find.Swap),
+		Conditions: *dia.ConditionBasicExec(condition),
 	}
-	return exec
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
 }
 
 func (dia PostgreSqlDialect) UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error) {
@@ -349,7 +362,6 @@ func (dia PostgreSqlDialect) DeleteExec(model *Model) (exec ExecValue) {
 }
 
 func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
-
 	primaryKeys := model.GetPrimary()
 	var primaryKeyNames []string
 	for _, key := range primaryKeys {
@@ -379,18 +391,10 @@ func (dia PostgreSqlDialect) InsertExec(temp *BasicExec, model *Model, save Dial
 
 // postgres have not replace use ON CONFLICT(%s) replace
 func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {
-
-	primaryKeys := model.GetPrimary()
-	var primaryKeyNames []string
-	for _, key := range primaryKeys {
-		primaryKeyNames = append(primaryKeyNames, key.Column())
-	}
 	if temp == nil {
 		temp = &BasicExec{
-			fmt.Sprintf(
-				`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT(%s) DO UPDATE SET $UpdateValues $Cas`,
-				strings.Join(primaryKeyNames, ","),
-			), nil}
+			`INSERT INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT($PrimaryColumns) DO UPDATE SET $UpdateValues $Cas`,
+			nil}
 	}
 	execMap := dia.saveTemplate(temp, model, save, condition)
 
@@ -402,18 +406,24 @@ func (dia PostgreSqlDialect) SaveExec(temp *BasicExec, model *Model, save Dialec
 }
 
 func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) *SaveTemplate {
-	var recordList []string
-	var casField BasicExec
+	var primaryColumns []string
+	for _, pl := range save.PrimaryFields {
+		primaryColumns = append(primaryColumns, pl.Column())
+	}
 
+	var recordList []string
 	for _, r := range save.SaveFieldList {
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
 	}
+
+	var casField BasicExec
 	if save.CasField != nil {
 		casField = BasicExec{
 			fmt.Sprintf(" WHERE %s.%s = ?", model.Name, save.CasField.Column()),
 			[]interface{}{save.CasField.Value().Int() - 1},
 		}
 	}
+
 	columns, values := getInsertColumnExecAndValue(model, save.InsertFieldList)
 	execMap := SaveTemplate{
 		TemplateBasic: TemplateBasic{
@@ -422,11 +432,12 @@ func (dia PostgreSqlDialect) saveTemplate(temp *BasicExec, model *Model, save Di
 			Alias: "",
 			Quote: `"`,
 		},
-		Columns:      columns,
-		Values:       values,
-		UpdateValues: BasicExec{strings.Join(recordList, ","), nil},
-		Cas:          casField,
-		Conditions:   *dia.ConditionBasicExec(condition),
+		Columns:        columns,
+		PrimaryColumns: BasicExec{strings.Join(primaryColumns, ","), nil},
+		Values:         values,
+		UpdateValues:   BasicExec{strings.Join(recordList, ","), nil},
+		Cas:            casField,
+		Conditions:     *dia.ConditionBasicExec(condition),
 	}
 	return &execMap
 }
@@ -463,22 +474,23 @@ func (dia PostgreSqlDialect) TemplateExec(tExec BasicExec, execs map[string]Basi
 	return QToSExec{DefaultExec{exec.query, exec.args}}, nil
 }
 
-func (dia PostgreSqlDialect) JoinExec(mainSwap *JoinSwap) ExecValue {
+func (dia PostgreSqlDialect) JoinExec(mainSwap *JoinSwap) BasicExec {
 	var strList []string
 	for name := range mainSwap.JoinMap {
 		join := mainSwap.JoinMap[name]
 		swap := mainSwap.SwapMap[name]
-		strList = append(strList, fmt.Sprintf(`JOIN "%s" as "%s" on %s.%s = %s.%s`,
+		strList = append(strList, fmt.Sprintf(`JOIN "%s" AS "%s" ON %s.%s = %s.%s`,
 			join.SubModel.Name,
 			swap.Alias,
 			mainSwap.Alias, join.OnMain.Column(),
 			swap.Alias, join.OnSub.Column(),
 		))
 	}
-	var exec ExecValue = QToSExec{DefaultExec{strings.Join(strList, " "), nil}}
+	var exec = BasicExec{strings.Join(strList, " "), nil}
 	for _, subSwap := range mainSwap.SwapMap {
 		subExec := dia.JoinExec(subSwap)
-		exec = exec.Append(" "+subExec.Source(), subExec.Args()...)
+		exec.query += " " + subExec.query
+		exec.args = append(exec.args, subExec.args...)
 	}
 	return exec
 }

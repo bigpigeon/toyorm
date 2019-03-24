@@ -44,10 +44,15 @@ type DialectUpdateArgs struct {
 	UpdateFieldList FieldValueList
 }
 
+type DialectFindArgs struct {
+	Columns []Column
+	Swap    *JoinSwap
+}
+
 type Dialect interface {
 	// some database like postgres not support LastInsertId, need QueryRow to get the return id
 	InsertExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
-	// sqlite3/postgresql use RowsAffected to check success or failure, but mysql can't,
+	// FIXME sqlite3/postgresql use RowsAffected to check success or failure, but mysql can't,
 	// because it's RowsAffected is zero when update value not change
 	SaveExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
 	HasTable(*Model) ExecValue
@@ -56,7 +61,7 @@ type Dialect interface {
 
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) ExecValue
 	ConditionBasicExec(args DialectConditionArgs) *BasicExec
-	FindExec(model *Model, columns []Column, alias string) ExecValue
+	FindExec(temp *BasicExec, model *Model, find DialectFindArgs, condition DialectConditionArgs) (ExecValue, error)
 	UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error)
 	DeleteExec(*Model) ExecValue
 	InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
@@ -67,7 +72,6 @@ type Dialect interface {
 	CountExec(model *Model, alias string) ExecValue
 	SearchExec(search SearchList) ExecValue
 	TemplateExec(BasicExec, map[string]BasicExec) (ExecValue, error)
-	JoinExec(*JoinSwap) ExecValue
 }
 
 type DefaultDialect struct{}
@@ -353,18 +357,31 @@ func (dia DefaultDialect) SearchExec(s SearchList) ExecValue {
 	return stack[0]
 }
 
-func (dia DefaultDialect) FindExec(model *Model, columns []Column, alias string) ExecValue {
+func (dia DefaultDialect) FindExec(temp *BasicExec, model *Model, find DialectFindArgs, condition DialectConditionArgs) (ExecValue, error) {
 	var _list []string
-	for _, column := range columns {
+	if temp == nil {
+		temp = &BasicExec{"SELECT $Columns FROM $ModelDef $JoinDef $Conditions", nil}
+	}
+	for _, column := range find.Columns {
 		_list = append(_list, column.Column())
 	}
-	var exec ExecValue = DefaultExec{}
-	if alias != "" {
-		exec = exec.Append(fmt.Sprintf("SELECT %s FROM `%s` as `%s`", strings.Join(_list, ","), model.Name, alias))
-	} else {
-		exec = exec.Append(fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(_list, ","), model.Name))
+
+	execMap := FindTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: find.Swap.Alias,
+			Quote: "`",
+		},
+		Columns:    BasicExec{strings.Join(_list, ","), nil},
+		JoinDef:    dia.JoinExec(find.Swap),
+		Conditions: *dia.ConditionBasicExec(condition),
 	}
-	return exec
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
 func (dia DefaultDialect) UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error) {
@@ -530,7 +547,7 @@ func (dia DefaultDialect) TemplateExec(tExec BasicExec, execs map[string]BasicEx
 
 }
 
-func (dia DefaultDialect) JoinExec(mainSwap *JoinSwap) ExecValue {
+func (dia DefaultDialect) JoinExec(mainSwap *JoinSwap) BasicExec {
 	var strList []string
 	for name := range mainSwap.JoinMap {
 		join := mainSwap.JoinMap[name]
@@ -542,10 +559,11 @@ func (dia DefaultDialect) JoinExec(mainSwap *JoinSwap) ExecValue {
 			swap.Alias, join.OnSub.Column(),
 		))
 	}
-	var exec ExecValue = DefaultExec{strings.Join(strList, " "), nil}
+	var exec = BasicExec{strings.Join(strList, " "), nil}
 	for _, subSwap := range mainSwap.SwapMap {
 		subExec := dia.JoinExec(subSwap)
-		exec = exec.Append(" "+subExec.Source(), subExec.Args()...)
+		exec.query += " " + subExec.query
+		exec.args = append(exec.args, subExec.args...)
 	}
 	return exec
 }
