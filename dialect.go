@@ -49,6 +49,15 @@ type DialectFindArgs struct {
 	Swap    *JoinSwap
 }
 
+type DialectHardDeleteArgs struct {
+	PrimaryFields FieldValueList
+}
+
+type DialectSoftDeleteArgs struct {
+	PrimaryFields FieldValueList
+	UpdatedValues FieldValueList
+}
+
 type Dialect interface {
 	// some database like postgres not support LastInsertId, need QueryRow to get the return id
 	InsertExecutor(Executor, ExecValue, func(ExecValue, error)) (sql.Result, error)
@@ -58,12 +67,12 @@ type Dialect interface {
 	HasTable(*Model) ExecValue
 	CreateTable(*Model, map[string]ForeignKey) []ExecValue
 	DropTable(*Model) ExecValue
-
 	ConditionExec(search SearchList, limit, offset int, orderBy []Column, groupBy []Column) ExecValue
 	ConditionBasicExec(args DialectConditionArgs) *BasicExec
 	FindExec(temp *BasicExec, model *Model, find DialectFindArgs, condition DialectConditionArgs) (ExecValue, error)
 	UpdateExec(temp *BasicExec, model *Model, update DialectUpdateArgs, condition DialectConditionArgs) (ExecValue, error)
-	DeleteExec(*Model) ExecValue
+	HardDeleteExec(temp *BasicExec, model *Model, delete DialectSoftDeleteArgs, condition DialectConditionArgs) (ExecValue, error)
+	SoftDeleteExec(temp *BasicExec, model *Model, delete DialectSoftDeleteArgs, condition DialectConditionArgs) (ExecValue, error)
 	InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
 	SaveExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
 	USaveExec(temp *BasicExec, model *Model, alias string, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
@@ -415,8 +424,76 @@ func (dia DefaultDialect) UpdateExec(temp *BasicExec, model *Model, update Diale
 	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
-func (dia DefaultDialect) DeleteExec(model *Model) (exec ExecValue) {
-	return DefaultExec{fmt.Sprintf("DELETE FROM `%s`", model.Name), nil}
+func (dia DefaultDialect) HardDeleteExec(temp *BasicExec, model *Model, delete DialectSoftDeleteArgs, condition DialectConditionArgs) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"DELETE FROM $ModelDef $Conditions", nil}
+	}
+	var primaryCondition SearchList
+	for _, p := range delete.PrimaryFields {
+		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	}
+	primaryExecVal := dia.SearchExec(primaryCondition)
+
+	var updateValList []string
+	var updateValArgs []interface{}
+	for _, u := range delete.UpdatedValues {
+		updateValList = append(updateValList, u.Column()+" = ?")
+		updateValArgs = append(updateValArgs, u.Value().Interface())
+	}
+
+	execMap := HardDeleteTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: "`",
+		},
+		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
+		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		Conditions:    *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
+}
+
+func (dia DefaultDialect) SoftDeleteExec(temp *BasicExec, model *Model, delete DialectSoftDeleteArgs, condition DialectConditionArgs) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
+	}
+	var primaryCondition SearchList
+	for _, p := range delete.PrimaryFields {
+		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	}
+	primaryExecVal := dia.SearchExec(primaryCondition)
+
+	var updateValList []string
+	var updateValArgs []interface{}
+	for _, u := range delete.UpdatedValues {
+		updateValList = append(updateValList, u.Column()+" = ?")
+		updateValArgs = append(updateValArgs, u.Value().Interface())
+	}
+
+	execMap := HardDeleteTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: "`",
+		},
+		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
+		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		Conditions:    *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &DefaultExec{basicExec.query, basicExec.args}, nil
 }
 
 func (dia DefaultDialect) InsertExec(temp *BasicExec, model *Model, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error) {

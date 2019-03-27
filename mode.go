@@ -17,5 +17,6 @@ const (
 	ModeSelect
 	ModeCondition
 	ModePreload
+	ModeDelete
 	ModeEnd
 )

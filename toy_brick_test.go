@@ -2274,7 +2274,6 @@ func TestCustomExec(t *testing.T) {
 	} else {
 		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), "UPDATE test_custom_exec_table SET updated_at = ?,sync = ? WHERE id = ?")
 	}
-
 }
 
 func TestToyBrickCopyOnWrite(t *testing.T) {

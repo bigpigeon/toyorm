@@ -537,3 +537,75 @@ func (dia PostgreSqlDialect) USaveExec(temp *BasicExec, model *Model, alias stri
 
 	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
 }
+
+func (dia PostgreSqlDialect) HardDeleteExec(temp *BasicExec, model *Model, delete DialectSoftDeleteArgs, condition DialectConditionArgs) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"DELETE FROM $ModelDef $Conditions", nil}
+	}
+	var primaryCondition SearchList
+	for _, p := range delete.PrimaryFields {
+		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	}
+	primaryExecVal := dia.SearchExec(primaryCondition)
+
+	var updateValList []string
+	var updateValArgs []interface{}
+	for _, u := range delete.UpdatedValues {
+		updateValList = append(updateValList, u.Column()+" = ?")
+		updateValArgs = append(updateValArgs, u.Value().Interface())
+	}
+
+	execMap := HardDeleteTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: "`",
+		},
+		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
+		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		Conditions:    *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
+}
+
+func (dia PostgreSqlDialect) SoftDeleteExec(temp *BasicExec, model *Model, delete DialectSoftDeleteArgs, condition DialectConditionArgs) (ExecValue, error) {
+	if temp == nil {
+		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
+	}
+	var primaryCondition SearchList
+	for _, p := range delete.PrimaryFields {
+		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	}
+	primaryExecVal := dia.SearchExec(primaryCondition)
+
+	var updateValList []string
+	var updateValArgs []interface{}
+	for _, u := range delete.UpdatedValues {
+		updateValList = append(updateValList, u.Column()+" = ?")
+		updateValArgs = append(updateValArgs, u.Value().Interface())
+	}
+
+	execMap := HardDeleteTemplate{
+		TemplateBasic: TemplateBasic{
+			Temp:  *temp,
+			Model: model,
+			Alias: "",
+			Quote: "`",
+		},
+		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
+		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		Conditions:    *dia.ConditionBasicExec(condition),
+	}
+	basicExec, err := execMap.Render()
+	if err != nil {
+		return nil, err
+	}
+	return &QToSExec{DefaultExec{basicExec.query, basicExec.args}}, nil
+}

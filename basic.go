@@ -570,33 +570,6 @@ func IntKind(kind reflect.Kind) bool {
 	return kind >= reflect.Int && kind <= reflect.Uint64
 }
 
-func GetSaveValues(model *Model, columnValues FieldValueList) (FieldValueList, FieldValue) {
-	valueMap := map[string]FieldValue{}
-	for _, c := range columnValues {
-		valueMap[c.Name()] = c
-	}
-	var cas FieldValue
-	values := make(FieldValueList, 0, len(columnValues))
-	for _, r := range model.GetSqlFields() {
-		if name := r.Name(); name == "CreatedAt" {
-			continue
-		}
-		if r.Name() == "Cas" {
-			cas = valueMap[r.Name()]
-		}
-
-		if v, ok := valueMap[r.Name()]; ok {
-			if IsZero(v.Value()) {
-				if r.AutoIncrement() {
-					continue
-				}
-			}
-			values = append(values, v)
-		}
-	}
-	return values, cas
-}
-
 func setNumberPrimaryKey(ctx *Context, record ModelRecord, action ExecAction) error {
 	// set primary field value if model has one primary key
 	if len(ctx.Brick.Model.GetPrimary()) == 1 {
@@ -725,4 +698,38 @@ func getInsertColumnExecAndValue(model *Model, values FieldValueList) (BasicExec
 	}
 	return BasicExec{strings.Join(_list, ","), nil},
 		BasicExec{strings.Join(qList, ","), args}
+}
+
+func getDeleteArgs(model *Model, preload map[string]*BelongToPreload, records ModelRecords) DialectSoftDeleteArgs {
+	args := DialectSoftDeleteArgs{}
+	deletedField := model.GetFieldWithName("CreatedAt")
+	if deletedField != nil {
+		now := time.Now()
+		args.UpdatedValues = append(args.UpdatedValues, deletedField.ToFieldValue(reflect.ValueOf(&now)))
+	}
+	for _, preload := range preload {
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		if subSoftDelete == false {
+			rField := preload.RelationField
+			rFieldValue := rField.ToFieldValue(reflect.Zero(rField.StructField().Type))
+			args.UpdatedValues = append(args.UpdatedValues, rFieldValue)
+		}
+	}
+	if records != nil {
+		var pkIfaceVal []reflect.Value
+		for _, pri := range model.PrimaryFields {
+			pkIfaceVal = append(pkIfaceVal, reflect.New(reflect.SliceOf(pri.StructField().Type)).Elem())
+		}
+		for _, r := range records.GetRecords() {
+			for i, pri := range model.PrimaryFields {
+				val := r.Field(pri.Name())
+				pkIfaceVal[i] = reflect.Append(pkIfaceVal[i], val)
+			}
+		}
+		for i, pri := range model.PrimaryFields {
+			args.PrimaryFields = append(args.PrimaryFields, pri.ToFieldValue(pkIfaceVal[i]))
+		}
+	}
+
+	return args
 }

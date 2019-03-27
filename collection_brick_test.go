@@ -2148,9 +2148,9 @@ func TestCollectionCustomExec(t *testing.T) {
 	}
 	t.Logf("report:\n%s\n", result.Report())
 	if TestDriver == "postgres" {
-		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values($1,$2,$3,$4,$5,$6) RETURNING id")
+		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync,cas) Values($1,$2,$3,$4,$5,$6,$7) RETURNING id")
 	} else {
-		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync) Values(?,?,?,?,?,?)")
+		assert.Equal(t, result.ActionFlow[0].(CollectionExecAction).Exec.Query(), "INSERT INTO test_custom_exec_table(id,created_at,updated_at,deleted_at,data,sync,cas) Values(?,?,?,?,?,?,?)")
 	}
 
 	var scanData []TestCustomExecTable
@@ -2160,7 +2160,7 @@ func TestCollectionCustomExec(t *testing.T) {
 		t.Error(err)
 	}
 	t.Logf("report:\n%s\n", result.Report())
-	assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table")
+	assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync,cas FROM test_custom_exec_table")
 	assert.Equal(t, len(scanData), len(data))
 	sort.Slice(scanData, func(i, j int) bool {
 		return scanData[i].ID < scanData[j].ID
@@ -2180,9 +2180,9 @@ func TestCollectionCustomExec(t *testing.T) {
 	}
 	t.Logf("report:\n%s\n", result.Report())
 	if TestDriver == "postgres" {
-		assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table  WHERE deleted_at IS NULL AND id = $1")
+		assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync,cas FROM test_custom_exec_table  WHERE deleted_at IS NULL AND id = $1")
 	} else {
-		assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync FROM test_custom_exec_table  WHERE deleted_at IS NULL AND id = ?")
+		assert.Equal(t, result.ActionFlow[0].(CollectionQueryAction).Exec.Query(), "SELECT id,created_at,updated_at,deleted_at,data,sync,cas FROM test_custom_exec_table  WHERE deleted_at IS NULL AND id = ?")
 	}
 	assert.Equal(t, len(scanData), len(data))
 

@@ -937,11 +937,24 @@ func (t *ToyBrick) UpdateExec(record ModelRecord) (ExecValue, error) {
 	return t.Toy.Dialect.UpdateExec(t.templateSelect(TempUpdate), t.Model, DialectUpdateArgs{recorders}, condition)
 }
 
-func (t *ToyBrick) DeleteExec() ExecValue {
-	exec := t.Toy.Dialect.DeleteExec(t.Model)
-	cExec := t.ConditionExec()
-	exec = exec.Append(" "+cExec.Source(), cExec.Args()...)
-	return exec
+func (t *ToyBrick) SoftDeleteExec(records ModelRecords) (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		t.limit, t.offset,
+		t.orderBy.ToColumnList(), t.groupBy.ToColumnList(),
+	}
+	delArgs := getDeleteArgs(t.Model, t.BelongToPreload, records)
+	return t.Toy.Dialect.SoftDeleteExec(t.templateSelect(TempUpdate), t.Model, delArgs, condition)
+}
+
+func (t *ToyBrick) HardDeleteExec(records ModelRecords) (ExecValue, error) {
+	condition := DialectConditionArgs{
+		t.Search,
+		t.limit, t.offset,
+		t.orderBy.ToColumnList(), t.groupBy.ToColumnList(),
+	}
+	delArgs := getDeleteArgs(t.Model, t.BelongToPreload, records)
+	return t.Toy.Dialect.HardDeleteExec(t.templateSelect(TempUpdate), t.Model, delArgs, condition)
 }
 
 func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {

@@ -321,6 +321,21 @@ func (exec *FindTemplate) Render() (*BasicExec, error) {
 	return GetTemplateExec(exec.Temp, execs)
 }
 
+type HardDeleteTemplate struct {
+	TemplateBasic
+	PrimaryValues BasicExec
+	UpdateValues  BasicExec
+	Conditions    BasicExec
+}
+
+func (exec *HardDeleteTemplate) Render() (*BasicExec, error) {
+	execs := exec.DefaultExecs()
+	execs["PrimaryValues"] = exec.PrimaryValues
+	execs["UpdateValues"] = exec.UpdateValues
+	execs["Conditions"] = exec.Conditions
+	return GetTemplateExec(exec.Temp, execs)
+}
+
 type TempMode int8
 
 const (

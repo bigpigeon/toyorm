@@ -1039,7 +1039,11 @@ func HandlerSearchWithPrimaryKey(ctx *Context) error {
 
 func HandlerHardDelete(ctx *Context) error {
 	action := ExecAction{}
-	action.Exec = ctx.Brick.DeleteExec()
+	var err error
+	action.Exec, err = ctx.Brick.HardDeleteExec(ctx.Result.Records)
+	if err != nil {
+		return err
+	}
 	action.Result, action.Error = ctx.Brick.Exec(action.Exec)
 	ctx.Result.AddRecord(action)
 	return nil
@@ -1056,22 +1060,8 @@ func HandlerSoftDeleteCheck(ctx *Context) error {
 
 func HandlerSoftDelete(ctx *Context) error {
 	action := ExecAction{}
-	now := time.Now()
-	value := reflect.New(ctx.Brick.Model.ReflectType).Elem()
-	record := NewStructRecord(ctx.Brick.Model, value)
-	record.SetField("DeletedAt", reflect.ValueOf(now))
-	bindFields := []interface{}{"DeletedAt"}
-	for _, preload := range ctx.Brick.BelongToPreload {
-		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
-		if subSoftDelete == false {
-			rField := preload.RelationField
-			bindFields = append(bindFields, rField.Name())
-			record.SetField(rField.Name(), reflect.Zero(rField.StructField().Type))
-		}
-	}
-	ctx.Brick = ctx.Brick.BindFields(ModeUpdate, bindFields...)
 	var err error
-	action.Exec, err = ctx.Brick.UpdateExec(record)
+	action.Exec, err = ctx.Brick.SoftDeleteExec(ctx.Result.Records)
 	if err != nil {
 		return err
 	}
