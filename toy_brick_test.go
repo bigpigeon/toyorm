@@ -1292,16 +1292,11 @@ func TestFlow(t *testing.T) {
 	// drow table if exist
 	result, err := brick.DropTableIfExist()
 	assert.Nil(t, err)
-	if err := result.Err(); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, result.Err())
 
 	result, err = brick.CreateTableIfNotExist()
 	assert.Nil(t, err)
-	assert.Nil(t, err)
-	if err := result.Err(); err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, result.Err())
 
 	product := []Product{
 		{
@@ -1415,7 +1410,10 @@ func TestFlow(t *testing.T) {
 	jsonBytes, err := json.MarshalIndent(newProducts, "", "  ")
 	assert.Nil(t, err)
 	t.Logf("\n%v", string(jsonBytes))
-	brick.Delete(&newProducts)
+	result, err = brick.Debug().Delete(&product)
+	require.NoError(t, err)
+	assert.NoError(t, result.Err())
+	t.Log(result.Report())
 }
 
 func TestGroupBy(t *testing.T) {
@@ -2980,5 +2978,67 @@ func TestTempField(t *testing.T) {
 		} else if d.Tag == "0" {
 			require.Equal(t, d.Score, int32(8))
 		}
+	}
+}
+
+func TestDelete(t *testing.T) {
+	{
+		type DeleteTable struct {
+			ID   uint32 `toyorm:"primary key"`
+			Data string
+			Num  int
+		}
+
+		brick := TestDB.Model(&DeleteTable{})
+		createTableUnit(brick)(t)
+		data := []DeleteTable{
+			{ID: 1, Data: "test data 1", Num: 1},
+			{ID: 2, Data: "test data 2", Num: 1},
+			{ID: 3, Data: "test data 3", Num: 2},
+			{ID: 4, Data: "test data 4", Num: 2},
+		}
+		result, err := brick.Insert(&data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		result, err = brick.Delete(data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		t.Log(result.Report())
+		result, err = brick.Where(ExprEqual, Offsetof(DeleteTable{}.Num), 2).DeleteWithConditions()
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		count, err := brick.Count()
+		require.NoError(t, err)
+		require.Equal(t, count, 0)
+	}
+	{
+
+		type DeleteSoftTable struct {
+			ID        uint32 `toyorm:"primary key"`
+			Data      string
+			Num       int
+			DeletedAt *time.Time
+		}
+		brick := TestDB.Model(&DeleteSoftTable{})
+		createTableUnit(brick)(t)
+		data := []DeleteSoftTable{
+			{ID: 1, Data: "test data 1", Num: 1},
+			{ID: 2, Data: "test data 2", Num: 1},
+			{ID: 3, Data: "test data 3", Num: 2},
+			{ID: 4, Data: "test data 4", Num: 2},
+		}
+		result, err := brick.Insert(&data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		result, err = brick.Delete(data[:2])
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		t.Log(result.Report())
+		result, err = brick.Where(ExprEqual, Offsetof(DeleteSoftTable{}.Num), 2).DeleteWithConditions()
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		count, err := brick.Count()
+		require.NoError(t, err)
+		require.Equal(t, count, 0)
 	}
 }

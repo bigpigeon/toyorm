@@ -890,6 +890,11 @@ func (t *ToyBrick) Prepare(query string) (*sql.Stmt, error) {
 }
 
 func (t *ToyBrick) CountExec() (ExecValue, error) {
+	// TODO move to handlers
+	deletedField := t.Model.GetFieldWithName("DeletedAt")
+	if deletedField != nil {
+		t = t.Where(ExprNull, deletedField).And().Conditions(t.Search)
+	}
 	condition := DialectConditionArgs{
 		t.Search,
 		t.limit, t.offset,

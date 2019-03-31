@@ -542,12 +542,16 @@ func (dia PostgreSqlDialect) HardDeleteExec(temp *BasicExec, model *Model, delet
 	if temp == nil {
 		temp = &BasicExec{"DELETE FROM $ModelDef $Conditions", nil}
 	}
-	var primaryCondition SearchList
-	for _, p := range delete.PrimaryFields {
-		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
-		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	var primaryExec BasicExec
+	if delete.PrimaryFields != nil {
+		var primaryCondition SearchList
+		for _, p := range delete.PrimaryFields {
+			primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+			condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+		}
+		execVal := dia.SearchExec(primaryCondition)
+		primaryExec = BasicExec{execVal.Source(), execVal.Args()}
 	}
-	primaryExecVal := dia.SearchExec(primaryCondition)
 
 	var updateValList []string
 	var updateValArgs []interface{}
@@ -561,10 +565,10 @@ func (dia PostgreSqlDialect) HardDeleteExec(temp *BasicExec, model *Model, delet
 			Temp:  *temp,
 			Model: model,
 			Alias: "",
-			Quote: "`",
+			Quote: `"`,
 		},
 		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
-		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		PrimaryValues: primaryExec,
 		Conditions:    *dia.ConditionBasicExec(condition),
 	}
 	basicExec, err := execMap.Render()
@@ -578,12 +582,16 @@ func (dia PostgreSqlDialect) SoftDeleteExec(temp *BasicExec, model *Model, delet
 	if temp == nil {
 		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
 	}
-	var primaryCondition SearchList
-	for _, p := range delete.PrimaryFields {
-		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
-		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	var primaryExec BasicExec
+	if delete.PrimaryFields != nil {
+		var primaryCondition SearchList
+		for _, p := range delete.PrimaryFields {
+			primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+			condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+		}
+		execVal := dia.SearchExec(primaryCondition)
+		primaryExec = BasicExec{execVal.Source(), execVal.Args()}
 	}
-	primaryExecVal := dia.SearchExec(primaryCondition)
 
 	var updateValList []string
 	var updateValArgs []interface{}
@@ -597,10 +605,10 @@ func (dia PostgreSqlDialect) SoftDeleteExec(temp *BasicExec, model *Model, delet
 			Temp:  *temp,
 			Model: model,
 			Alias: "",
-			Quote: "`",
+			Quote: `"`,
 		},
 		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
-		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		PrimaryValues: primaryExec,
 		Conditions:    *dia.ConditionBasicExec(condition),
 	}
 	basicExec, err := execMap.Render()

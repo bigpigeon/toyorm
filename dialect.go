@@ -428,12 +428,17 @@ func (dia DefaultDialect) HardDeleteExec(temp *BasicExec, model *Model, delete D
 	if temp == nil {
 		temp = &BasicExec{"DELETE FROM $ModelDef $Conditions", nil}
 	}
-	var primaryCondition SearchList
-	for _, p := range delete.PrimaryFields {
-		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
-		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+
+	var primaryExec BasicExec
+	if delete.PrimaryFields != nil {
+		var primaryCondition SearchList
+		for _, p := range delete.PrimaryFields {
+			primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+			condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+		}
+		execVal := dia.SearchExec(primaryCondition)
+		primaryExec = BasicExec{execVal.Source(), execVal.Args()}
 	}
-	primaryExecVal := dia.SearchExec(primaryCondition)
 
 	var updateValList []string
 	var updateValArgs []interface{}
@@ -450,7 +455,7 @@ func (dia DefaultDialect) HardDeleteExec(temp *BasicExec, model *Model, delete D
 			Quote: "`",
 		},
 		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
-		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		PrimaryValues: primaryExec,
 		Conditions:    *dia.ConditionBasicExec(condition),
 	}
 	basicExec, err := execMap.Render()
@@ -464,12 +469,16 @@ func (dia DefaultDialect) SoftDeleteExec(temp *BasicExec, model *Model, delete D
 	if temp == nil {
 		temp = &BasicExec{"UPDATE $ModelDef SET $UpdateValues $Conditions", nil}
 	}
-	var primaryCondition SearchList
-	for _, p := range delete.PrimaryFields {
-		primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
-		condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+	var primaryExec BasicExec
+	if delete.PrimaryFields != nil {
+		var primaryCondition SearchList
+		for _, p := range delete.PrimaryFields {
+			primaryCondition = primaryCondition.Condition(p, ExprIn, ExprAnd)
+			condition.search = condition.search.Condition(p, ExprIn, ExprAnd)
+		}
+		execVal := dia.SearchExec(primaryCondition)
+		primaryExec = BasicExec{execVal.Source(), execVal.Args()}
 	}
-	primaryExecVal := dia.SearchExec(primaryCondition)
 
 	var updateValList []string
 	var updateValArgs []interface{}
@@ -486,7 +495,7 @@ func (dia DefaultDialect) SoftDeleteExec(temp *BasicExec, model *Model, delete D
 			Quote: "`",
 		},
 		UpdateValues:  BasicExec{strings.Join(updateValList, ","), updateValArgs},
-		PrimaryValues: BasicExec{primaryExecVal.Source(), primaryExecVal.Args()},
+		PrimaryValues: primaryExec,
 		Conditions:    *dia.ConditionBasicExec(condition),
 	}
 	basicExec, err := execMap.Render()
