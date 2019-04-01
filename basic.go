@@ -705,7 +705,9 @@ func getDeleteArgs(model *Model, preload map[string]*BelongToPreload, records Mo
 	deletedField := model.GetFieldWithName("DeletedAt")
 	if deletedField != nil {
 		now := time.Now()
-		args.UpdatedValues = append(args.UpdatedValues, deletedField.ToFieldValue(reflect.ValueOf(&now)))
+		deletedFieldValue := deletedField.ToFieldValue(reflect.ValueOf(&now))
+		args.UpdatedValues = append(args.UpdatedValues, deletedFieldValue)
+		args.DeletedAt = deletedFieldValue
 	}
 	for _, preload := range preload {
 		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil

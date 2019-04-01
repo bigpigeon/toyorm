@@ -56,6 +56,7 @@ type DialectHardDeleteArgs struct {
 type DialectSoftDeleteArgs struct {
 	PrimaryFields FieldValueList
 	UpdatedValues FieldValueList
+	DeletedAt     FieldValue
 }
 
 type Dialect interface {
@@ -78,7 +79,6 @@ type Dialect interface {
 	USaveExec(temp *BasicExec, model *Model, alias string, save DialectSaveArgs, condition DialectConditionArgs) (ExecValue, error)
 	//AddForeignKey(model, relationModel *Model, ForeignKeyField Field) ExecValue
 	//DropForeignKey(model *Model, ForeignKeyField Field) ExecValue
-	CountExec(model *Model, alias string) ExecValue
 	SearchExec(search SearchList) ExecValue
 	TemplateExec(BasicExec, map[string]BasicExec) (ExecValue, error)
 }
@@ -479,6 +479,7 @@ func (dia DefaultDialect) SoftDeleteExec(temp *BasicExec, model *Model, delete D
 		execVal := dia.SearchExec(primaryCondition)
 		primaryExec = BasicExec{execVal.Source(), execVal.Args()}
 	}
+	condition.search = condition.search.Condition(delete.DeletedAt, ExprNull, ExprAnd)
 
 	var updateValList []string
 	var updateValArgs []interface{}
@@ -615,13 +616,6 @@ func (dia DefaultDialect) DropForeignKey(model *Model, ForeignKeyField Field) Ex
 		"ALTER TABLE `%s` DROP FOREIGN KEY (%s)", model.Name, ForeignKeyField.Column(),
 	), nil}
 
-}
-
-func (dia DefaultDialect) CountExec(model *Model, alias string) ExecValue {
-	if alias != "" {
-		return DefaultExec{fmt.Sprintf("SELECT count(*) FROM `%s` as `%s`", model.Name, alias), nil}
-	}
-	return DefaultExec{fmt.Sprintf("SELECT count(*) FROM `%s`", model.Name), nil}
 }
 
 func (dia DefaultDialect) TemplateExec(tExec BasicExec, execs map[string]BasicExec) (ExecValue, error) {

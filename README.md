@@ -668,6 +668,19 @@ result, err := brick.Template("INSERT INTO $ModelName($Columns) Values($Values)"
 // INSERT INTO product(created_at,updated_at,deleted_at,name,price,count,tag) Values(?,?,?,?,?,?,?) args:["2018-04-01T17:05:48.927499+08:00","2018-04-01T17:05:48.927499+08:00",null,"bag",9999,2,"container"]
 ```
 
+##### Custom save
+
+data := Product{
+    Name:  "bag",
+    Price: 9999,
+    Count: 2,
+    Tag:   "container",
+}
+result, err := brick.Template("INSERT INTO $ModelName($Columns) Values($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues").Save(&data)
+// INSERT INTO product(id,created_at,updated_at,deleted_at,name,price,count,tag) Values(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE  id = VALUES(id),updated_at = VALUES(updated_at),deleted_at = VALUES(deleted_at),name = VALUES(name),price = VALUES(price),count = VALUES(count),tag = VALUES(tag)  args:[9,"2019-04-01T00:15:13.57342+08:00","2019-04-01T00:15:13.574443+08:00",null,"bag",9988,2,"container"]
+```
+
+
 ##### Custom find
 
 ```golang

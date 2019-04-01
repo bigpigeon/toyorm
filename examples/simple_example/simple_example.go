@@ -8,7 +8,7 @@ import (
 	. "unsafe"
 
 	// when database is mysql
-	//_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 	// when database is sqlite3
 	_ "github.com/mattn/go-sqlite3"
 	// when database is postgres
@@ -50,9 +50,9 @@ func main() {
 	var toy *toyorm.Toy
 	var result *toyorm.Result
 	// when database is mysql, make sure your mysql have toyorm_example schema
-	//toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
+	toy, err = toyorm.Open("mysql", "root:@tcp(localhost:3306)/toyorm_example?charset=utf8&parseTime=True")
 	// when database is sqlite3
-	toy, err = toyorm.Open("sqlite3", "toyorm_test.db")
+	//toy, err = toyorm.Open("sqlite3", "toyorm_test.db")
 	// when database is postgres
 	//toy, err = toyorm.Open("postgres", "user=postgres dbname=toyorm sslmode=disable")
 
@@ -306,7 +306,10 @@ func main() {
 			fmt.Print(resultErr)
 		}
 		fmt.Printf("error(%s)\n", err)
-		brick.Rollback()
+		err = brick.Rollback()
+		if err != nil {
+			panic(err)
+		}
 	}
 	// delete with condition
 	{
@@ -322,7 +325,10 @@ func main() {
 		var product Product
 		_, err = brick.Where(toyorm.ExprEqual, Offsetof(Product{}.Name), "food four").Find(&product)
 		fmt.Printf("error(%s)\n", err)
-		brick.Rollback()
+		err = brick.Rollback()
+		if err != nil {
+			panic(err)
+		}
 	}
 	// group by
 	{
@@ -341,6 +347,7 @@ func main() {
 		}
 	}
 	// custom insert
+	var saveData Product
 	{
 		data := Product{
 			Name:  "bag",
@@ -355,12 +362,25 @@ func main() {
 		if resultErr := result.Err(); resultErr != nil {
 			fmt.Print(resultErr)
 		}
+		saveData = data
 	}
+	// custom save
+	{
+		saveData.Price = 9988
+		result, err := brick.Template("INSERT INTO $ModelName($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues").Save(&saveData)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+	}
+
 	// custom find
 	{
 		var data Product
 		// if driver is mysql use "USE INDEX" replace "INDEXED BY"
-		result, err := brick.Template("SELECT $Columns FROM $ModelName INDEXED BY idx_product_name $Conditions").
+		result, err := brick.Template("SELECT $Columns FROM $ModelName idx_product_name $Conditions OFFSET 0").
 			Where("=", Offsetof(Product{}.Name), "bag").Find(&data)
 		if err != nil {
 			panic(err)
@@ -372,8 +392,8 @@ func main() {
 	}
 	// custom update
 	{
-		fmt.Printf("the template source %s\n", fmt.Sprintf("UPDATE $ModelName SET $Values,$FN-Count = $0x%x + ? $Conditions", Offsetof(Product{}.Count)))
-		result, err := brick.Template(fmt.Sprintf("UPDATE $ModelName SET $Values,$FN-Count = $0x%x + ? $Conditions", Offsetof(Product{}.Count)), 2).
+		fmt.Printf("the template source %s\n", fmt.Sprintf("UPDATE $ModelName SET $UpdateValues,$FN-Count = $FN-Count + ? $Conditions"))
+		result, err := brick.Template(fmt.Sprintf("UPDATE $ModelName SET $UpdateValues,$FN-Count = $FN-Count + ? $Conditions"), 2).
 			Where("=", Offsetof(Product{}.Name), "bag").Update(&Product{Price: 200})
 		if err != nil {
 			panic(err)

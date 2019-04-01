@@ -959,7 +959,7 @@ func (t *ToyBrick) HardDeleteExec(records ModelRecords) (ExecValue, error) {
 		t.orderBy.ToColumnList(), t.groupBy.ToColumnList(),
 	}
 	delArgs := getDeleteArgs(t.Model, t.BelongToPreload, records)
-	return t.Toy.Dialect.HardDeleteExec(t.templateSelect(TempUpdate), t.Model, delArgs, condition)
+	return t.Toy.Dialect.HardDeleteExec(t.templateSelect(TempDelete), t.Model, delArgs, condition)
 }
 
 func (t *ToyBrick) InsertExec(record ModelRecord) (ExecValue, error) {

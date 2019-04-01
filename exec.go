@@ -25,6 +25,11 @@ type BasicExec struct {
 	args  []interface{}
 }
 
+type BasicExecFunc struct {
+	fn   func(args []string) BasicExec
+	args []string
+}
+
 // not process source str, Source() == Query()
 type DefaultExec struct {
 	query string

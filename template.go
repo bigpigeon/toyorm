@@ -8,7 +8,6 @@ package toyorm
 
 import (
 	"bytes"
-	"fmt"
 )
 
 type Template interface {
@@ -267,7 +266,7 @@ func (b *TemplateBasic) DefaultExecs() map[string]BasicExec {
 		// add field name placeholder exec
 		result["FN-"+field.Name()] = BasicExec{field.Column(), nil}
 		// add field offset placeholder exec
-		result[fmt.Sprintf("0x%x", field.Offset())] = BasicExec{field.Column(), nil}
+		//result[fmt.Sprintf("0x%x", field.Offset())] = BasicExec{field.Column(), nil}
 	}
 	return result
 }
@@ -344,6 +343,7 @@ const (
 	TempSave
 	TempUSave
 	TempUpdate
+	TempDelete
 	TempFind
 	TempCreateTable
 	TempDropTable
