@@ -320,14 +320,14 @@ func (exec *FindTemplate) Render() (*BasicExec, error) {
 	return GetTemplateExec(exec.Temp, execs)
 }
 
-type HardDeleteTemplate struct {
+type DeleteTemplate struct {
 	TemplateBasic
 	PrimaryValues BasicExec
 	UpdateValues  BasicExec
 	Conditions    BasicExec
 }
 
-func (exec *HardDeleteTemplate) Render() (*BasicExec, error) {
+func (exec *DeleteTemplate) Render() (*BasicExec, error) {
 	execs := exec.DefaultExecs()
 	execs["PrimaryValues"] = exec.PrimaryValues
 	execs["UpdateValues"] = exec.UpdateValues
@@ -345,7 +345,7 @@ const (
 	TempUpdate
 	TempDelete
 	TempFind
-	TempCreateTable
-	TempDropTable
+	//TempCreateTable
+	//TempDropTable
 	TempEnd
 )

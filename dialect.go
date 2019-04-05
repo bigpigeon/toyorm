@@ -447,7 +447,7 @@ func (dia DefaultDialect) HardDeleteExec(temp *BasicExec, model *Model, delete D
 		updateValArgs = append(updateValArgs, u.Value().Interface())
 	}
 
-	execMap := HardDeleteTemplate{
+	execMap := DeleteTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
@@ -488,7 +488,7 @@ func (dia DefaultDialect) SoftDeleteExec(temp *BasicExec, model *Model, delete D
 		updateValArgs = append(updateValArgs, u.Value().Interface())
 	}
 
-	execMap := HardDeleteTemplate{
+	execMap := DeleteTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,

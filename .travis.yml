@@ -10,6 +10,17 @@ services:
 
 install: true
 
+addons:
+  apt:
+    sources:
+    - mysql-5.7-trusty
+    packages:
+    - mysql-server
+
+dist: trusty
+
+sudo: required
+
 env:
   - GO111MODULE=on
 

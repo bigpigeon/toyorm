@@ -375,7 +375,17 @@ func main() {
 			fmt.Print(resultErr)
 		}
 	}
-
+	// custom usave
+	{
+		saveData.Price = 9987
+		result, err := brick.Template("UPDATE $ModelName SET $UpdateValues $Conditions").USave(&saveData)
+		if err != nil {
+			panic(err)
+		}
+		if resultErr := result.Err(); resultErr != nil {
+			fmt.Print(resultErr)
+		}
+	}
 	// custom find
 	{
 		var data Product

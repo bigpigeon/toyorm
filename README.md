@@ -33,6 +33,7 @@ this is powerful sql orm library for Golang, have some funny features
       - [usage](#usage)
       - [SearchExpr](#searchexpr)
       - [example](#example-1)
+    - [Template Field](#template-field)
     - [Transaction](#transaction)
     - [Debug](#debug)
     - [IgnoreMode](#ignoremode)
@@ -40,6 +41,8 @@ this is powerful sql orm library for Golang, have some funny features
     - [Scope](#scope)
     - [Template](#template)
       - [Custom insert](#custom-insert)
+      - [Custom save](#custom-save)
+      - [Custom usave](#custom-usave)
       - [Custom find](#custom-find)
       - [Custom update](#custom-update)
       - [Placeholder](#placeholder)
@@ -56,6 +59,7 @@ this is powerful sql orm library for Golang, have some funny features
       - [Model Define](#model-define)
       - [Join in Find](#join-in-find)
       - [Preload On Join](#preload-on-join)
+  - [Custom Table Name](#custom-table-name)
   - [Result](#result)
     - [Selector](#selector)
 - [Collection](#collection)
@@ -670,9 +674,13 @@ result, err := brick.Template("INSERT INTO $ModelName($Columns) Values($Values)"
 
 ##### Custom save
 
+```golang
 data := Product{
+    ModelDefault:toyorm.ModelDefault{
+        ID:1,
+    },
     Name:  "bag",
-    Price: 9999,
+    Price: 9988,
     Count: 2,
     Tag:   "container",
 }
@@ -680,6 +688,22 @@ result, err := brick.Template("INSERT INTO $ModelName($Columns) Values($Values) 
 // INSERT INTO product(id,created_at,updated_at,deleted_at,name,price,count,tag) Values(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE  id = VALUES(id),updated_at = VALUES(updated_at),deleted_at = VALUES(deleted_at),name = VALUES(name),price = VALUES(price),count = VALUES(count),tag = VALUES(tag)  args:[9,"2019-04-01T00:15:13.57342+08:00","2019-04-01T00:15:13.574443+08:00",null,"bag",9988,2,"container"]
 ```
 
+
+##### Custom usave
+
+```golang
+data := Product{
+    ModelDefault:toyorm.ModelDefault{
+        ID:1,
+    },
+    Name:  "bag",
+    Price: 9988,
+    Count: 2,
+    Tag:   "container",
+}
+result, err := brick.Template("UPDATE $ModelName SET $UpdateValues $Conditions").USave(&saveData)
+// UPDATE product SET id = ? ,updated_at = ? ,deleted_at = ? ,name = ? ,price = ? ,count = ? ,tag = ?   WHERE id = ?  args:[9,"2019-04-01T22:12:24.764197+08:00",null,"bag",9987,2,"container",9]
+```
 
 ##### Custom find
 
@@ -697,7 +721,7 @@ result, err := brick.Template("SELECT $Columns FROM $ModelName INDEXED BY idx_pr
 set count = count + 2
 
 ```golang
-result, err := brick.Template(fmt.Sprintf("UPDATE $ModelName SET $Values,$FN-Count = $0x%x + ? $Conditions", Offsetof(Product{}.Count)), 2).
+result, err := brick.Template(fmt.Sprintf("UPDATE $ModelName SET $Values,$FN-Count = $FN-Count + ? $Conditions"), 2).
 	Where("=", Offsetof(Product{}.Name), "bag").Update(&Product{Price: 200})
 // UPDATE product SET updated_at = ?,price = ?,count = count + ?  WHERE deleted_at IS NULL AND name = ?  args:["2018-04-01T17:50:35.205377+08:00",200,2,"bag"]
 ```
@@ -710,14 +734,35 @@ follower placeholder use in template example
 two special placeholder
 
 1. $FN- will convert struct field name to table field name e.g $FN-Name => name
-2. $0x will convert struct field offset to table field name e.g $0x58 => Count
 
-action \\  placeholder | $ModelName | $Columns    | $Values                | $Conditions
------------------------|------------|-------------|------------------| -----------|
-Find                   | product    | id,data,... | -               |  WHERE ... ORDER BY ... GROUP BY ... LIMIT ... OFFSET ...
-Insert                 | product    | id,data,... | ?,?,...         | WHERE ... ORDER BY ... GROUP BY ... LIMIT ... OFFSET ...
-Save                   | product    | id,data,... | ?,?,...           | WHERE ... ORDER BY ... GROUP BY ... LIMIT ... OFFSET ...
-Update                 | product    | id,data,... | id = ?,data = ?,...    | WHERE ... ORDER BY ... GROUP BY ... LIMIT ... OFFSET ...
+```golang
+// example data
+type Bucket struct {
+    ID uint32 `toyorm:"primary key"`
+    Data string
+}
+data := Bucket{
+    ID:   1,
+    Data: "some data",
+}
+var fData Bucket
+uData := Bucket {
+    Data: "updated some data",
+}
+```
+
+**use mysql as an example here**
+
+action \\  placeholder                          | $ModelName | $ModelDef | $Columns | $Values |    $UpdateValues     | $Conditions
+------------------------------------------------|------------|----------|----------| ---------|-----------------------|-------------------|
+brick.Where("=", "ID", 1).Limit(1).Find(&fData) | bucket     | \`bucket\` | id,data |         |                       |  WHERE id = ? LIMIT 1 (args: 1)
+brick.Insert(&data)                             | bucket     | \`bucket\` | id,data  | ?,?     |id = VALUES(id),data =  VALUES(id)   |
+brick.Save(&data)                               | bucket     | \`bucket\` | id,data | ?,?     | id = VALUES(id),data =  VALUES(id)   |
+brick.Where("=", "ID", 1).Updated(&uData)       | bucket     | \`bucket\` |         |         |id = ?,data = ?        | WHERE id = ? (args: 1)
+brick.USave(&data)                              | bucket     | \`bucket\` |          |    ?,?   |id = ?,data = ?        | WHERE id = ? (args: 1)
+brick.Alias("m").OrderBy("Data").Find(&fData)   | bucket     | \`bucket\` as m | m.id,m.data |    |                       | ORDER BY m.data
+brick.Where("<>", "Data", "").Count()           | bucket     | \`bucket\` | count(*) |          |                       | WHERE data <> ? (args: "")
+
 
 #### Thread safe
 

@@ -560,7 +560,7 @@ func (dia PostgreSqlDialect) HardDeleteExec(temp *BasicExec, model *Model, delet
 		updateValArgs = append(updateValArgs, u.Value().Interface())
 	}
 
-	execMap := HardDeleteTemplate{
+	execMap := DeleteTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
@@ -600,7 +600,7 @@ func (dia PostgreSqlDialect) SoftDeleteExec(temp *BasicExec, model *Model, delet
 		updateValArgs = append(updateValArgs, u.Value().Interface())
 	}
 
-	execMap := HardDeleteTemplate{
+	execMap := DeleteTemplate{
 		TemplateBasic: TemplateBasic{
 			Temp:  *temp,
 			Model: model,
