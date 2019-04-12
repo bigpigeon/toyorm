@@ -32,7 +32,9 @@ func TestBugCreateTableManyToManyReportLoss(t *testing.T) {
 	for _, preloadResult := range result.MiddleModelPreload {
 		assert.NotEqual(t, preloadResult.Report(), "")
 	}
+
 	result, err = brick.CreateTableIfNotExist()
+	assert.NoError(t, err)
 	t.Log(result.Report())
 	assert.NoError(t, result.Err())
 	for _, preloadResult := range result.MiddleModelPreload {
@@ -213,9 +215,9 @@ func TestBugSaveNilCreatedAt(t *testing.T) {
 	type TestSaveCreatedAt struct {
 		ID        uint32 `toyorm:"primary key;auto_increment"`
 		Data      string
-		CreatedAt time.Time
+		CreatedAt time.Time `toyorm:"NULL"`
 	}
-	brick := TestDB.Model(&TestSaveCreatedAt{}).Debug()
+	brick := TestDB.Model(&TestSaveCreatedAt{})
 	createTableUnit(brick)(t)
 	//brick = brick.Debug()
 	data := TestSaveCreatedAt{
