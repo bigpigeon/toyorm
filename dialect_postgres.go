@@ -65,6 +65,7 @@ func (dia PostgreSqlDialect) CreateTable(model *Model, foreign map[string]Foreig
 		} else {
 			s = fmt.Sprintf("%s %s", sqlField.Column(), sqlField.SqlType())
 		}
+
 		if _default := sqlField.Default(); _default != "" {
 			s += " DEFAULT " + _default
 		}
@@ -367,6 +368,12 @@ func (dia PostgreSqlDialect) SaveExec(model *Model, columnNameValues []ColumnNam
 	for _, r := range columnNameValues {
 		if r.Name() == "Cas" {
 			casField = r
+		}
+		if r.Name() == "CreatedAt" {
+			continue
+		}
+		if model.GetFieldWithName(r.Name()).IsPrimary() {
+			continue
 		}
 		recordList = append(recordList, r.Column()+" = Excluded."+r.Column())
 	}

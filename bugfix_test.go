@@ -131,7 +131,8 @@ func TestBugUSaveCreatedAt(t *testing.T) {
 	brick := TestDB.Model(&TestUSaveCreatedAt{})
 	createTableUnit(brick)(t)
 	data := TestUSaveCreatedAt{
-		Data: "test data",
+		Data:      "test data",
+		CreatedAt: time.Now().Add(-1 * time.Second), // mysql only save millisecond level datetime,need ensure the created at will change on next save
 	}
 	result, err := brick.Insert(&data)
 	require.NoError(t, err)
@@ -205,4 +206,49 @@ func TestBugOrderByConflictWithGroupBy(t *testing.T) {
 	result, err := brick.Find(&data)
 	require.NoError(t, err)
 	require.NoError(t, result.Err())
+}
+
+func TestBugSaveNilCreatedAt(t *testing.T) {
+	skillTestDB(t, "sqlite3")
+	type TestSaveCreatedAt struct {
+		ID        uint32 `toyorm:"primary key;auto_increment"`
+		Data      string
+		CreatedAt time.Time
+	}
+	brick := TestDB.Model(&TestSaveCreatedAt{}).Debug()
+	createTableUnit(brick)(t)
+	//brick = brick.Debug()
+	data := TestSaveCreatedAt{
+		Data:      "test data",
+		CreatedAt: time.Now().Add(-10 * time.Second),
+	}
+	result, err := brick.Insert(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	var oldCreatedAt time.Time
+	{
+		var data TestSaveCreatedAt
+		result, err = brick.Find(&data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		oldCreatedAt = data.CreatedAt
+	}
+	//time.Sleep(100 * time.Millisecond)
+	// FIXME mysql will update created at field
+	t.Log(oldCreatedAt)
+	data.CreatedAt = time.Time{}
+	data.Data += " save again"
+	result, err = brick.Save(&data)
+	require.NoError(t, err)
+	require.NoError(t, result.Err())
+	t.Log(result.Report())
+	{
+		var data TestSaveCreatedAt
+		result, err = brick.Find(&data)
+		require.NoError(t, err)
+		require.NoError(t, result.Err())
+		assert.Equal(t, oldCreatedAt, data.CreatedAt)
+		t.Log(data.CreatedAt)
+		assert.Equal(t, data.Data, "test data save again")
+	}
 }
