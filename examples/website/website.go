@@ -72,6 +72,7 @@ func (e Engine) MainPage(ctx *gin.Context) {
 }
 
 func (e Engine) LoginPage(ctx *gin.Context) {
+	ctx.Bind()
 	ctx.HTML(http.StatusOK, "login.tmpl", gin.H{
 		"current": ctx.Keys["current"],
 	})

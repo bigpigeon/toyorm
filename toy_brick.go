@@ -612,25 +612,28 @@ func (t *ToyBrick) GetContext(option string, records ModelRecords) *Context {
 	return ctx
 }
 
-func (t *ToyBrick) insert(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) insert(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("Insert", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) save(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) save(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("Save", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) usave(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) usave(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("USave", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) deleteWithPrimaryKey(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) deleteWithPrimaryKey(records ModelRecords) *Result {
 	if field := t.Model.GetFieldWithName("DeletedAt"); field != nil {
 		return t.softDeleteWithPrimaryKey(records)
 	} else {
@@ -638,19 +641,21 @@ func (t *ToyBrick) deleteWithPrimaryKey(records ModelRecords) (*Result, error) {
 	}
 }
 
-func (t *ToyBrick) softDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) softDeleteWithPrimaryKey(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("SoftDeleteWithPrimaryKey", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) hardDeleteWithPrimaryKey(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) hardDeleteWithPrimaryKey(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("HardDeleteWithPrimaryKey", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) delete(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) delete(records ModelRecords) *Result {
 	if field := t.Model.GetFieldWithName("DeletedAt"); field != nil {
 		return t.softDelete(records)
 	} else {
@@ -658,58 +663,69 @@ func (t *ToyBrick) delete(records ModelRecords) (*Result, error) {
 	}
 }
 
-func (t *ToyBrick) softDelete(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) softDelete(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("SoftDelete", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) hardDelete(records ModelRecords) (*Result, error) {
+func (t *ToyBrick) hardDelete(records ModelRecords) *Result {
 	handlers := t.Toy.ModelHandlers("HardDelete", t.Model)
 	ctx := NewContext(handlers, t, records)
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) find(value reflect.Value) (*Context, error) {
-	handlers := t.Toy.ModelHandlers("Find", t.Model)
+func (t *ToyBrick) find(value reflect.Value) *Context {
 	if value.Kind() == reflect.Slice {
+		handlers := t.Toy.ModelHandlers("Find", t.Model)
 		records := NewRecords(t.Model, value)
 		ctx := NewContext(handlers, t, records)
-		return ctx, ctx.Next()
+		go ctx.Start()
+		return ctx
 	} else {
+		handlers := t.Toy.ModelHandlers("FindOne", t.Model)
 		vList := reflect.New(reflect.SliceOf(value.Type())).Elem()
+		vList = reflect.Append(vList, value)
 		records := NewRecords(t.Model, vList)
+
 		ctx := NewContext(handlers, t.Limit(1), records)
-		err := ctx.Next()
-		if vList.Len() == 0 {
-			if err == nil {
-				err = sql.ErrNoRows
-			}
-			return ctx, err
-		}
-		value.Set(vList.Index(0))
-		return ctx, err
+		go ctx.Start()
+		//err := ctx.Next()
+		//if vList.Len() == 0 {
+		//	if err == nil {
+		//		err = sql.ErrNoRows
+		//	}
+		//	return ctx, err
+		//}
+		//value.Set(vList.Index(0))
+		return ctx
 	}
 }
 
-func (t *ToyBrick) CreateTable() (*Result, error) {
+func (t *ToyBrick) CreateTable() *Result {
 	ctx := t.GetContext("CreateTable", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) CreateTableIfNotExist() (*Result, error) {
+func (t *ToyBrick) CreateTableIfNotExist() *Result {
 	ctx := t.GetContext("CreateTableIfNotExist", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) DropTable() (*Result, error) {
+func (t *ToyBrick) DropTable() *Result {
 	ctx := t.GetContext("DropTable", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) DropTableIfExist() (*Result, error) {
+func (t *ToyBrick) DropTableIfExist() *Result {
 	ctx := t.GetContext("DropTableIfExist", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
 func (t *ToyBrick) HasTable() (b bool, err error) {
@@ -732,7 +748,7 @@ func (t *ToyBrick) Count() (count int, err error) {
 // map[offset]interface{}
 // map[int]interface{}
 // insert is difficult that have preload data
-func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
+func (t *ToyBrick) Insert(v interface{}) *Result {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
@@ -755,19 +771,16 @@ func (t *ToyBrick) Insert(v interface{}) (*Result, error) {
 	}
 }
 
-func (t *ToyBrick) Find(v interface{}) (*Result, error) {
+func (t *ToyBrick) Find(v interface{}) *Result {
 	vValue := LoopIndirectAndNew(reflect.ValueOf(v))
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
 	}
-	if vValue.CanSet() == false {
-		return nil, ErrCannotSet{"v"}
-	}
-	ctx, err := t.find(vValue)
-	return ctx.Result, err
+	ctx := t.find(vValue)
+	return ctx.Result
 }
 
-func (t *ToyBrick) Update(v interface{}) (*Result, error) {
+func (t *ToyBrick) Update(v interface{}) *Result {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
@@ -776,10 +789,11 @@ func (t *ToyBrick) Update(v interface{}) (*Result, error) {
 	vValueList = reflect.Append(vValueList, vValue)
 	handlers := t.Toy.ModelHandlers("Update", t.Model)
 	ctx := NewContext(handlers, t, NewRecords(t.Model, vValueList))
-	return ctx.Result, ctx.Next()
+	go ctx.Start()
+	return ctx.Result
 }
 
-func (t *ToyBrick) Save(v interface{}) (*Result, error) {
+func (t *ToyBrick) Save(v interface{}) *Result {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
@@ -796,7 +810,7 @@ func (t *ToyBrick) Save(v interface{}) (*Result, error) {
 }
 
 // save with exist data
-func (t *ToyBrick) USave(v interface{}) (*Result, error) {
+func (t *ToyBrick) USave(v interface{}) *Result {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
@@ -812,7 +826,7 @@ func (t *ToyBrick) USave(v interface{}) (*Result, error) {
 	}
 }
 
-func (t *ToyBrick) Delete(v interface{}) (*Result, error) {
+func (t *ToyBrick) Delete(v interface{}) *Result {
 	vValue := LoopIndirect(reflect.ValueOf(v))
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
@@ -829,7 +843,7 @@ func (t *ToyBrick) Delete(v interface{}) (*Result, error) {
 	}
 }
 
-func (t *ToyBrick) DeleteWithConditions() (*Result, error) {
+func (t *ToyBrick) DeleteWithConditions() *Result {
 	return t.delete(nil)
 }
 

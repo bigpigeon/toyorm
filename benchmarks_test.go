@@ -44,12 +44,8 @@ func BenchmarkStandardInsert(b *testing.B) {
 	b.StartTimer()
 	// get insert exec
 	now := time.Now()
-	result, err := brick.Insert(getTestBenchmarkTable(now))
-	if err != nil {
-		b.Error(err)
-		b.FailNow()
-	}
-	if result.Err() != nil {
+	result := brick.Insert(getTestBenchmarkTable(now))
+	if err := result.Err(); err != nil {
 		b.Error(err)
 		b.FailNow()
 	}
@@ -73,12 +69,8 @@ func BenchmarkInsert(b *testing.B) {
 	b.StartTimer()
 	now := time.Now()
 	for n := 0; n < b.N; n++ {
-		result, err := brick.Insert(getTestBenchmarkTable(now))
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		result := brick.Insert(getTestBenchmarkTable(now))
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}
@@ -91,24 +83,17 @@ func BenchmarkStandardFind(b *testing.B) {
 	now := time.Now()
 	// fill some data
 	for i := 0; i < 1; i++ {
-		result, err := brick.Insert(getTestBenchmarkTable(now))
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		result := brick.Insert(getTestBenchmarkTable(now))
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}
 	}
 	//b.StartTimer()
 	// get find query
-	result, err := brick.Find(&TestBenchmarkTable{})
-	if err != nil {
-		b.Error(err)
-		b.FailNow()
-	}
-	if result.Err() != nil {
+	result := brick.Find(&TestBenchmarkTable{})
+
+	if err := result.Err(); err != nil {
 		b.Error(err)
 		b.FailNow()
 	}
@@ -147,12 +132,8 @@ func BenchmarkFind(b *testing.B) {
 	now := time.Now()
 	// fill some data
 	for i := 0; i < 1; i++ {
-		result, err := brick.Insert(getTestBenchmarkTable(now))
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		result := brick.Insert(getTestBenchmarkTable(now))
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}
@@ -160,12 +141,8 @@ func BenchmarkFind(b *testing.B) {
 	//b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		var data []TestBenchmarkTable
-		result, err := brick.Find(&data)
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		result := brick.Find(&data)
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}
@@ -178,27 +155,19 @@ func BenchmarkStandardUpdate(b *testing.B) {
 	now := time.Now()
 	// fill some data
 	for i := 0; i < 3; i++ {
-		result, err := brick.Insert(getTestBenchmarkTable(now))
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		result := brick.Insert(getTestBenchmarkTable(now))
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}
 	}
 	b.StartTimer()
 	// get update exec
-	result, err := brick.Update(&TestBenchmarkTable{
+	result := brick.Update(&TestBenchmarkTable{
 		Value: "value" + strconv.Itoa(1),
 		Key:   "key2",
 	})
-	if err != nil {
-		b.Error(err)
-		b.FailNow()
-	}
-	if result.Err() != nil {
+	if err := result.Err(); err != nil {
 		b.Error(err)
 		b.FailNow()
 	}
@@ -218,29 +187,21 @@ func BenchmarkUpdate(b *testing.B) {
 	createTableUnit(brick)(b)
 	// fill some data
 	for i := 0; i < 3; i++ {
-		result, err := brick.Insert(&TestBenchmarkTable{
+		result := brick.Insert(&TestBenchmarkTable{
 			Key:   "key" + strconv.Itoa(i),
 			Value: "value",
 		})
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}
 	}
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		result, err := brick.Update(&TestBenchmarkTable{
+		result := brick.Update(&TestBenchmarkTable{
 			Value: "value" + strconv.Itoa(n),
 		})
-		if err != nil {
-			b.Error(err)
-			b.FailNow()
-		}
-		if result.Err() != nil {
+		if err := result.Err(); err != nil {
 			b.Error(err)
 			b.FailNow()
 		}

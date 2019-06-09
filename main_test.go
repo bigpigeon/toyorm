@@ -802,12 +802,10 @@ func foreignKeyManyToManyPreload(v interface{}) func(*ToyBrick) *ToyBrick {
 
 func createTableUnit(brick *ToyBrick) func(t testing.TB) {
 	return func(t testing.TB) {
-		result, err := brick.DropTableIfExist()
-		require.NoError(t, err)
+		result := brick.DropTableIfExist()
 		require.NoError(t, result.Err())
 
-		result, err = brick.CreateTable()
-		require.NoError(t, err)
+		result = brick.CreateTable()
 		require.NoError(t, result.Err())
 	}
 }

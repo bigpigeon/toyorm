@@ -31,23 +31,22 @@ func TestCreateTable(t *testing.T) {
 		// start a session
 		brick := TestDB.Model(tab).Begin()
 		hastable, err = brick.HasTable()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
-		result, err := brick.DropTableIfExist()
-		assert.Nil(t, err)
+		result := brick.DropTableIfExist()
+		assert.Nil(t, result.Err())
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		result, err = brick.CreateTable()
-		assert.Nil(t, err)
-		assert.Nil(t, err)
+		result = brick.CreateTable()
+		assert.Nil(t, result.Err())
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
 		err = brick.Commit()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	}
 }
 
@@ -55,14 +54,11 @@ func TestInsertData(t *testing.T) {
 	brick := TestDB.Model(&TestInsertTable{})
 	//create table
 	{
-		result, err := brick.DropTableIfExist()
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
-		result, err = brick.CreateTable()
-		assert.Nil(t, err)
+		result := brick.DropTableIfExist()
+		assert.Nil(t, result.Err())
+
+		result = brick.CreateTable()
+		assert.Nil(t, result.Err())
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -84,12 +80,9 @@ func TestInsertData(t *testing.T) {
 			PtrFloat:    &dfloat,
 			PtrComplex:  &dcomplex,
 		}
-		result, err := brick.Insert(tab)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		result := brick.Insert(tab)
+		assert.Nil(t, result.Err())
+
 		t.Logf("id %v created at: %v updated at: %v", tab.ID, tab.CreatedAt, tab.UpdatedAt)
 	}
 	// test insert map[string]interface{}
@@ -108,12 +101,9 @@ func TestInsertData(t *testing.T) {
 			"PtrFloat":    &dfloat,
 			"PtrComplex":  &dcomplex,
 		}
-		result, err := brick.Insert(tab)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		result := brick.Insert(tab)
+		assert.Nil(t, result.Err())
+
 		t.Logf("id %v created at: %v updated at: %v", tab["ID"], tab["CreatedAt"], tab["UpdatedAt"])
 	}
 	// test insert map[OffsetOf]interface{}
@@ -133,12 +123,8 @@ func TestInsertData(t *testing.T) {
 			Offsetof(tab.PtrFloat):    &dfloat,
 			Offsetof(tab.PtrComplex):  &dcomplex,
 		}
-		result, err := brick.Insert(tabMap)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		result := brick.Insert(tabMap)
+		assert.Nil(t, result.Err())
 		t.Logf("id %v created at: %v updated at: %v", tabMap[Offsetof(tab.ID)], tabMap[Offsetof(tab.CreatedAt)], tabMap[Offsetof(tab.UpdatedAt)])
 	}
 	// insert list
@@ -170,12 +156,9 @@ func TestInsertData(t *testing.T) {
 				PtrComplex:  &dcomplex,
 			},
 		}
-		result, err := brick.Insert(tab)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		result := brick.Insert(tab)
+		assert.Nil(t, result.Err())
+
 		t.Logf("id %v %v", tab[0].ID, tab[1].ID)
 	}
 	// test insert map[string]interface{}
@@ -206,12 +189,8 @@ func TestInsertData(t *testing.T) {
 				"PtrComplex":  &dcomplex,
 			},
 		}
-		result, err := brick.Insert(tab)
-		assert.Nil(t, err)
-		if err := result.Err(); err != nil {
-			t.Error(err)
-			t.Fail()
-		}
+		result := brick.Insert(tab)
+		assert.Nil(t, result.Err())
 		t.Logf("id %v %v", tab[0]["ID"], tab[1]["ID"])
 	}
 	// test insert map[OffsetOf]interface{}
@@ -243,8 +222,8 @@ func TestInsertData(t *testing.T) {
 				Offsetof(tab.PtrComplex):  &dcomplex,
 			},
 		}
-		result, err := brick.Insert(tabMap)
-		assert.Nil(t, err)
+		result := brick.Insert(tabMap)
+		assert.Nil(t, result.Err())
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -272,8 +251,8 @@ func TestInsertPointData(t *testing.T) {
 			PtrFloat:    &dfloat,
 			PtrComplex:  &dcomplex,
 		}
-		result, err := brick.Insert(&tab)
-		assert.Nil(t, err)
+		result := brick.Insert(&tab)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -299,8 +278,8 @@ func TestInsertPointData(t *testing.T) {
 			"PtrFloat":    &dfloat,
 			"PtrComplex":  &dcomplex,
 		}
-		result, err := brick.Insert(&tab)
-		assert.Nil(t, err)
+		result := brick.Insert(&tab)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -327,8 +306,8 @@ func TestInsertPointData(t *testing.T) {
 			Offsetof(tab.PtrFloat):    &dfloat,
 			Offsetof(tab.PtrComplex):  &dcomplex,
 		}
-		result, err := brick.Insert(&tabMap)
-		assert.Nil(t, err)
+		result := brick.Insert(&tabMap)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -343,14 +322,14 @@ func TestInsertPointData(t *testing.T) {
 func TestFind(t *testing.T) {
 	{
 		brick := TestDB.Model(&TestSearchTable{})
-		result, err := brick.DropTableIfExist()
-		assert.Nil(t, err)
+		result := brick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
 		}
-		result, err = brick.CreateTable()
-		assert.Nil(t, err)
+		result = brick.CreateTable()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -369,8 +348,8 @@ func TestFind(t *testing.T) {
 							C: strings.Repeat("c", k),
 							D: &d,
 						}
-						result, err := TestDB.Model(&TestSearchTable{}).Insert(&t1)
-						assert.Nil(t, err)
+						result := TestDB.Model(&TestSearchTable{}).Insert(&t1)
+
 						if err := result.Err(); err != nil {
 							t.Error(err)
 							t.Fail()
@@ -394,8 +373,8 @@ func TestFind(t *testing.T) {
 	// test find with struct
 	{
 		table := TestSearchTable{}
-		result, err := TestDB.Model(&TestSearchTable{}).Find(&table)
-		assert.Nil(t, err)
+		result := TestDB.Model(&TestSearchTable{}).Find(&table)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -406,8 +385,8 @@ func TestFind(t *testing.T) {
 	// test find with struct list
 	{
 		var tables []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).Find(&tables)
-		assert.Nil(t, err)
+		result := TestDB.Model(&TestSearchTable{}).Find(&tables)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -424,9 +403,9 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).
+		result := TestDB.Model(&TestSearchTable{}).
 			WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -440,9 +419,9 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE (a = ? OR b = ?), args:[]interface {}{"a", "bb"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).
+		result := TestDB.Model(&TestSearchTable{}).
 			WhereGroup(ExprOr, TestSearchTable{A: "a", B: "bb"}).Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -455,10 +434,10 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE a = ? AND b = ?, args:[]interface {}{"a", "b"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).
+		result := TestDB.Model(&TestSearchTable{}).
 			Where(ExprEqual, Offsetof(base.A), "a").
 			And().Condition(ExprEqual, Offsetof(base.B), "b").Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -472,14 +451,14 @@ func TestConditionFind(t *testing.T) {
 	//SELECT id,a,b,c,d FROM test_search_table WHERE ((a = ? AND b = ? OR c = ?) OR d = ? AND a = ?), args:[]interface {}{"a", "b", "c", "d", "aa"}
 	{
 		var tabs []TestSearchTable
-		result, err := TestDB.Model(&TestSearchTable{}).
+		result := TestDB.Model(&TestSearchTable{}).
 			Where(ExprEqual, Offsetof(base.A), "a").And().
 			Condition(ExprEqual, Offsetof(base.B), "b").Or().
 			Condition(ExprEqual, Offsetof(base.C), "c").Or().
 			Condition(ExprEqual, Offsetof(base.D), "d").And().
 			Condition(ExprEqual, Offsetof(base.A), "aa").
 			Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -494,14 +473,14 @@ func TestConditionFind(t *testing.T) {
 		var tabs []TestSearchTable
 		brick := TestDB.Model(&TestSearchTable{})
 
-		result, err := brick.Where(ExprEqual, Offsetof(base.A), "aa").And().
+		result := brick.Where(ExprEqual, Offsetof(base.A), "aa").And().
 			Conditions(
 				brick.Where(ExprEqual, Offsetof(base.A), "a").Or().
 					Condition(ExprEqual, Offsetof(base.B), "b").Or().
 					Condition(ExprEqual, Offsetof(base.C), "c").Search,
 			).
 			Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -517,8 +496,8 @@ func TestCombinationConditionFind(t *testing.T) {
 	brick := TestDB.Model(&TestSearchTable{})
 	{
 		var tabs []TestSearchTable
-		result, err := brick.WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
-		assert.Nil(t, err)
+		result := brick.WhereGroup(ExprAnd, TestSearchTable{A: "a", B: "b"}).Find(&tabs)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -531,8 +510,8 @@ func TestCombinationConditionFind(t *testing.T) {
 	}
 	{
 		var tabs []TestSearchTable
-		result, err := brick.WhereGroup(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
-		assert.Nil(t, err)
+		result := brick.WhereGroup(ExprAnd, map[string]interface{}{"A": "a", "B": "b"}).Find(&tabs)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -545,11 +524,11 @@ func TestCombinationConditionFind(t *testing.T) {
 	}
 	{
 		var tabs []TestSearchTable
-		result, err := brick.WhereGroup(ExprAnd, map[uintptr]interface{}{
+		result := brick.WhereGroup(ExprAnd, map[uintptr]interface{}{
 			Offsetof(TestSearchTable{}.A): "a",
 			Offsetof(TestSearchTable{}.B): "b",
 		}).Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -563,9 +542,9 @@ func TestCombinationConditionFind(t *testing.T) {
 
 	{
 		var tabs []TestSearchTable
-		result, err := brick.WhereGroup(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
+		result := brick.WhereGroup(ExprOr, map[string]interface{}{"A": "a", "B": "b"}).And().
 			Condition(ExprEqual, "C", "c").Find(&tabs)
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -582,8 +561,8 @@ func TestOrderByFind(t *testing.T) {
 	{
 		brick := brick.OrderBy(Offsetof(TestSearchTable{}.C))
 		var data []TestSearchTable
-		result, err := brick.Find(&data)
-		assert.Nil(t, err)
+		result := brick.Find(&data)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -598,8 +577,8 @@ func TestOrderByFind(t *testing.T) {
 	{
 		brick := brick.OrderBy(brick.ToDesc(Offsetof(TestSearchTable{}.C)))
 		var data []TestSearchTable
-		result, err := brick.Find(&data)
-		assert.Nil(t, err)
+		result := brick.Find(&data)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -618,8 +597,8 @@ func TestOrderByFind(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	table := TestSearchTable{A: "aaaaa", B: "bbbbb"}
 	brick := TestDB.Model(&TestSearchTable{})
-	result, err := brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "a").Update(&table)
-	assert.Nil(t, err)
+	result := brick.Where(ExprEqual, Offsetof(TestSearchTable{}.A), "a").Update(&table)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -647,17 +626,16 @@ func TestPreloadCreateTable(t *testing.T) {
 		Preload(Offsetof(TestPreloadTable{}.ManyToMany)).Enter()
 	brick.CreateTable()
 	hastable, err := brick.HasTable()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("table %s exist:%v\n", brick.Model.Name, hastable)
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 		t.Fail()
 	}
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 		t.Fail()
@@ -688,8 +666,8 @@ func TestPreloadInsertData(t *testing.T) {
 				{Name: "test insert data many to many."},
 			},
 		}
-		result, err := brick.Insert(&tab)
-		assert.Nil(t, err)
+		result := brick.Insert(&tab)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -728,8 +706,8 @@ func TestPreloadInsertData(t *testing.T) {
 				{"Name": "test insert data many to many."},
 			},
 		}
-		result, err := brick.Insert(tab)
-		assert.Nil(t, err)
+		result := brick.Insert(tab)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -773,8 +751,8 @@ func TestPreloadInsertData(t *testing.T) {
 				{Offsetof(tManyToMany.Name): "test insert data many to many."},
 			},
 		}
-		result, err := brick.Insert(tab)
-		assert.Nil(t, err)
+		result := brick.Insert(tab)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Fail()
@@ -860,8 +838,8 @@ func TestPreloadSave(t *testing.T) {
 			},
 		}
 		// insert many to many
-		result, err := manyToManyPreload.Insert(&manyToMany)
-		assert.Nil(t, err)
+		result := manyToManyPreload.Insert(&manyToMany)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Failed()
@@ -872,8 +850,8 @@ func TestPreloadSave(t *testing.T) {
 		tables[0].ManyToMany = manyToMany
 		tables[1].ManyToMany = manyToMany
 
-		result, err = brick.Save(&tables)
-		assert.Nil(t, err)
+		result = brick.Save(&tables)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Failed()
@@ -898,8 +876,8 @@ func TestPreloadSave(t *testing.T) {
 		// try to update soft delete
 		now := time.Now()
 		tables[0].DeletedAt = &now
-		result, err = brick.Save(&tables)
-		assert.Nil(t, err)
+		result = brick.Save(&tables)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 			t.Failed()
@@ -954,35 +932,34 @@ func TestPreloadFind(t *testing.T) {
 func TestPreloadDelete(t *testing.T) {
 	var hardTab TestHardDeleteTable
 	var softTab TestSoftDeleteTable
-	var err error
 	var result *Result
 
 	// delete middle first
 	{
 		hardHardMiddleBrick := TestDB.MiddleModel(&hardTab, &TestHardDeleteManyToMany{})
-		result, err = hardHardMiddleBrick.DropTableIfExist()
-		assert.Nil(t, err)
+		result = hardHardMiddleBrick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
 		hardSoftMiddleBrick := TestDB.MiddleModel(&hardTab, &TestSoftDeleteManyToMany{})
-		result, err = hardSoftMiddleBrick.DropTableIfExist()
-		assert.Nil(t, err)
+		result = hardSoftMiddleBrick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
 		softHardMiddleBrick := TestDB.MiddleModel(&softTab, &TestHardDeleteManyToMany{})
-		result, err = softHardMiddleBrick.DropTableIfExist()
-		assert.Nil(t, err)
+		result = softHardMiddleBrick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
 		softSoftMiddleBrick := TestDB.MiddleModel(&softTab, &TestSoftDeleteManyToMany{})
-		result, err = softSoftMiddleBrick.DropTableIfExist()
-		assert.Nil(t, err)
+		result = softSoftMiddleBrick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -999,8 +976,8 @@ func TestPreloadDelete(t *testing.T) {
 			Preload(Offsetof(hardTab.SoftOneToMany)).Enter().
 			Scope(foreignKeyManyToManyPreload(Offsetof(hardTab.SoftManyToMany))).Enter()
 
-		result, err = hardBrick.DropTableIfExist()
-		assert.Nil(t, err)
+		result = hardBrick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -1017,34 +994,34 @@ func TestPreloadDelete(t *testing.T) {
 			Preload(Offsetof(softTab.SoftOneToMany)).Enter().
 			Scope(foreignKeyManyToManyPreload(Offsetof(softTab.SoftManyToMany))).Enter()
 
-		result, err = brick.DropTableIfExist()
-		assert.Nil(t, err)
+		result = brick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 	}
 	// have same target foreign key ,need create table following table first
 	{
-		result, err = TestDB.Model(&TestHardDeleteTableBelongTo{}).CreateTable()
-		assert.Nil(t, err)
+		result := TestDB.Model(&TestHardDeleteTableBelongTo{}).CreateTable()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err := TestDB.Model(&TestSoftDeleteTableBelongTo{}).CreateTable()
-		assert.Nil(t, err)
+		result = TestDB.Model(&TestSoftDeleteTableBelongTo{}).CreateTable()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = TestDB.Model(&hardTab).CreateTable()
-		assert.Nil(t, err)
+		result = TestDB.Model(&hardTab).CreateTable()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = TestDB.Model(&softTab).CreateTable()
-		assert.Nil(t, err)
+		result = TestDB.Model(&softTab).CreateTable()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -1060,13 +1037,13 @@ func TestPreloadDelete(t *testing.T) {
 			Preload(Offsetof(hardTab.SoftOneToMany)).Enter().
 			Scope(foreignKeyManyToManyPreload(Offsetof(hardTab.SoftManyToMany))).Enter()
 
-		result, err = brick.CreateTableIfNotExist()
-		assert.Nil(t, err)
+		result = brick.CreateTableIfNotExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = brick.Save([]TestHardDeleteTable{
+		result = brick.Save([]TestHardDeleteTable{
 			{
 				Data:     "hard delete main model",
 				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
@@ -1114,20 +1091,19 @@ func TestPreloadDelete(t *testing.T) {
 				},
 			},
 		})
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
 		var hardDeleteData []TestHardDeleteTable
-		result, err = brick.Find(&hardDeleteData)
-		assert.Nil(t, err)
+		result = brick.Find(&hardDeleteData)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		_, err = brick.Delete(&hardDeleteData)
-		assert.Nil(t, err)
+		result = brick.Delete(&hardDeleteData)
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -1142,13 +1118,13 @@ func TestPreloadDelete(t *testing.T) {
 			Preload(Offsetof(softTab.SoftOneToOne)).Enter().
 			Preload(Offsetof(softTab.SoftOneToMany)).Enter().
 			Scope(foreignKeyManyToManyPreload(Offsetof(softTab.SoftManyToMany))).Enter()
-		result, err = brick.CreateTableIfNotExist()
-		assert.Nil(t, err)
+		result = brick.CreateTableIfNotExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = brick.Save([]TestSoftDeleteTable{
+		result = brick.Save([]TestSoftDeleteTable{
 			{
 				Data:     "hard delete main model",
 				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
@@ -1196,20 +1172,20 @@ func TestPreloadDelete(t *testing.T) {
 				},
 			},
 		})
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
 		var softDeleteData []TestSoftDeleteTable
-		result, err = brick.Find(&softDeleteData)
-		assert.Nil(t, err)
+		result = brick.Find(&softDeleteData)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		_, err = brick.Delete(&softDeleteData)
-		assert.Nil(t, err)
+		result = brick.Delete(&softDeleteData)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -1227,14 +1203,14 @@ func TestCustomPreload(t *testing.T) {
 		CustomBelongToPreload(Offsetof(table.ChildTwo), Offsetof(table.BelongToID)).Enter().
 		CustomOneToManyPreload(Offsetof(table.Children), Offsetof(tableThree.ParentID)).Enter().
 		CustomManyToManyPreload(middleTable, Offsetof(table.OtherChildren), Offsetof(middleTable.ParentID), Offsetof(middleTable.ChildID)).Enter()
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1252,8 +1228,8 @@ func TestCustomPreload(t *testing.T) {
 			{FourData: "custom many to many data 2"},
 		},
 	}
-	result, err = brick.Insert(&data)
-	assert.Nil(t, err)
+	result = brick.Insert(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1271,8 +1247,8 @@ func TestCustomPreload(t *testing.T) {
 	assert.Equal(t, data.ID, data.Children[0].ParentID)
 	assert.Equal(t, data.ID, data.Children[1].ParentID)
 
-	result, err = brick.Delete(&data)
-	assert.Nil(t, err)
+	result = brick.Delete(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1290,12 +1266,12 @@ func TestFlow(t *testing.T) {
 		Preload(Offsetof(Product{}.Tag)).Enter().
 		Enter()
 	// drow table if exist
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	assert.Nil(t, result.Err())
 
-	result, err = brick.CreateTableIfNotExist()
-	assert.Nil(t, err)
+	result = brick.CreateTableIfNotExist()
+
 	assert.Nil(t, result.Err())
 
 	product := []Product{
@@ -1374,44 +1350,43 @@ func TestFlow(t *testing.T) {
 			},
 		},
 	}
-	result, err = brick.Save(product)
-	assert.Nil(t, err)
+	result = brick.Save(product)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	// add a new tag
 	tagBrick := TestDB.Model(&Tag{})
-	result, err = tagBrick.Insert(&Tag{Code: "nice"})
-	assert.Nil(t, err)
+	result = tagBrick.Insert(&Tag{Code: "nice"})
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	//bind new tag to the one's product
 	middleBrick := TestDB.MiddleModel(&Product{}, &Tag{})
-	result, err = middleBrick.Save(&struct {
+	result = middleBrick.Save(&struct {
 		ProductID uint32
 		TagCode   string
 	}{product[0].ID, "nice"})
-	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	// try to find
 	var newProducts []Product
-	result, err = brick.Find(&newProducts)
-	assert.Nil(t, err)
+	result = brick.Find(&newProducts)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	jsonBytes, err := json.MarshalIndent(newProducts, "", "  ")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("\n%v", string(jsonBytes))
-	result, err = brick.Debug().Delete(&product)
-	require.NoError(t, err)
+	result = brick.Debug().Delete(&product)
 	assert.NoError(t, result.Err())
 	t.Log(result.Report())
 }
@@ -1420,19 +1395,19 @@ func TestGroupBy(t *testing.T) {
 	//create table and insert data
 	{
 		brick := TestDB.Model(&TestGroupByTable{})
-		result, err := brick.DropTableIfExist()
-		assert.Nil(t, err)
+		result := brick.DropTableIfExist()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = brick.CreateTable()
-		assert.Nil(t, err)
+		result = brick.CreateTable()
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
 
-		result, err = brick.Insert([]TestGroupByTable{
+		result = brick.Insert([]TestGroupByTable{
 			{Name: "pigeon", Address: "aaa", Age: 1},
 			{Name: "pigeon", Address: "aaa", Age: 2},
 			{Name: "pigeon", Address: "aaa", Age: 3},
@@ -1444,7 +1419,7 @@ func TestGroupBy(t *testing.T) {
 			{Name: "bigpigeon", Address: "bbb", Age: 1},
 			{Name: "bigpigeon", Address: "bbb", Age: 2},
 		})
-		assert.Nil(t, err)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -1455,8 +1430,8 @@ func TestGroupBy(t *testing.T) {
 
 		brick = brick.GroupBy(Offsetof(tab.Name), Offsetof(tab.Address))
 		var data []TestGroupByTableGroup
-		result, err := brick.Find(&data)
-		assert.Nil(t, err)
+		result := brick.Find(&data)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -1481,14 +1456,14 @@ func TestForeignKey(t *testing.T) {
 		Offsetof(middleTab.TestForeignKeyTableManyToManyID),
 	).Enter()
 
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1510,8 +1485,7 @@ func TestForeignKey(t *testing.T) {
 			{Data: "many to many 2"},
 		},
 	}
-	result, err = brick.Insert(&data)
-	assert.Nil(t, err)
+	result = brick.Insert(&data)
 
 	if err := result.Err(); err != nil {
 		t.Error(err)
@@ -1528,8 +1502,8 @@ func TestForeignKey(t *testing.T) {
 	assert.Equal(t, data.ID, data.OneToMany[0].TestForeignKeyTableID)
 	assert.Equal(t, data.ID, data.OneToMany[1].TestForeignKeyTableID)
 
-	result, err = brick.Delete(&data)
-	assert.Nil(t, err)
+	result = brick.Delete(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1542,14 +1516,14 @@ func TestIgnorePreloadInsert(t *testing.T) {
 		Preload(Offsetof(tab.BelongTo)).Enter().
 		Preload(Offsetof(tab.OneToOne)).Enter()
 
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1562,8 +1536,8 @@ func TestIgnorePreloadInsert(t *testing.T) {
 			OneToOne: TestPreloadIgnoreOneToOne{Data: "ignore preload 2 one to one"},
 		},
 	}
-	result, err = brick.Insert(&data)
-	assert.Nil(t, err)
+	result = brick.Insert(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1580,13 +1554,13 @@ func TestMissPreloadFind(t *testing.T) {
 		Preload(Offsetof(tab.OneToOne)).Enter().
 		Preload(Offsetof(tab.OneToMany)).Enter().
 		Preload(Offsetof(tab.ManyToMany)).Enter()
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1614,29 +1588,29 @@ func TestMissPreloadFind(t *testing.T) {
 		},
 	}
 	// insert some data
-	result, err = brick.Insert(&missData)
-	assert.Nil(t, err)
+	result = brick.Insert(&missData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	// remove belong to data and many to many data
-	result, err = TestDB.Model(&belongTab).
+	result = TestDB.Model(&belongTab).
 		Delete([]TestMissBelongTo{*missData[0].BelongTo, *missData[1].BelongTo})
-	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
-	result, err = TestDB.Model(&manyToManyTab).
+	result = TestDB.Model(&manyToManyTab).
 		Delete([]TestMissManyToMany{missData[0].ManyToMany[0], missData[1].ManyToMany[0]})
-	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	// find again
 	var scanMissData []TestMissTable
 
-	result, err = brick.Find(&scanMissData)
-	assert.Nil(t, err)
+	result = brick.Find(&scanMissData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1650,13 +1624,13 @@ func TestSameBelongId(t *testing.T) {
 	brick := TestDB.Model(&tab).
 		Preload(Offsetof(tab.BelongTo)).Enter()
 
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1664,14 +1638,14 @@ func TestSameBelongId(t *testing.T) {
 		{Data: "test same belong id 1", BelongTo: TestSameBelongIdBelongTo{ID: 1, Data: "belong data"}},
 		{Data: "test same belong id 2", BelongTo: TestSameBelongIdBelongTo{ID: 1, Data: "belong data"}},
 	}
-	result, err = brick.Save(&data)
-	assert.Nil(t, err)
+	result = brick.Save(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	var findData []TestSameBelongIdTable
-	result, err = brick.Find(&findData)
+	result = brick.Find(&findData)
 	t.Logf("%#v", findData)
 }
 
@@ -1705,20 +1679,20 @@ func TestPointContainerField(t *testing.T) {
 			},
 		},
 	}
-	result, err := brick.Insert(&data)
-	assert.Nil(t, err)
+	result := brick.Insert(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	var findData []*TestPointContainerTable
-	result, err = brick.Find(&findData)
-	assert.Nil(t, err)
+	result = brick.Find(&findData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	jsonBytes, err := json.MarshalIndent(findData, "", "  ")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("\n%v", string(jsonBytes))
 
 	assert.Equal(t, data, findData)
@@ -1756,15 +1730,15 @@ func TestReport(t *testing.T) {
 		Preload(Offsetof(tabSub4.ManyToMany)).Enter().
 		Enter()
 
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	t.Log("\n", result.Report())
 
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1849,27 +1823,27 @@ func TestReport(t *testing.T) {
 	}
 	data[0].ID = 2
 
-	result, err = brick.Save(&data)
-	assert.Nil(t, err)
+	result = brick.Save(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	t.Log("\n", result.Report())
 
 	var scanData []TestReportTable
-	result, err = brick.Find(&scanData)
-	assert.Nil(t, err)
+	result = brick.Find(&scanData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 	t.Log("\n", result.Report())
 
 	jsonBytes, err := json.MarshalIndent(scanData, "", "  ")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	t.Logf("\n%v", string(jsonBytes))
 
-	result, err = brick.Delete(&scanData)
-	assert.Nil(t, err)
+	result = brick.Delete(&scanData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1881,14 +1855,14 @@ func TestRightValuePreload(t *testing.T) {
 	baseBrick := TestDB.Model(&tab)
 	brick := baseBrick.Preload(Offsetof(tab.ManyToMany)).Enter()
 
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
-	result, err = brick.CreateTableIfNotExist()
-	assert.Nil(t, err)
+	result = brick.CreateTableIfNotExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1901,8 +1875,8 @@ func TestRightValuePreload(t *testing.T) {
 		},
 	}
 
-	result, err = brick.Insert(&data)
-	assert.Nil(t, err)
+	result = brick.Insert(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -1910,8 +1884,8 @@ func TestRightValuePreload(t *testing.T) {
 	var scanData TestRightValuePreloadTable
 	findBrick := baseBrick.RightValuePreload(Offsetof(tab.ManyToMany)).Enter()
 	findBrick = findBrick.Where(ExprEqual, Offsetof(tab.ID), data.ManyToMany[0].ID)
-	result, err = findBrick.Find(&scanData)
-	assert.Nil(t, err)
+	result = findBrick.Find(&scanData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -2030,32 +2004,32 @@ func TestPreloadCheck(t *testing.T) {
 		}
 	}
 
-	_, err := brick.Find(&missingID{})
-	assert.Equal(t, err.Error(), "struct missing ID field")
+	result := brick.Find(&missingID{})
+	assert.Equal(t, result.Err().Error(), "struct missing ID field")
 
-	_, err = brick.Find(&missingBelongToID{})
-	assert.Equal(t, err.Error(), "struct missing BelongToID field")
+	result = brick.Find(&missingBelongToID{})
+	assert.Equal(t, result.Err().Error(), "struct missing BelongToID field")
 
-	_, err = brick.Find(&missingBelongTo{})
-	assert.Equal(t, err.Error(), "struct missing BelongTo field")
+	result = brick.Find(&missingBelongTo{})
+	assert.Equal(t, result.Err().Error(), "struct missing BelongTo field")
 
-	_, err = brick.Find(&missingOneToOne{})
-	assert.Equal(t, err.Error(), "struct missing OneToOne field")
+	result = brick.Find(&missingOneToOne{})
+	assert.Equal(t, result.Err().Error(), "struct missing OneToOne field")
 
-	_, err = brick.Find(&missingOneToOneRelationship{})
-	assert.Equal(t, err.Error(), "struct of the OneToOne field missing TestPreloadCheckTableID field")
+	result = brick.Find(&missingOneToOneRelationship{})
+	assert.Equal(t, result.Err().Error(), "struct of the OneToOne field missing TestPreloadCheckTableID field")
 
-	_, err = brick.Find(&missingOneToMany{})
-	assert.Equal(t, err.Error(), "struct missing OneToMany field")
+	result = brick.Find(&missingOneToMany{})
+	assert.Equal(t, result.Err().Error(), "struct missing OneToMany field")
 
-	_, err = brick.Find(&missingOneToManyRelationship{})
-	assert.Equal(t, err.Error(), "struct of the OneToMany field missing TestPreloadCheckTableID field")
+	result = brick.Find(&missingOneToManyRelationship{})
+	assert.Equal(t, result.Err().Error(), "struct of the OneToMany field missing TestPreloadCheckTableID field")
 
-	_, err = brick.Find(&missingManyToMany{})
-	assert.Equal(t, err.Error(), "struct missing ManyToMany field")
+	result = brick.Find(&missingManyToMany{})
+	assert.Equal(t, result.Err().Error(), "struct missing ManyToMany field")
 
-	_, err = brick.Find(&missingManyToManyID{})
-	assert.Equal(t, err.Error(), "struct of the ManyToMany field missing ID field")
+	result = brick.Find(&missingManyToManyID{})
+	assert.Equal(t, result.Err().Error(), "struct of the ManyToMany field missing ID field")
 }
 
 // some database cannot use table name like "order, group"
@@ -2063,14 +2037,14 @@ func TestTableNameProtect(t *testing.T) {
 
 	brick := TestDB.Model(&User{}).
 		Preload(Offsetof(User{}.Orders)).Enter()
-	result, err := brick.DropTableIfExist()
-	assert.Nil(t, err)
+	result := brick.DropTableIfExist()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
-	result, err = brick.CreateTable()
-	assert.Nil(t, err)
+	result = brick.CreateTable()
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -2082,41 +2056,41 @@ func TestTableNameProtect(t *testing.T) {
 			{Name: "MacBook", Num: 1},
 		},
 	}
-	result, err = brick.Insert(&data)
-	assert.Nil(t, err)
+	result = brick.Insert(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	data.Orders[0].Num += 1
-	result, err = brick.Save(&data)
-	assert.Nil(t, err)
+	result = brick.Save(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	orderBrick := brick.Preload(Offsetof(User{}.Orders))
-	result, err = orderBrick.Update(Order{
+	result = orderBrick.Update(Order{
 		Name: "Surface",
 	})
-	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	count, err := orderBrick.Count()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, count, 1)
 
 	var scanData []User
-	result, err = brick.Find(&scanData)
-	assert.Nil(t, err)
+	result = brick.Find(&scanData)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
-	result, err = brick.Delete(&data)
-	assert.Nil(t, err)
+	result = brick.Delete(&data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -2132,14 +2106,14 @@ func TestCount(t *testing.T) {
 	for i := 0; i < 21; i++ {
 		data = append(data, TestCountTable{Data: fmt.Sprintf("test count %d", i)})
 	}
-	result, err := brick.Insert(data)
-	assert.Nil(t, err)
+	result := brick.Insert(data)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
 
 	count, err := brick.Count()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, count, 21)
 }
 
@@ -2152,8 +2126,8 @@ func TestInsertFailure(t *testing.T) {
 	data := NotExistTable{
 		Data: "not exist table 1",
 	}
-	result, err := brick.Insert(&data)
-	assert.Nil(t, err)
+	result := brick.Insert(&data)
+
 	if err := result.Err(); err != nil {
 		t.Log(err)
 	} else {
@@ -2171,13 +2145,13 @@ func TestCustomExec(t *testing.T) {
 	}
 
 	var result *Result
-	var err error
+
 	if TestDriver == "postgres" {
-		result, err = brick.Template("INSERT INTO $ModelName($Columns) Values($Values) RETURNING $FN-ID").Insert(&data)
+		result = brick.Template("INSERT INTO $ModelName($Columns) Values($Values) RETURNING $FN-ID").Insert(&data)
 	} else {
-		result, err = brick.Template("INSERT INTO $ModelName($Columns) Values($Values)").Insert(&data)
+		result = brick.Template("INSERT INTO $ModelName($Columns) Values($Values)").Insert(&data)
 	}
-	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -2212,8 +2186,8 @@ func TestCustomExec(t *testing.T) {
 
 	switch TestDriver {
 	case "mysql":
-		result, err = brick.Template("INSERT  INTO $ModelDef($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues").Save(&data)
-		assert.Nil(t, err)
+		result = brick.Template("INSERT  INTO $ModelDef($Columns) VALUES($Values) ON DUPLICATE KEY UPDATE $Cas $UpdateValues").Save(&data)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -2221,8 +2195,8 @@ func TestCustomExec(t *testing.T) {
 		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), tempStr)
 		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), tempStr)
 	case "sqlite3":
-		result, err = brick.Template("REPLACE  INTO $ModelDef($Columns) Values($Values)").Save(&data)
-		assert.Nil(t, err)
+		result = brick.Template("REPLACE  INTO $ModelDef($Columns) Values($Values)").Save(&data)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -2230,8 +2204,8 @@ func TestCustomExec(t *testing.T) {
 		assert.Equal(t, result.ActionFlow[0].(ExecAction).Exec.Query(), tempStr)
 		assert.Equal(t, result.ActionFlow[1].(ExecAction).Exec.Query(), tempStr)
 	case "postgres":
-		result, err = brick.Template("INSERT  INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT($PrimaryColumns) DO UPDATE SET $UpdateValues $Cas").Save(&data)
-		assert.Nil(t, err)
+		result = brick.Template("INSERT  INTO $ModelDef($Columns) VALUES($Values) ON CONFLICT($PrimaryColumns) DO UPDATE SET $UpdateValues $Cas").Save(&data)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -2245,9 +2219,9 @@ func TestCustomExec(t *testing.T) {
 	assert.True(t, data[1].UpdatedAt.After(data[1].CreatedAt))
 
 	var scanData []TestCustomExecTable
-	result, err = brick.Template("SELECT $Columns FROM $ModelName $Conditions").
+	result = brick.Template("SELECT $Columns FROM $ModelName $Conditions").
 		Limit(5).Offset(0).OrderBy(Offsetof(TestCustomExecTable{}.Data)).Find(&scanData)
-	assert.Nil(t, err)
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -2261,8 +2235,8 @@ func TestCustomExec(t *testing.T) {
 		assert.NotZero(t, scanData[i].UpdatedAt)
 	}
 
-	result, err = brick.Template("UPDATE $ModelName SET $UpdateValues WHERE id = ?", 2).Update(&TestCustomExecTable{Sync: 5})
-	assert.Nil(t, err)
+	result = brick.Template("UPDATE $ModelName SET $UpdateValues WHERE id = ?", 2).Update(&TestCustomExecTable{Sync: 5})
+
 	if err := result.Err(); err != nil {
 		t.Error(err)
 	}
@@ -2417,8 +2391,8 @@ func TestJoin(t *testing.T) {
 			Join(Offsetof(tab.NameJoin)).Swap().
 			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
 		var scanData []TestJoinTable
-		result, err := brick.Find(&scanData)
-		assert.Nil(t, err)
+		result := brick.Find(&scanData)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -2448,8 +2422,8 @@ func TestJoin(t *testing.T) {
 			Join(Offsetof(tab.NameJoin)).Or().Condition(ExprEqual, Offsetof(nameTab.SubData), "test join name 3").Swap().
 			Join(Offsetof(tab.PriceJoin)).Join(Offsetof(priceTab.StarJoin)).Swap().Swap()
 		var scanData []TestJoinTable
-		result, err := brick.Find(&scanData)
-		assert.Nil(t, err)
+		result := brick.Find(&scanData)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -2470,8 +2444,8 @@ func TestJoin(t *testing.T) {
 			Preload(Offsetof(nameTab.OneToMany)).Enter().Swap()
 
 		var scanData []TestJoinTable
-		result, err := brick.Find(&scanData)
-		assert.Nil(t, err)
+		result := brick.Find(&scanData)
+
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
@@ -2594,16 +2568,16 @@ func TestSave(t *testing.T) {
 		Data: "test save",
 	}
 
-	result, err := brick.Save(&data)
-	resultProcessor(result, err)(t)
+	result := brick.Save(&data)
+	assert.NoError(t, result.Err())
 	assert.NotZero(t, data.CreatedAt)
 	assert.NotZero(t, data.UpdatedAt)
 
 	oldCreatedAt := data.CreatedAt
 	oldUpdateAt := data.UpdatedAt
 
-	result, err = brick.Save(&data)
-	resultProcessor(result, err)(t)
+	result = brick.Save(&data)
+	assert.NoError(t, result.Err())
 	assert.Equal(t, oldCreatedAt, data.CreatedAt)
 	assert.True(t, data.UpdatedAt.After(oldUpdateAt))
 }
@@ -2617,24 +2591,22 @@ func TestSaveNoneCreatedAt(t *testing.T) {
 		Data: "test save",
 	}
 
-	result, err := brick.Save(&data)
-	resultProcessor(result, err)(t)
+	result := brick.Save(&data)
+	assert.NoError(t, result.Err())
 	assert.NotZero(t, data.CreatedAt)
 	assert.NotZero(t, data.UpdatedAt)
 	// reset created at & save & find it again
 	var oldFData TestSaveTable
-	result, err = brick.Find(&oldFData)
-	require.NoError(t, err)
+	result = brick.Find(&oldFData)
 	require.NoError(t, result.Err())
 
 	data.CreatedAt = time.Time{}
-	result, err = brick.Save(&data)
-	require.NoError(t, err)
+	result = brick.Save(&data)
 	require.NoError(t, result.Err())
 
 	var fData TestSaveTable
-	result, err = brick.Find(&fData)
-	require.NoError(t, err)
+	result = brick.Find(&fData)
+
 	require.NoError(t, result.Err())
 
 	t.Logf("old createdAt %s new createdAt %s", oldFData.CreatedAt, fData.CreatedAt)
@@ -2649,19 +2621,19 @@ func TestSaveCas(t *testing.T) {
 		Name:       "test cas data",
 		UniqueData: "unique data",
 	}
-	result, err := brick.Insert(&data)
-	resultProcessor(result, err)(t)
+	result := brick.Insert(&data)
+	assert.NoError(t, result.Err())
 	assert.Equal(t, data.Cas, 1)
 
 	data.Name += " 2"
-	result, err = brick.Save(&data)
-	resultProcessor(result, err)(t)
+	result = brick.Save(&data)
+	assert.NoError(t, result.Err())
 	assert.Equal(t, data.Cas, 2)
 
 	data.Name += " 2"
 	data.Cas--
-	result, err = brick.Save(&data)
-	assert.Nil(t, err)
+	result = brick.Save(&data)
+
 	resultErr := result.Err()
 	assert.NotNil(t, resultErr)
 	t.Log("error:\n", resultErr)
@@ -2677,28 +2649,26 @@ func TestSaveWithUniqueIndex(t *testing.T) {
 		Name: "unique",
 		Data: "some data",
 	}
-	result, err := brick.Insert(&oldData)
-	resultProcessor(result, err)(t)
+	result := brick.Insert(&oldData)
+	assert.NoError(t, result.Err())
 	newData := TestUniqueIndexSaveTable{
 		ID:   2,
 		Name: "unique",
 		Data: "some data 2",
 	}
 	// if here use save, will replace first record data in sqlite3
-	//result, err = brick.Save(&newData)
+	//result = brick.Save(&newData)
 	//resultProcessor(result, err)(t)
 
 	// change name and insert
 	newData.Name = "unique other"
-	result, err = brick.Insert(&newData)
-	resultProcessor(result, err)(t)
+	result = brick.Insert(&newData)
+	assert.NoError(t, result.Err())
 
 	// use USave(Save with Update) will get error
 	newData.Name = "unique"
-	result, err = brick.USave(&newData)
-	if err != nil {
-		t.Error(err)
-	}
+	result = brick.USave(&newData)
+	assert.NoError(t, result.Err())
 	resultErr := result.Err()
 	assert.NotNil(t, resultErr)
 	t.Log("error:\n", resultErr)
@@ -2796,8 +2766,7 @@ func TestRelateFieldTypeConvert(t *testing.T) {
 			{Data: "many to many 2 data 2"},
 		}},
 	}
-	result, err := brick.Insert(&data)
-	assert.NoError(t, err)
+	result := brick.Insert(&data)
 	assert.NoError(t, result.Err())
 
 	for _, d := range data {
@@ -2820,8 +2789,8 @@ func TestRelateFieldTypeConvert(t *testing.T) {
 	t.Log(result.Report())
 	{
 		var data []DtoTable
-		result, err := brick.Find(&data)
-		assert.NoError(t, err)
+		result := brick.Find(&data)
+
 		assert.NoError(t, result.Err())
 		for _, d := range data {
 			assert.NotZero(t, d.ID)
@@ -2851,8 +2820,8 @@ func TestSaveWithOther(t *testing.T) {
 	data := TestSaveWithOtherTable{
 		Name: "pigeon",
 	}
-	result, err := brick.Save(&data)
-	assert.NoError(t, err)
+	result := brick.Save(&data)
+
 	assert.NoError(t, result.Err())
 
 	type OtherTable struct {
@@ -2860,13 +2829,13 @@ func TestSaveWithOther(t *testing.T) {
 		Age int
 	}
 	otherData := OtherTable{ID: data.ID, Age: 22}
-	result, err = brick.Save(&otherData)
-	assert.NoError(t, err)
+	result = brick.Save(&otherData)
+
 	assert.NoError(t, result.Err())
 
 	var fData TestSaveWithOtherTable
-	result, err = brick.Find(&fData)
-	assert.NoError(t, err)
+	result = brick.Find(&fData)
+
 	assert.NoError(t, result.Err())
 	assert.Equal(t, fData.Name, "pigeon")
 
@@ -2875,13 +2844,13 @@ func TestSaveWithOther(t *testing.T) {
 		ID uint32
 	}
 	otherData2 := OtherTable2{}
-	result, err = brick.Save(&otherData2)
-	assert.NoError(t, err)
+	result = brick.Save(&otherData2)
+
 	assert.NoError(t, result.Err())
 
 	var fData2 TestSaveWithOtherTable
-	result, err = brick.Where(ExprEqual, Offsetof(TestSaveWithOtherTable{}.ID), otherData2.ID).Find(&fData2)
-	assert.NoError(t, err)
+	result = brick.Where(ExprEqual, Offsetof(TestSaveWithOtherTable{}.ID), otherData2.ID).Find(&fData2)
+
 	assert.NoError(t, result.Err())
 	assert.Equal(t, fData2.Name, "")
 	assert.Equal(t, fData2.Age, 0)
@@ -2926,13 +2895,11 @@ func TestDefaultValue(t *testing.T) {
 	brick := TestDB.Model(&TestDefaultTable{}).Debug()
 	createTableUnit(brick)(t)
 	data := TestDefaultTable{}
-	result, err := brick.Insert(&data)
-	require.NoError(t, err)
+	result := brick.Insert(&data)
 	require.NoError(t, result.Err())
 
 	fData := TestDefaultTable{Data: "test default value"}
-	result, err = brick.Find(&fData)
-	require.NoError(t, err)
+	result = brick.Find(&fData)
 	require.NoError(t, result.Err())
 
 	t.Log(fData)
@@ -2954,23 +2921,23 @@ func TestTempField(t *testing.T) {
 	createTableUnit(brick)(t)
 
 	for i := 0; i < 10; i++ {
-		result, err := brick.Insert(&TestTempFieldTable{
+		result := brick.Insert(&TestTempFieldTable{
 			Data:  "TEST",
 			Tag:   fmt.Sprint(i % 2),
 			Score: int32(i),
 		})
-		resultProcessor(result, err)(t)
+		assert.NoError(t, result.Err())
 	}
 	brick = brick.Alias("m")
 	var data []TestTempFieldTable
-	result, err := brick.BindDefaultFields(
+	result := brick.BindDefaultFields(
 		Offsetof(TestTempFieldTable{}.Tag),
 		brick.TempField(Offsetof(TestTempFieldTable{}.Score), "MAX(%s)"),
 	).GroupBy(Offsetof(TestTempFieldTable{}.Tag)).
 		Where(ExprEqual, brick.TempField(Offsetof(TestTempFieldTable{}.Data), "LOWER(%s)"), "test").
 		OrderBy(brick.TempField(Offsetof(TestTempFieldTable{}.Tag), "%s DESC")).
 		Find(&data)
-	resultProcessor(result, err)(t)
+	assert.NoError(t, result.Err())
 	t.Logf("%#v\n", data)
 	for _, d := range data {
 		if d.Tag == "1" {
@@ -2997,15 +2964,15 @@ func TestDelete(t *testing.T) {
 			{ID: 3, Data: "test data 3", Num: 2},
 			{ID: 4, Data: "test data 4", Num: 2},
 		}
-		result, err := brick.Insert(&data)
-		require.NoError(t, err)
+		result := brick.Insert(&data)
+
 		require.NoError(t, result.Err())
-		result, err = brick.Delete(data)
-		require.NoError(t, err)
+		result = brick.Delete(data)
+
 		require.NoError(t, result.Err())
 		t.Log(result.Report())
-		result, err = brick.Where(ExprEqual, Offsetof(DeleteTable{}.Num), 2).DeleteWithConditions()
-		require.NoError(t, err)
+		result = brick.Where(ExprEqual, Offsetof(DeleteTable{}.Num), 2).DeleteWithConditions()
+
 		require.NoError(t, result.Err())
 		count, err := brick.Count()
 		require.NoError(t, err)
@@ -3027,15 +2994,15 @@ func TestDelete(t *testing.T) {
 			{ID: 3, Data: "test data 3", Num: 2},
 			{ID: 4, Data: "test data 4", Num: 2},
 		}
-		result, err := brick.Insert(&data)
-		require.NoError(t, err)
+		result := brick.Insert(&data)
+
 		require.NoError(t, result.Err())
-		result, err = brick.Delete(data[:2])
-		require.NoError(t, err)
+		result = brick.Delete(data[:2])
+
 		require.NoError(t, result.Err())
 		t.Log(result.Report())
-		result, err = brick.Where(ExprEqual, Offsetof(DeleteSoftTable{}.Num), 2).DeleteWithConditions()
-		require.NoError(t, err)
+		result = brick.Where(ExprEqual, Offsetof(DeleteSoftTable{}.Num), 2).DeleteWithConditions()
+
 		require.NoError(t, result.Err())
 		count, err := brick.Count()
 		require.NoError(t, err)

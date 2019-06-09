@@ -15,12 +15,16 @@ const abortIndex int = math.MaxInt8 / 2
 
 type HandlerFunc func(c *Context) error
 type HandlersChain []HandlerFunc
+
+type ExecHandlerFunc func(c *Context)
+type ExecHandlerFuncChain []ExecHandlerFunc
 type Context struct {
-	handlers HandlersChain
-	index    int8
-	Brick    *ToyBrick
-	Result   *Result
-	value    map[interface{}]interface{}
+	handlers    HandlersChain
+	execHandler ExecHandlerFunc
+	index       int8
+	Brick       *ToyBrick
+	Result      *Result
+	value       map[interface{}]interface{}
 	//err      error
 }
 
@@ -29,7 +33,7 @@ func (c *Context) Deadline() (deadline time.Time, ok bool) {
 }
 
 func (c *Context) Done() <-chan struct{} {
-	return nil
+	return c.Result.done
 }
 
 func (c *Context) Err() error {
@@ -48,6 +52,7 @@ func NewContext(handlers HandlersChain, brick *ToyBrick, columns ModelRecords) *
 			MiddleModelPreload: map[string]*Result{},
 			SimpleRelation:     map[string]map[int]int{},
 			MultipleRelation:   map[string]map[int]Pair{},
+			done:               make(chan struct{}),
 		},
 	}
 }
@@ -56,12 +61,14 @@ func (c *Context) Value(v interface{}) interface{} {
 	return c.value[v]
 }
 
-func (c *Context) Next() error {
+func (c *Context) Start() {
+	c.Next()
+	close(c.Result.done)
+}
+
+func (c *Context) Next() {
 	c.index++
-	//handlerNames := make([]string, len(c.handlers))
-	//for i, h := range c.handlers {
-	//	handlerNames[i] = runtime.FuncForPC(reflect.ValueOf(h).Pointer()).column()
-	//}
+
 	var err error
 	for s := int8(len(c.handlers)); c.index < s; c.index++ {
 		err = c.handlers[c.index](c)
@@ -69,7 +76,7 @@ func (c *Context) Next() error {
 			c.Abort()
 		}
 	}
-	return err
+	c.Result.err = err
 }
 
 func (c *Context) IsAborted() bool {

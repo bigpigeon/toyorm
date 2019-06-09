@@ -25,14 +25,13 @@ type BugMiddleReportLossTable struct {
 func TestBugCreateTableManyToManyReportLoss(t *testing.T) {
 	brick := TestDB.Model(&BugMiddleReportLossTable{}).
 		Preload(Offsetof(BugMiddleReportLossTable{}.Child)).Enter()
-	result, err := brick.DropTableIfExist()
-	assert.NoError(t, err)
+	result := brick.DropTableIfExist()
 	assert.NoError(t, result.Err())
 	t.Log(result.Report())
 	for _, preloadResult := range result.MiddleModelPreload {
 		assert.NotEqual(t, preloadResult.Report(), "")
 	}
-	result, err = brick.CreateTableIfNotExist()
+	result = brick.CreateTableIfNotExist()
 	t.Log(result.Report())
 	assert.NoError(t, result.Err())
 	for _, preloadResult := range result.MiddleModelPreload {
@@ -64,8 +63,8 @@ func TestBugOrderByConflictWithLimit(t *testing.T) {
 	brick := TestDB.Model(&tab)
 	createTableUnit(brick)(t)
 	var data []TestOrderByLimitTable
-	result, err := brick.OrderBy(Offsetof(tab.CreatedAt)).Limit(2).Find(&data)
-	require.NoError(t, err)
+	result := brick.OrderBy(Offsetof(tab.CreatedAt)).Limit(2).Find(&data)
+
 	require.NoError(t, result.Err())
 }
 
@@ -81,12 +80,12 @@ func TestBugPrimaryKeyWithZero(t *testing.T) {
 	data := TestPrimaryKeyWithZero{
 		Data: "some meta data",
 	}
-	result, err := brick.Debug().Save(&data)
-	require.NoError(t, err)
+	result := brick.Debug().Save(&data)
+
 	require.Error(t, result.Err())
 	//{
-	//	result, err := brick.Debug().Save(&data)
-	//	require.NoError(t, err)
+	//	result := brick.Debug().Save(&data)
+	//
 	//	require.NoError(t, result.Err())
 	//}
 }
@@ -98,8 +97,8 @@ func TestBugCustomDefaultPrimaryKey(t *testing.T) {
 	}
 	brick := TestDB.Model(&TestCustomDefaultPrimaryKey{})
 	//createTableUnit(brick)(t)
-	result, err := brick.DropTableIfExist()
-	require.NoError(t, err)
+	result := brick.DropTableIfExist()
+
 	require.NoError(t, result.Err())
 	if TestDriver == "postgres" {
 		_, err := brick.Exec(DefaultExec{query: `CREATE TABLE "test_custom_default_primary_key" (id SERIAL,data VARCHAR(255) ,PRIMARY KEY(id))`})
@@ -116,8 +115,8 @@ func TestBugCustomDefaultPrimaryKey(t *testing.T) {
 	data := TestCustomDefaultPrimaryKey{
 		Data: "some thing",
 	}
-	result, err = brick.Insert(&data)
-	require.NoError(t, err)
+	result = brick.Insert(&data)
+
 	require.NoError(t, result.Err())
 	require.Equal(t, uint32(1), data.ID)
 }
@@ -133,26 +132,26 @@ func TestBugUSaveCreatedAt(t *testing.T) {
 	data := TestUSaveCreatedAt{
 		Data: "test data",
 	}
-	result, err := brick.Insert(&data)
-	require.NoError(t, err)
+	result := brick.Insert(&data)
+
 	require.NoError(t, result.Err())
 	t.Log(data.CreatedAt)
 	var oldCreatedAt time.Time
 	{
 		var data TestUSaveCreatedAt
-		result, err = brick.Find(&data)
-		require.NoError(t, err)
+		result = brick.Find(&data)
+
 		require.NoError(t, result.Err())
 		oldCreatedAt = data.CreatedAt
 	}
 	data.CreatedAt = time.Time{}
-	result, err = brick.USave(&data)
-	require.NoError(t, err)
+	result = brick.USave(&data)
+
 	require.NoError(t, result.Err())
 	{
 		var data TestUSaveCreatedAt
-		result, err = brick.Find(&data)
-		require.NoError(t, err)
+		result = brick.Find(&data)
+
 		require.NoError(t, result.Err())
 		require.Equal(t, oldCreatedAt, data.CreatedAt)
 	}
@@ -180,12 +179,12 @@ func TestBugNotZeroCreatedAt(t *testing.T) {
 	data := TestNotZeroCreatedAtTable{
 		CreatedAt: date,
 	}
-	result, err := brick.Insert(&data)
-	require.NoError(t, err)
+	result := brick.Insert(&data)
+
 	require.NoError(t, result.Err())
 	var fData TestNotZeroCreatedAtTable
-	result, err = brick.Find(&fData)
-	require.NoError(t, err)
+	result = brick.Find(&fData)
+
 	require.NoError(t, result.Err())
 	t.Logf("old date %s new date %s", date, fData.CreatedAt)
 	require.True(t, date.Equal(fData.CreatedAt))
@@ -202,7 +201,7 @@ func TestBugOrderByConflictWithGroupBy(t *testing.T) {
 
 	brick = brick.GroupBy(Offsetof(tab.Name), Offsetof(tab.Address)).OrderBy(Offsetof(tab.Name))
 	var data []TestGroupByTableGroup
-	result, err := brick.Find(&data)
-	require.NoError(t, err)
+	result := brick.Find(&data)
+
 	require.NoError(t, result.Err())
 }

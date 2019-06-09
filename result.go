@@ -27,9 +27,10 @@ type Result struct {
 	SimpleRelation map[string]map[int]int
 	// container is slice object
 	MultipleRelation map[string]map[int]Pair
-
 	// in many-to-many model, have a middle model query need to record
 	MiddleModelPreload map[string]*Result
+	err                error
+	done               chan struct{}
 }
 
 func (r *Result) Err() error {
