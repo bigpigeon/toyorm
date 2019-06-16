@@ -148,6 +148,7 @@ func (m *ModelStructRecords) Add(v reflect.Value) ModelRecord {
 	if m.source.CanSet() == false {
 		panic("Add need can set permission")
 	}
+
 	if v.Type() != m.Type {
 		panic(fmt.Sprintf("add data type(%s) must be type(%s)", v.Type(), m.Type))
 	}

@@ -687,9 +687,8 @@ func (t *ToyBrick) find(value reflect.Value) *Context {
 	} else {
 		handlers := t.Toy.ModelHandlers("FindOne", t.Model)
 		vList := reflect.New(reflect.SliceOf(value.Type())).Elem()
-		vList = reflect.Append(vList, value)
+		vList.Set(reflect.Append(vList, value))
 		records := NewRecords(t.Model, vList)
-
 		ctx := NewContext(handlers, t.Limit(1), records)
 		go ctx.Start()
 		//err := ctx.Next()
@@ -707,24 +706,36 @@ func (t *ToyBrick) find(value reflect.Value) *Context {
 func (t *ToyBrick) CreateTable() *Result {
 	ctx := t.GetContext("CreateTable", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	go ctx.Start()
+	if t.rsync == false {
+		<-ctx.Result.done
+	}
 	return ctx.Result
 }
 
 func (t *ToyBrick) CreateTableIfNotExist() *Result {
 	ctx := t.GetContext("CreateTableIfNotExist", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	go ctx.Start()
+	if t.rsync == false {
+		<-ctx.Result.done
+	}
 	return ctx.Result
 }
 
 func (t *ToyBrick) DropTable() *Result {
 	ctx := t.GetContext("DropTable", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	go ctx.Start()
+	if t.rsync == false {
+		<-ctx.Result.done
+	}
 	return ctx.Result
 }
 
 func (t *ToyBrick) DropTableIfExist() *Result {
 	ctx := t.GetContext("DropTableIfExist", MakeRecordsWithElem(t.Model, t.Model.ReflectType))
 	go ctx.Start()
+	if t.rsync == false {
+		<-ctx.Result.done
+	}
 	return ctx.Result
 }
 
