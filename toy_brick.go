@@ -39,15 +39,15 @@ type ToyBrick struct {
 	groupBy     FieldList
 	templateMap map[TempMode]*BasicExec
 	// use join to association query in one command
-	preSwap    *PreJoinSwap
-	OwnOrderBy []int
-	OwnGroupBy []int
-	OwnSearch  []int
-	alias      string
-	SwapMap    map[string]*JoinSwap
-	JoinMap    map[string]*Join
-
+	preSwap     *PreJoinSwap
+	OwnOrderBy  []int
+	OwnGroupBy  []int
+	OwnSearch   []int
+	alias       string
+	SwapMap     map[string]*JoinSwap
+	JoinMap     map[string]*Join
 	objMustAddr bool // TODO maybe not a good way
+	rsync       bool
 
 	BrickCommon
 }
@@ -753,11 +753,11 @@ func (t *ToyBrick) Insert(v interface{}) *Result {
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
 	}
-	var records ModelRecords
+	var result *Result
 	switch vValue.Kind() {
 	case reflect.Slice:
-		records = NewRecords(t.Model, vValue)
-		return t.insert(records)
+		records := NewRecords(t.Model, vValue)
+		result = t.insert(records)
 	default:
 		var records ModelRecords
 		if vValue.CanAddr() {
@@ -767,8 +767,12 @@ func (t *ToyBrick) Insert(v interface{}) *Result {
 			records = MakeRecordsWithElem(t.Model, vValue.Type())
 			records.Add(vValue)
 		}
-		return t.insert(records)
+		result = t.insert(records)
 	}
+	if t.rsync == false {
+		<-result.done
+	}
+	return result
 }
 
 func (t *ToyBrick) Find(v interface{}) *Result {
@@ -777,6 +781,9 @@ func (t *ToyBrick) Find(v interface{}) *Result {
 		panic("object must can addr")
 	}
 	ctx := t.find(vValue)
+	if t.rsync == false {
+		<-ctx.Result.done
+	}
 	return ctx.Result
 }
 
@@ -790,6 +797,9 @@ func (t *ToyBrick) Update(v interface{}) *Result {
 	handlers := t.Toy.ModelHandlers("Update", t.Model)
 	ctx := NewContext(handlers, t, NewRecords(t.Model, vValueList))
 	go ctx.Start()
+	if t.rsync == false {
+		<-ctx.Result.done
+	}
 	return ctx.Result
 }
 
@@ -798,15 +808,20 @@ func (t *ToyBrick) Save(v interface{}) *Result {
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
 	}
+	var result *Result
 	switch vValue.Kind() {
 	case reflect.Slice:
 		records := NewRecords(t.Model, vValue)
-		return t.save(records)
+		result = t.save(records)
 	default:
 		records := MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 		records.Add(vValue.Addr())
-		return t.save(records)
+		result = t.save(records)
 	}
+	if t.rsync == false {
+		<-result.done
+	}
+	return result
 }
 
 // save with exist data
@@ -815,15 +830,20 @@ func (t *ToyBrick) USave(v interface{}) *Result {
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
 	}
+	var result *Result
 	switch vValue.Kind() {
 	case reflect.Slice:
 		records := NewRecords(t.Model, vValue)
-		return t.usave(records)
+		result = t.usave(records)
 	default:
 		records := MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 		records.Add(vValue.Addr())
-		return t.usave(records)
+		result = t.usave(records)
 	}
+	if t.rsync == false {
+		<-result.done
+	}
+	return result
 }
 
 func (t *ToyBrick) Delete(v interface{}) *Result {
@@ -831,16 +851,21 @@ func (t *ToyBrick) Delete(v interface{}) *Result {
 	if t.objMustAddr && vValue.CanAddr() == false {
 		panic("object must can addr")
 	}
-	var records ModelRecords
+	var result *Result
+
 	switch vValue.Kind() {
 	case reflect.Slice:
-		records = NewRecords(t.Model, vValue)
-		return t.deleteWithPrimaryKey(records)
+		records := NewRecords(t.Model, vValue)
+		result = t.deleteWithPrimaryKey(records)
 	default:
-		records = MakeRecordsWithElem(t.Model, vValue.Addr().Type())
+		records := MakeRecordsWithElem(t.Model, vValue.Addr().Type())
 		records.Add(vValue.Addr())
-		return t.deleteWithPrimaryKey(records)
+		result = t.deleteWithPrimaryKey(records)
 	}
+	if t.rsync == false {
+		<-result.done
+	}
+	return result
 }
 
 func (t *ToyBrick) DeleteWithConditions() *Result {
@@ -1096,27 +1121,39 @@ func (t *ToyBrick) CleanOwnOrderBy() *ToyBrick {
 }
 
 func (t *ToyBrick) CleanOwnGroupBy() *ToyBrick {
-	newt := *t
-	newt.OwnGroupBy = nil
-	newt.SwapMap = t.CopyJoinSwap()
-	for name, swap := range newt.SwapMap {
-		if swap.OwnGroupBy != nil {
-			newt.SwapMap[name] = newt.SwapMap[name].Copy()
-			newt.SwapMap[name].OwnGroupBy = nil
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		newt.OwnGroupBy = nil
+		newt.SwapMap = t.CopyJoinSwap()
+		for name, swap := range newt.SwapMap {
+			if swap.OwnGroupBy != nil {
+				newt.SwapMap[name] = newt.SwapMap[name].Copy()
+				newt.SwapMap[name].OwnGroupBy = nil
+			}
 		}
-	}
-	return &newt
+		return &newt
+	})
 }
 
 func (t *ToyBrick) CleanOwnSearch() *ToyBrick {
-	newt := *t
-	newt.OwnSearch = nil
-	newt.SwapMap = t.CopyJoinSwap()
-	for name, swap := range newt.SwapMap {
-		if swap.OwnSearch != nil {
-			newt.SwapMap[name] = newt.SwapMap[name].Copy()
-			newt.SwapMap[name].OwnSearch = nil
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		newt.OwnSearch = nil
+		newt.SwapMap = t.CopyJoinSwap()
+		for name, swap := range newt.SwapMap {
+			if swap.OwnSearch != nil {
+				newt.SwapMap[name] = newt.SwapMap[name].Copy()
+				newt.SwapMap[name].OwnSearch = nil
+			}
 		}
-	}
-	return &newt
+		return &newt
+	})
+}
+
+func (t *ToyBrick) Rsync() *ToyBrick {
+	return t.Scope(func(t *ToyBrick) *ToyBrick {
+		newt := *t
+		newt.rsync = true
+		return &newt
+	})
 }
