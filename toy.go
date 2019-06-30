@@ -45,7 +45,7 @@ func Open(driverName, dataSourceName string) (*Toy, error) {
 			"DropTable":                {HandlerDropTablePreload("DropTable"), HandlerDropTable},
 			"Insert":                   {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("Insert"), HandlerCasVersionPushOne, HandlerInsertTimeGenerate, HandlerInsert},
 			"Find":                     {HandlerPreloadContainerCheck, HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadOnJoinFind, HandlerPreloadFind},
-			"FindOne":                  {HandlerPreloadContainerCheck, HandlerSoftDeleteCheck, HandlerFind, HandlerPreloadOnJoinFind, HandlerPreloadFind},
+			"FindOne":                  {HandlerPreloadContainerCheck, HandlerSoftDeleteCheck, HandlerFindOne, HandlerPreloadOnJoinFind, HandlerPreloadFind},
 			"Update":                   {HandlerSoftDeleteCheck, HandlerUpdateTimeGenerate, HandlerUpdate},
 			"Save":                     {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("Save"), HandlerCasVersionPushOne, HandlerSaveTimeGenerate, HandlerSave},
 			"USave":                    {HandlerPreloadContainerCheck, HandlerPreloadInsertOrSave("USave"), HandlerCasVersionPushOne, HandlerUSaveTimeGenerate, HandlerUSave},

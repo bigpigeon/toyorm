@@ -7,6 +7,8 @@
 package toyorm
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
@@ -791,6 +793,7 @@ func TestPreloadSave(t *testing.T) {
 	brick = brick.Preload(Offsetof(TestPreloadTable{}.OneToMany)).Enter()
 	manyToManyPreload := brick.Preload(Offsetof(TestPreloadTable{}.ManyToMany))
 	brick = manyToManyPreload.Enter()
+	createTableUnit(brick)(t)
 
 	{
 		manyToMany := []TestPreloadTableManyToMany{
@@ -846,6 +849,8 @@ func TestPreloadSave(t *testing.T) {
 		}
 		assert.NotZero(t, manyToMany[0].ID)
 		assert.NotZero(t, manyToMany[1].ID)
+		assert.NotZero(t, manyToMany[0].UpdatedAt)
+		assert.NotZero(t, manyToMany[1].UpdatedAt)
 		// now many to many object have id information
 		tables[0].ManyToMany = manyToMany
 		tables[1].ManyToMany = manyToMany
@@ -862,21 +867,54 @@ func TestPreloadSave(t *testing.T) {
 			assert.NotZero(t, tab.CreatedAt)
 			assert.NotZero(t, tab.UpdatedAt)
 			assert.NotZero(t, tab.BelongTo.ID)
+			assert.NotZero(t, tab.BelongTo.UpdatedAt)
 			assert.NotZero(t, tab.OneToOne.ID)
+			assert.NotZero(t, tab.OneToOne.UpdatedAt)
 			assert.NotZero(t, tab.OneToMany[0].ID)
 			assert.NotZero(t, tab.OneToMany[1].ID)
+			assert.NotZero(t, tab.OneToMany[0].UpdatedAt)
+			assert.NotZero(t, tab.OneToMany[1].UpdatedAt)
 			assert.NotZero(t, tab.ManyToMany[0].ID)
 			assert.NotZero(t, tab.ManyToMany[1].ID)
+			assert.NotZero(t, tab.ManyToMany[0].UpdatedAt)
+			assert.NotZero(t, tab.ManyToMany[1].UpdatedAt)
 
 			assert.Equal(t, tab.BelongToID, tab.BelongTo.ID)
 			assert.Equal(t, tab.ID, tab.OneToOne.TestPreloadTableID)
 			assert.Equal(t, tab.ID, tab.OneToMany[0].TestPreloadTableID)
 			assert.Equal(t, tab.ID, tab.OneToMany[1].TestPreloadTableID)
 		}
+
+		var newTables []TestPreloadTable
+		// deep copy test data
+		{
+			var buff bytes.Buffer
+			err := gob.NewEncoder(&buff).Encode(tables)
+			require.NoError(t, err)
+			err = gob.NewDecoder(&buff).Decode(&newTables)
+			require.NoError(t, err)
+		}
 		// try to update soft delete
 		now := time.Now()
 		tables[0].DeletedAt = &now
-		result = brick.Save(&tables)
+		result = brick.Save(&newTables)
+
+		for i, tab := range newTables {
+			oldTab := tables[i]
+			t.Logf("main id %v, belong id %v, one to one id %v, one to many id [%v,%v], many to many id [%v, %v]", tab.ID, tab.BelongTo.ID, tab.OneToOne.ID, tab.OneToMany[0].ID, tab.OneToMany[1].ID, tab.ManyToMany[0].ID, tab.ManyToMany[1].ID)
+			assert.NotZero(t, tab.UpdatedAt)
+			assert.True(t, tab.BelongTo.UpdatedAt.After(oldTab.BelongTo.UpdatedAt))
+			assert.True(t, tab.OneToOne.UpdatedAt.After(oldTab.OneToOne.UpdatedAt))
+			assert.True(t, tab.OneToMany[0].UpdatedAt.After(oldTab.OneToMany[0].UpdatedAt))
+			assert.True(t, tab.OneToMany[1].UpdatedAt.After(oldTab.OneToMany[1].UpdatedAt))
+			assert.True(t, tab.ManyToMany[0].UpdatedAt.After(oldTab.ManyToMany[0].UpdatedAt))
+			assert.True(t, tab.ManyToMany[1].UpdatedAt.After(oldTab.ManyToMany[1].UpdatedAt))
+
+			assert.Equal(t, tab.BelongToID, tab.BelongTo.ID)
+			assert.Equal(t, tab.ID, tab.OneToOne.TestPreloadTableID)
+			assert.Equal(t, tab.ID, tab.OneToMany[0].TestPreloadTableID)
+			assert.Equal(t, tab.ID, tab.OneToMany[1].TestPreloadTableID)
+		}
 
 		if err := result.Err(); err != nil {
 			t.Error(err)
@@ -1043,7 +1081,7 @@ func TestPreloadDelete(t *testing.T) {
 			t.Error(err)
 		}
 
-		result = brick.Save([]TestHardDeleteTable{
+		result = brick.Debug().Save([]TestHardDeleteTable{
 			{
 				Data:     "hard delete main model",
 				BelongTo: &TestHardDeleteTableBelongTo{Data: "belong to data"},
@@ -1102,6 +1140,7 @@ func TestPreloadDelete(t *testing.T) {
 		if err := result.Err(); err != nil {
 			t.Error(err)
 		}
+		fmt.Printf("data %#v\n", hardDeleteData)
 
 		result = brick.Delete(&hardDeleteData)
 		if err := result.Err(); err != nil {

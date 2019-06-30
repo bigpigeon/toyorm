@@ -172,7 +172,7 @@ func TestBugNotZeroCreatedAt(t *testing.T) {
 		CreatedAt time.Time
 	}
 	var tab TestNotZeroCreatedAtTable
-	brick := TestDB.Model(&tab)
+	brick := TestDB.Model(&tab).Debug()
 	createTableUnit(brick)(t)
 	date, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
 	require.NoError(t, err)

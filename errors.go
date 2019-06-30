@@ -184,3 +184,11 @@ type ErrInvalidConditionWord struct {
 func (e ErrInvalidConditionWord) Error() string {
 	return fmt.Sprintf("invalid expression '%s' in condition '%s'", e.Word, e.Condition)
 }
+
+type ErrMissingTable struct {
+	Model *Model
+}
+
+func (e ErrMissingTable) Error() string {
+	return fmt.Sprintf("missing model '%s' it's table name '%s'", e.Model.ReflectType.Name(), e.Model.Name)
+}

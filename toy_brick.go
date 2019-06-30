@@ -686,8 +686,8 @@ func (t *ToyBrick) find(value reflect.Value) *Context {
 		return ctx
 	} else {
 		handlers := t.Toy.ModelHandlers("FindOne", t.Model)
-		vList := reflect.New(reflect.SliceOf(value.Type())).Elem()
-		vList.Set(reflect.Append(vList, value))
+		vList := reflect.New(reflect.SliceOf(reflect.PtrTo(value.Type()))).Elem()
+		vList.Set(reflect.Append(vList, value.Addr()))
 		records := NewRecords(t.Model, vList)
 		ctx := NewContext(handlers, t.Limit(1), records)
 		go ctx.Start()
@@ -743,6 +743,59 @@ func (t *ToyBrick) HasTable() (b bool, err error) {
 	exec := t.Toy.Dialect.HasTable(t.Model)
 	err = t.QueryRow(exec).Scan(&b)
 	return b, err
+}
+
+func (t *ToyBrick) MissingTable() error {
+	for _, preload := range t.MapPreloadBrick {
+		if err := preload.MissingTable(); err != nil {
+			return err
+		}
+	}
+	for name := range t.BelongToPreload {
+		preloadBrick := t.MapPreloadBrick[name]
+		if err := preloadBrick.MissingTable(); err != nil {
+			return err
+		}
+	}
+	for name := range t.OneToOnePreload {
+		preloadBrick := t.MapPreloadBrick[name]
+		if err := preloadBrick.MissingTable(); err != nil {
+			return err
+		}
+	}
+	for name := range t.OneToManyPreload {
+		preloadBrick := t.MapPreloadBrick[name]
+		if err := preloadBrick.MissingTable(); err != nil {
+			return err
+		}
+	}
+
+	for name, preload := range t.ManyToManyPreload {
+		preloadBrick := t.MapPreloadBrick[name]
+		if err := preloadBrick.MissingTable(); err != nil {
+			return err
+		}
+		exec := t.Toy.Dialect.HasTable(preload.MiddleModel)
+		var hasTable bool
+		err := t.QueryRow(exec).Scan(&hasTable)
+		if err != nil {
+			return err
+		}
+		if hasTable == false {
+			return ErrMissingTable{preload.MiddleModel}
+		}
+	}
+
+	exec := t.Toy.Dialect.HasTable(t.Model)
+	var hasTable bool
+	err := t.QueryRow(exec).Scan(&hasTable)
+	if err != nil {
+		return err
+	}
+	if hasTable == false {
+		return ErrMissingTable{t.Model}
+	}
+	return nil
 }
 
 func (t *ToyBrick) Count() (count int, err error) {

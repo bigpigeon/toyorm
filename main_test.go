@@ -54,25 +54,29 @@ type TestCreateTable4 struct {
 }
 
 type TestPreloadTableBelongTo struct {
-	ID   int32 `toyorm:"primary key;auto_increment"`
-	Name string
+	ID        int32 `toyorm:"primary key;auto_increment"`
+	Name      string
+	UpdatedAt time.Time `toyorm:"NULL"`
 }
 
 type TestPreloadTableOneToOne struct {
 	ID                 int32 `toyorm:"primary key;auto_increment"`
 	Name               string
-	TestPreloadTableID uint32 `toyorm:"index"`
+	TestPreloadTableID uint32    `toyorm:"index"`
+	UpdatedAt          time.Time `toyorm:"NULL"`
 }
 
 type TestPreloadTableOneToMany struct {
 	ID                 int32 `toyorm:"primary key;auto_increment"`
 	Name               string
-	TestPreloadTableID uint32 `toyorm:"index"`
+	TestPreloadTableID uint32    `toyorm:"index"`
+	UpdatedAt          time.Time `toyorm:"NULL"`
 }
 
 type TestPreloadTableManyToMany struct {
-	ID   int32 `toyorm:"primary key;auto_increment"`
-	Name string
+	ID        int32 `toyorm:"primary key;auto_increment"`
+	Name      string
+	UpdatedAt time.Time `toyorm:"NULL"`
 }
 
 type TestPreloadTable struct {
@@ -807,6 +811,21 @@ func createTableUnit(brick *ToyBrick) func(t testing.TB) {
 
 		result = brick.CreateTable()
 		require.NoError(t, result.Err())
+		for {
+			select {
+			case <-time.After(time.Second):
+				panic("create table fail")
+			default:
+				err := brick.MissingTable()
+				if err != nil {
+					t.Log(err)
+					time.Sleep(10 * time.Millisecond)
+				} else {
+					return
+				}
+			}
+
+		}
 	}
 }
 

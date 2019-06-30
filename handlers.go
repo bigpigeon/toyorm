@@ -172,7 +172,10 @@ func HandlerPreloadInsertOrSave(option string) func(*Context) error {
 			<-ctx.Result.Preload[fieldName].done
 		}
 		for fieldName := range ctx.Brick.ManyToManyPreload {
-			<-ctx.Result.MiddleModelPreload[fieldName].done
+			subResult := ctx.Result.Preload[fieldName]
+			if subResult.Err() == nil {
+				<-ctx.Result.MiddleModelPreload[fieldName].done
+			}
 		}
 		return nil
 	}
@@ -931,6 +934,7 @@ func HandlerCreateTable(ctx *Context) error {
 		action.Result, action.Error = ctx.Brick.Exec(exec)
 		ctx.Result.AddRecord(action)
 	}
+
 	return nil
 }
 
@@ -1011,6 +1015,7 @@ func HandlerPreloadDelete(ctx *Context) error {
 			deletedAtField := preloadBrick.Model.GetFieldWithName("DeletedAt")
 			preloadBrick = preloadBrick.bindDefaultFields(preload.RelationField, deletedAtField)
 		}
+		fmt.Printf("sub records %v\n", subRecords.Source().Interface())
 		result := preloadBrick.deleteWithPrimaryKey(subRecords)
 		ctx.Result.Preload[fieldName] = result
 
@@ -1065,6 +1070,8 @@ func HandlerPreloadDelete(ctx *Context) error {
 		if subSoftDelete == false {
 			primaryFields = append(primaryFields, middleBrick.Model.GetPrimary()[1])
 		}
+		// if has hard delete element in main field or sub field , need delete it's primary key in middle model
+		// avoid to pointing to empty primary keys
 		if len(primaryFields) != 0 {
 			conditions := middleBrick.Search
 			middleBrick = middleBrick.Conditions(nil)
@@ -1084,16 +1091,20 @@ func HandlerPreloadDelete(ctx *Context) error {
 			middleBrick = middleBrick.And().Conditions(conditions)
 			result := middleBrick.delete(middleRecords)
 			ctx.Result.MiddleModelPreload[fieldName] = result
-
 		}
 		manyToManySubRecordMap[fieldName] = subRecords
 	}
 	var hasErr bool
-	for fieldName := range ctx.Brick.ManyToManyPreload {
-		middleResult := ctx.Result.MiddleModelPreload[fieldName]
-		<-middleResult.done
-		if middleResult.Err() != nil {
-			hasErr = true
+	for fieldName, preload := range ctx.Brick.ManyToManyPreload {
+		mainSoftDelete := preload.Model.GetFieldWithName("DeletedAt") != nil
+		subSoftDelete := preload.SubModel.GetFieldWithName("DeletedAt") != nil
+		if mainSoftDelete != true || subSoftDelete != true {
+			middleResult := ctx.Result.MiddleModelPreload[fieldName]
+			<-middleResult.done
+			if middleResult.Err() != nil {
+				hasErr = true
+				continue
+			}
 		}
 		subBrick := ctx.Brick.MapPreloadBrick[fieldName]
 		result := subBrick.deleteWithPrimaryKey(manyToManySubRecordMap[fieldName])
